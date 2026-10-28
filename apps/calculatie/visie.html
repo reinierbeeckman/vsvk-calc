@@ -1,0 +1,1671 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>VSVK IT- &amp; Applicatievisie: Toekomstbestendige On-Premise Architectuur via AI-Driven Development</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Overpass:wght@400;600;700&display=swap">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #f5f5f5;
+      --surface: #ffffff;
+      --surface-2: #edebe6;
+      --ink: #1a1a1a;
+      --muted: #5b5b5b;
+      --line: #dbd7cd;
+      --signal: #ff4e02;
+      --signal-ink: #ffffff;
+      --signal-soft: #ffe3d6;
+      --title: #1a1a1a;
+      --danger: #b3261e;
+      --ok: #1e7a46;
+      --beige: #dbd7cd;
+      --beige-light: #edebe6;
+      --th-bg: #1a1a1a;
+      --head: #ffffff;
+      --head-ink: #1a1a1a;
+      --head-muted: #5b5b5b;
+      --logo-ink: #1a1a1a;
+      --brand-orange: #ff4e02;
+      --f-display: "Arial Black", "Archivo Black", "Arial Bold", Arial, sans-serif;
+      --f-body: Interstate, "Overpass", Arial, "Helvetica Neue", sans-serif;
+      --f-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #121212;
+        --surface: #1a1a1a;
+        --surface-2: #242424;
+        --ink: #f5f5f5;
+        --muted: #a8a6a1;
+        --line: #34322e;
+        --signal: #ff4e02;
+        --signal-ink: #ffffff;
+        --signal-soft: #3a1d10;
+        --title: #f5f5f5;
+        --danger: #ff8a80;
+        --ok: #5fc48a;
+        --beige: #2b2925;
+        --beige-light: #211f1c;
+        --th-bg: #34322e;
+        --head: #1a1a1a;
+        --head-ink: #ffffff;
+        --head-muted: #a8a6a1;
+        --logo-ink: #ffffff;
+        color-scheme: dark;
+      }
+    }
+
+    :root[data-theme="dark"] {
+      --bg: #121212;
+      --surface: #1a1a1a;
+      --surface-2: #242424;
+      --ink: #f5f5f5;
+      --muted: #a8a6a1;
+      --line: #34322e;
+      --signal: #ff4e02;
+      --signal-ink: #ffffff;
+      --signal-soft: #3a1d10;
+      --title: #f5f5f5;
+      --danger: #ff8a80;
+      --ok: #5fc48a;
+      --beige: #2b2925;
+      --beige-light: #211f1c;
+      --th-bg: #34322e;
+      --head: #1a1a1a;
+      --head-ink: #ffffff;
+      --head-muted: #a8a6a1;
+      --logo-ink: #ffffff;
+      color-scheme: dark;
+    }
+
+    :root[data-theme="light"] {
+      --bg: #f5f5f5;
+      --surface: #ffffff;
+      --surface-2: #edebe6;
+      --ink: #1a1a1a;
+      --muted: #5b5b5b;
+      --line: #dbd7cd;
+      --signal: #ff4e02;
+      --signal-ink: #ffffff;
+      --signal-soft: #ffe3d6;
+      --title: #1a1a1a;
+      --danger: #b3261e;
+      --ok: #1e7a46;
+      --beige: #dbd7cd;
+      --beige-light: #edebe6;
+      --th-bg: #1a1a1a;
+      --head: #ffffff;
+      --head-ink: #1a1a1a;
+      --head-muted: #5b5b5b;
+      --logo-ink: #1a1a1a;
+      color-scheme: light;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 15px/1.55 var(--f-body);
+    }
+
+    .wrap {
+      padding-left: max(16px, env(safe-area-inset-left, 0px));
+      padding-right: max(16px, env(safe-area-inset-right, 0px));
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    header.top {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--head);
+      color: var(--head-ink);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 24px;
+      padding-block: 12px 8px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo-svg {
+      display: block;
+      height: 28px;
+      width: auto;
+    }
+
+    .brand span {
+      font: 700 12px/1.2 var(--f-body);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--head-muted);
+      border-left: 1px solid var(--line);
+      padding-left: 16px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      margin-left: auto;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    nav.tabs {
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      border-top: 1px solid var(--line);
+      padding-top: 2px;
+    }
+
+    nav.tabs button {
+      font: 400 12px var(--f-display);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      background: none;
+      border: 0;
+      color: var(--head-muted);
+      padding: 10px 12px 11px;
+      border-bottom: 4px solid transparent;
+      margin-bottom: -1px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color .15s;
+    }
+
+    nav.tabs button:hover {
+      color: var(--head-ink);
+    }
+
+    nav.tabs button.active {
+      color: var(--head-ink);
+      border-bottom-color: var(--brand-orange);
+    }
+
+    main {
+      padding-block: 0 60px;
+      display: grid;
+      gap: 24px;
+    }
+
+    .pagehead {
+      background: var(--beige);
+      padding: 34px 140px 30px 28px;
+      clip-path: polygon(0 0, 100% 0, calc(100% - 110px) 100%, 0 100%);
+      margin-bottom: 6px;
+    }
+
+    .pagehead h1 {
+      font: 400 clamp(22px, 3.2vw, 34px)/1.15 var(--f-display);
+      text-transform: uppercase;
+      margin: 0;
+      border-left: 6px solid var(--brand-orange);
+      padding-left: 16px;
+      color: var(--ink);
+    }
+
+    .pagehead p {
+      margin: 10px 0 0 22px;
+      color: var(--muted);
+      max-width: 95ch;
+      font-size: 15px;
+    }
+
+    .tab-pane {
+      display: none;
+      grid-template-columns: 1fr;
+      gap: 22px;
+    }
+
+    .tab-pane.active {
+      display: grid;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      padding: 22px 24px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .panel.highlight {
+      border-top: 4px solid var(--brand-orange);
+    }
+
+    h2 {
+      font: 400 19px/1.2 var(--f-display);
+      text-transform: uppercase;
+      margin: 0;
+      color: var(--title);
+      border-left: 5px solid var(--brand-orange);
+      padding-left: 14px;
+    }
+
+    h3 {
+      font: 400 15px/1.2 var(--f-display);
+      letter-spacing: .03em;
+      text-transform: uppercase;
+      margin: 0;
+      color: var(--ink);
+    }
+
+    .grid2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 20px;
+    }
+
+    .grid3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 18px;
+    }
+
+    .grid4 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .btn {
+      font: 700 12px var(--f-body);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      border: 2px solid var(--ink);
+      background: transparent;
+      color: var(--ink);
+      padding: 6px 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:hover {
+      background: var(--ink);
+      color: var(--surface);
+    }
+
+    .btn.primary {
+      background: var(--signal);
+      color: var(--signal-ink);
+      border-color: var(--signal);
+    }
+
+    .btn.primary:hover {
+      background: #e04400;
+      border-color: #e04400;
+      color: #fff;
+    }
+
+    .notice {
+      background: var(--signal-soft);
+      border-left: 6px solid var(--signal);
+      padding: 14px 18px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .notice strong {
+      color: var(--ink);
+      font-size: 15px;
+    }
+
+    .notice p {
+      margin: 0;
+      color: var(--ink);
+      font-size: 14px;
+    }
+
+    .chip {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      padding: 2px 8px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: var(--surface-2);
+    }
+
+    .chip.orange {
+      border-color: var(--brand-orange);
+      color: var(--brand-orange);
+      background: var(--signal-soft);
+    }
+
+    .chip.ok {
+      border-color: var(--ok);
+      color: var(--ok);
+    }
+
+    .card {
+      background: var(--surface-2);
+      border-left: 4px solid var(--brand-orange);
+      padding: 16px 18px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .card h4 {
+      margin: 0;
+      font: 700 14px var(--f-body);
+      text-transform: uppercase;
+      letter-spacing: .03em;
+      color: var(--ink);
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13.5px;
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .stat-box {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-top: 3px solid var(--brand-orange);
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat-val {
+      font: 400 32px/1 var(--f-display);
+      color: var(--brand-orange);
+      margin-bottom: 6px;
+    }
+
+    .stat-lab {
+      font: 600 12px var(--f-body);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+    }
+
+    .scroll {
+      overflow-x: auto;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 14px;
+    }
+
+    th {
+      font: 600 12px var(--f-body);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--muted);
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .scroll > table thead th {
+      background: var(--th-bg);
+      color: #ffffff;
+      border-bottom: 0;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+      background: var(--surface-2);
+    }
+
+    /* INTERACTIVE DIAGRAM VIEWER & PAN-ZOOM */
+    .diagram-viewer {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      margin-block: 10px 16px;
+      overflow: hidden;
+      border-radius: 4px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+    }
+
+    .diagram-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      z-index: 5;
+    }
+
+    .diagram-toolbar-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .diagram-badge {
+      font: 700 11px/1 var(--f-body);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      background: var(--signal-soft);
+      color: var(--brand-orange);
+      padding: 4px 8px;
+      border: 1px solid var(--brand-orange);
+      border-radius: 2px;
+    }
+
+    .diagram-hint {
+      font-size: 12px;
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .diagram-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+
+    .d-btn {
+      font: 700 11.5px/1 var(--f-body);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      padding: 6px 10px;
+      background: var(--surface-2);
+      color: var(--ink);
+      border: 1px solid var(--line);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: background .12s, border-color .12s, color .12s;
+      border-radius: 2px;
+      user-select: none;
+    }
+
+    .d-btn:hover {
+      background: var(--ink);
+      color: var(--surface);
+      border-color: var(--ink);
+    }
+
+    .d-btn.primary {
+      background: var(--signal);
+      color: var(--signal-ink);
+      border-color: var(--signal);
+    }
+
+    .d-btn.primary:hover {
+      background: #e04400;
+      border-color: #e04400;
+      color: #ffffff;
+    }
+
+    .d-zoom-badge {
+      font: 700 12px var(--f-body);
+      padding: 5px 9px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      min-width: 52px;
+      text-align: center;
+      cursor: pointer;
+      border-radius: 2px;
+      user-select: none;
+    }
+
+    .d-zoom-badge:hover {
+      border-color: var(--brand-orange);
+      color: var(--brand-orange);
+    }
+
+    .diagram-viewport {
+      position: relative;
+      height: 580px;
+      min-height: 420px;
+      max-height: 85vh;
+      resize: vertical;
+      overflow: hidden;
+      cursor: grab;
+      outline: none;
+      touch-action: none;
+      background-color: var(--surface-2);
+      background-image: radial-gradient(var(--line) 1px, transparent 1px);
+      background-size: 24px 24px;
+      user-select: none;
+    }
+
+    .diagram-viewport:focus-visible {
+      outline: 2px solid var(--brand-orange);
+      outline-offset: -2px;
+    }
+
+    .diagram-viewport.is-grabbing {
+      cursor: grabbing !important;
+    }
+
+    .diagram-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
+      will-change: transform;
+      pointer-events: auto;
+    }
+
+    .diagram-canvas svg {
+      max-width: none !important;
+      width: auto !important;
+      height: auto !important;
+      display: block;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.12));
+    }
+
+    /* FULLSCREEN OVERLAY */
+    .diagram-viewer.is-fullscreen {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: none !important;
+      max-height: none !important;
+      z-index: 99999 !important;
+      margin: 0 !important;
+      border-radius: 0 !important;
+      border: none !important;
+      box-shadow: none !important;
+      background: var(--bg) !important;
+    }
+
+    .diagram-viewer.is-fullscreen .diagram-viewport {
+      height: calc(100vh - 54px) !important;
+      max-height: none !important;
+      flex: 1 1 auto !important;
+      resize: none !important;
+    }
+
+    @media print {
+      header.top nav, .header-actions, .diagram-toolbar { display: none !important; }
+      .tab-pane { display: grid !important; page-break-after: always; }
+      .pagehead { clip-path: none !important; padding: 16px !important; }
+      body { background: #fff !important; color: #000 !important; }
+      .panel { border: 1px solid #ccc !important; box-shadow: none !important; }
+      .diagram-viewport {
+        height: auto !important;
+        resize: none !important;
+        overflow: visible !important;
+        background: transparent !important;
+      }
+      .diagram-canvas { position: static !important; transform: none !important; }
+      .diagram-canvas svg { max-width: 100% !important; width: 100% !important; height: auto !important; }
+    }
+
+    @media (max-width: 768px) {
+      .pagehead {
+        padding: 24px 60px 22px 16px;
+        clip-path: polygon(0 0, 100% 0, calc(100% - 50px) 100%, 0 100%);
+      }
+      .brand span { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="bar">
+      <div class="brand">
+        <svg class="logo-svg" viewBox="0 0 700 130" role="img" aria-label="VSVK">
+          <path fill="var(--brand-orange)" d="M 0 127.2 L 68.1 64.4 L 0 1.5 L 58.4 1.5 L 125.6 64.1 L 58.4 127.2 Z M 0 127.2M 0 93.1 L 32.6 64.4 L 0 35.6 Z M 0 93.1M 125.7 32 L 93.4 1.5 L 125.7 1.5 Z M 125.7 32M 95.2 127.2 L 125.7 94.9 L 125.7 127.2 Z M 95.2 127.2"/>
+          <path fill="var(--logo-ink)" d="M 242.8 128.1 L 289.6 2.1 L 250.1 2.1 L 222.1 92.8 L 193.8 2.1 L 153 2.1 L 200.6 128.1 Z M 354.1 130.2 C 366.3 130.2 376.4 128.5 384.4 125 C 392.4 121.4 398.7 116.3 403.2 109.5 C 407.6 102.6 409.9 95.2 409.9 87.1 C 409.9 80.2 408.2 74 404.8 68.5 C 401.5 62.9 396.1 58.3 388.8 54.5 C 381.4 50.8 369.2 47.1 352.2 43.4 C 345.3 42 341 40.4 339.1 38.8 C 337.3 37.1 336.3 35.3 336.3 33.3 C 336.3 30.6 337.5 28.3 339.7 26.3 C 342 24.4 345.4 23.5 350 23.5 C 355.5 23.5 359.8 24.7 362.9 27.3 C 366 29.9 368.1 34 369 39.7 L 405.7 37.5 C 404.1 24.5 399.1 15 390.7 9 C 382.2 3 369.9 0 353.8 0 C 340.7 0 330.4 1.6 322.9 4.9 C 315.3 8.2 309.7 12.8 305.9 18.5 C 302.2 24.3 300.3 30.4 300.3 36.9 C 300.3 46.7 304 54.8 311.3 61.2 C 318.6 67.5 330.8 72.6 347.8 76.5 C 358.2 78.8 364.9 81.2 367.8 83.8 C 370.6 86.3 372.1 89.3 372.1 92.5 C 372.1 96 370.5 99 367.5 101.6 C 364.5 104.2 360.3 105.5 354.7 105.5 C 347.2 105.5 341.5 103 337.5 97.9 C 335.1 94.7 333.4 90.1 332.6 84.1 L 295.6 86.4 C 296.7 99.1 301.3 109.6 309.6 117.9 C 317.8 126.1 332.7 130.2 354.1 130.2 Z M 506.8 128.1 L 553.5 2.1 L 514 2.1 L 486.1 92.8 L 457.7 2.1 L 417 2.1 L 464.6 128.1 Z M 605.4 128.1 L 605.4 97.3 L 625.5 76.3 L 652.1 128.1 L 700 128.1 L 652.1 49.7 L 697.9 2.1 L 646.2 2.1 L 605.4 49.7 L 605.4 2.1 L 566.5 2.1 L 566.5 128.1 Z M 605.4 128.1"/>
+        </svg>
+        <span>IT- &amp; Applicatievisie</span>
+      </div>
+      <div class="header-actions">
+        <a href="index.html" class="btn" title="Open de actieve calculatie-app">Naar Calculatie App &rarr;</a>
+        <button class="btn" id="themeBtn" title="Wissel tussen donker en licht thema">Thema</button>
+        <button class="btn primary" onclick="window.print()" title="Print directie-dossier">Afdrukken / PDF</button>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="active" data-tab="samenvatting">1. Samenvatting</button>
+      <button data-tab="lagen">2. 4 Kernlagen</button>
+      <button data-tab="citizen">3. AI Citizen Dev</button>
+      <button data-tab="voordelen">4. Waarom Deze Koers</button>
+      <button data-tab="governance">5. IT-Rol &amp; Governance</button>
+      <button data-tab="besluiten">6. Directie Besluiten</button>
+      <button data-tab="alles">Alles Tonen</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="pagehead">
+    <h1>De Toekomstbestendige On-Premise Applicatiearchitectuur</h1>
+    <p>Management Samenvatting: Hoe VSVK maximale innovatiesnelheid bereikt via <strong>AI-Driven Development</strong>, terwijl alle bedrijfsdata 100% veilig en soeverein on-premise blijft.</p>
+  </div>
+
+  <!-- TAB 1: MANAGEMENT SAMENVATTING -->
+  <section class="tab-pane active" id="pane-samenvatting">
+    <div class="panel highlight">
+      <h2>Het Strategische Doel: De Veilige Snelweg voor de Business</h2>
+      <p>VSVK staat voor een strategische keuze: bouwen we als IT-afdeling traditioneel elke gewenste bedrijfsapplicatie stuk voor stuk zelf, of bouwen we een <strong>on-premise digitale infrastructuur</strong> waarin de business met behulp van Generatieve AI (zoals Claude en ChatGPT) zélf veilig en razendsnel applicaties kan samenstellen?</p>
+
+      <div class="notice">
+        <strong>De Kernboodschap voor de Directie:</strong>
+        <p>IT bouwt niet langer de losse applicaties, maar levert de <strong>veilige snelweg (gestandaardiseerde API's en data)</strong> waar de organisatie gebruik van maakt. Bedrijfsdata blijft fysiek 100% on-premise binnen de eigen muren en servers, terwijl medewerkers binnen enkele uren specifieke tools kunnen creëren.</p>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-box">
+          <div class="stat-val">100%</div>
+          <div class="stat-lab">On-Premise Data Soevereiniteit</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">0</div>
+          <div class="stat-lab">Geheimen of Sleutels in de Browser</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">Uren</div>
+          <div class="stat-lab">Doorlooptijd per nieuwe app (i.p.v. maanden)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">0%</div>
+          <div class="stat-lab">Vendor Lock-in (Modulair &amp; Open)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <h3>Het Traditionele Probleem: Wachtlijst &amp; Shadow IT</h3>
+        <ul>
+          <li><strong>IT als bottleneck:</strong> De wens voor calculatie-, werkvoorbereidings- en rapportagetools groeit sneller dan IT kan programmeren.</li>
+          <li><strong>Shadow IT risico:</strong> Medewerkers gaan zelf knutselen met losse spreadsheets, ongecontroleerde cloudtools of plakken gevoelige data in publieke AI's.</li>
+          <li><strong>Gefragmenteerde data:</strong> Kennis en tarieven raken verspreid over desktops, met dataverlies en inconsistenties als gevolg.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h3>De Oplossing: AI-Driven Citizen Development op On-Premise API's</h3>
+        <ul>
+          <li><strong>Natuurlijke taal als code:</strong> Een medewerker omschrijft in Nederlands wat nodig is; AI genereert direct de veilige webapp.</li>
+          <li><strong>API-contracten als grens:</strong> De AI kan uitsluitend communiceren via door IT goedgekeurde, machine-leesbare API-specificaties (OpenAPI).</li>
+          <li><strong>Zero-Trust beveiliging:</strong> Geen enkele app krijgt directe databasetoegang; elke actie wordt aan de poort gecontroleerd tegen Active Directory rollen.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 2: DE 4 KERNLAGEN -->
+  <section class="tab-pane" id="pane-lagen">
+    <div class="panel highlight">
+      <h2>De 4 Kernlagen van de Doelarchitectuur</h2>
+      <p>Om maximale flexibiliteit, controle en data-veiligheid te garanderen, is de architectuur strikt opgeknipt in vier onafhankelijke lagen:</p>
+
+      <!-- INTERACTIEVE MERMAID VIEWER VOOR DE 4 LAGEN -->
+      <div class="diagram-viewer" id="viewer-lagen">
+        <div class="diagram-toolbar">
+          <div class="diagram-toolbar-info">
+            <span class="diagram-badge">Architectuur Diagram</span>
+            <span class="diagram-hint">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
+              Sleep om te bewegen &bull; Scroll om te zoomen
+            </span>
+          </div>
+          <div class="diagram-actions">
+            <button type="button" class="d-btn" data-action="zoom-in" title="Inzoomen (+)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <span>+</span>
+            </button>
+            <button type="button" class="d-btn" data-action="zoom-out" title="Uitzoomen (-)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <span>&minus;</span>
+            </button>
+            <span class="d-zoom-badge" data-action="reset" title="Klik om te herstellen naar 100%">100%</span>
+            <button type="button" class="d-btn" data-action="reset" title="Ware grootte (1:1 / 0)">
+              <span>1:1</span>
+            </button>
+            <button type="button" class="d-btn" data-action="fit" title="Passend maken in venster (F)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+              <span>Fit</span>
+            </button>
+            <button type="button" class="d-btn primary" data-action="fullscreen" title="Volledig scherm (Esc)">
+              <svg class="icon-expand" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <svg class="icon-compress" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" style="display:none;"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span class="fs-text">Volledig scherm</span>
+            </button>
+            <button type="button" class="d-btn" data-action="export-svg" title="Exporteer als SVG">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>SVG</span>
+            </button>
+          </div>
+        </div>
+        <div class="diagram-viewport" tabindex="0" role="region" aria-label="Interactief diagram 4 kernlagen">
+          <div class="diagram-canvas">
+            <pre class="mermaid">
+graph TD
+    subgraph L1 ["1. Presentatielaag (Front-end: AI-Generated SPAs)"]
+        APP_CALC["Calculatie & Offerte App (Browser SPA)"]
+        APP_DASH["Directie & Project Dashboard (Browser SPA)"]
+        APP_MOB["Planning & Werkbonnen (Tablet/Mobiel)"]
+        APP_AI["AI Copilot & Rapportagetools (Browser)"]
+    end
+
+    subgraph L2 ["2. Enterprise Control & Governance (On-Premise API Gateway)"]
+        GW["API Gateway (bijv. Kong / Traefik on-premise)"]
+        AUTH["Active Directory / OAuth2 SSO / MFA Segregatie"]
+        RATE["Rate Limiting & Netwerkbescherming"]
+        AUDIT["Centrale Audit Logging & Compliance Monitor"]
+    end
+
+    subgraph L3 ["3. Backend API-laag (IT-Managed Core Services)"]
+        API_CORE["Core Domein API's (.NET Core / Python Stateless)"]
+        RULES["Bedrijfsproces- & Rekenregels (Tarieven, Marges, Validatie)"]
+        ORCH["AI-Orchestratie & RAG Connector (Context injectie)"]
+    end
+
+    subgraph L4 ["4. Centrale Datalaag (Single Source of Truth - On-Premise)"]
+        DB[("PostgreSQL / SQL Server (Relationele Bedrijfsdata)")]
+        VEC[("pgvector (AI Vectoren & Besteksdocumenten)")]
+        BACKUP["Automatische WAL & On-Premise Back-up Straat"]
+    end
+
+    APP_CALC -->|HTTPS / JSON REST| GW
+    APP_DASH -->|HTTPS / JSON REST| GW
+    APP_MOB -->|HTTPS / JSON REST| GW
+    APP_AI -->|HTTPS / JSON REST| GW
+
+    GW --- AUTH
+    GW --- RATE
+    GW --- AUDIT
+
+    GW -->|Geautoriseerde calls| API_CORE
+    API_CORE --> RULES
+    API_CORE --> ORCH
+
+    API_CORE -->|Gevalideerde SQL Queries| DB
+    ORCH -->|Vector Zoekacties| VEC
+    DB --- BACKUP
+            </pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid4">
+      <div class="panel">
+        <span class="chip orange">Laag 1</span>
+        <h3>1. Presentatielaag (Front-end)</h3>
+        <ul>
+          <li><strong>Single Page Applications (SPA):</strong> Draaien 100% in de browser van de gebruiker.</li>
+          <li><strong>Geen datalogica:</strong> Bevatten geen rechtstreekse SQL of bedrijfsgeheimen.</li>
+          <li><strong>Geen API-keys:</strong> Geen hardcoded wachtwoorden; authenticatie verloopt via sessietokens.</li>
+          <li><strong>AI-Gegenereerd:</strong> Kan vliegensvlug door medewerkers via Claude/ChatGPT worden gebouwd.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <span class="chip orange">Laag 2</span>
+        <h3>2. Control &amp; Governance (Gateway)</h3>
+        <ul>
+          <li><strong>Digitale vestingmuur:</strong> On-premise API Gateway (Kong of Traefik).</li>
+          <li><strong>Identiteitscontrole:</strong> Koppeling met Active Directory / Entra ID en vestigingssegregatie.</li>
+          <li><strong>Overbelastingsbeveiliging:</strong> Rate limiting voorkomt dat een haperende app de servers platlegt.</li>
+          <li><strong>Volledige audittrail:</strong> Elke data-opvraag wordt direct gelogd voor verantwoording.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <span class="chip orange">Laag 3</span>
+        <h3>3. Backend API-laag (IT-Managed)</h3>
+        <ul>
+          <li><strong>Stateless programmatuur:</strong> Robuuste backend in .NET Core of Python.</li>
+          <li><strong>Bewaakt bedrijfsprocessen:</strong> Zorgt dat rekenregels, nummerreeksen en marges centraal kloppen.</li>
+          <li><strong>Veilige vertaalslag:</strong> Vertaalt generieke frontend-vragen naar geoptimaliseerde SQL-queries.</li>
+          <li><strong>AI-Orkestratie:</strong> Voedt AI-vragen met betrouwbare RAG-context uit de database.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <span class="chip orange">Laag 4</span>
+        <h3>4. Centrale Datalaag (SSOT)</h3>
+        <ul>
+          <li><strong>1 Centrale database:</strong> On-premise PostgreSQL of SQL Server op eigen hardware.</li>
+          <li><strong>Single Source of Truth:</strong> Financiële stamdata, calculaties en offertes op één centrale plek.</li>
+          <li><strong>AI Vector Opslag:</strong> <code>pgvector</code> bewaart bestekken en documentkennis soeverein.</li>
+          <li><strong>Fysiek binnen de muren:</strong> Data verlaat het pand niet; back-ups blijven in eigen beheer.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3: AI CITIZEN DEVELOPMENT -->
+  <section class="tab-pane" id="pane-citizen">
+    <div class="panel highlight">
+      <h2>De Strategische Doorbraak: Citizen Development via AI</h2>
+      <p>In plaats van maanden te wachten tot IT tijd heeft om een scherm te bouwen, kan de business zélf innoveren. Medewerkers gebruiken AI als ontwikkelaar, terwijl IT de kaders bewaakt via machine-leesbare API-contracten.</p>
+
+      <!-- INTERACTIEVE MERMAID VIEWER VOOR HET CITIZEN DEV PROCES -->
+      <div class="diagram-viewer" id="viewer-citizen">
+        <div class="diagram-toolbar">
+          <div class="diagram-toolbar-info">
+            <span class="diagram-badge">Werkwijze Sequentie</span>
+            <span class="diagram-hint">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
+              Sleep om te bewegen &bull; Scroll om te zoomen
+            </span>
+          </div>
+          <div class="diagram-actions">
+            <button type="button" class="d-btn" data-action="zoom-in" title="Inzoomen (+)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <span>+</span>
+            </button>
+            <button type="button" class="d-btn" data-action="zoom-out" title="Uitzoomen (-)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <span>&minus;</span>
+            </button>
+            <span class="d-zoom-badge" data-action="reset" title="Klik om te herstellen naar 100%">100%</span>
+            <button type="button" class="d-btn" data-action="reset" title="Ware grootte (1:1 / 0)">
+              <span>1:1</span>
+            </button>
+            <button type="button" class="d-btn" data-action="fit" title="Passend maken in venster (F)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+              <span>Fit</span>
+            </button>
+            <button type="button" class="d-btn primary" data-action="fullscreen" title="Volledig scherm (Esc)">
+              <svg class="icon-expand" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <svg class="icon-compress" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" style="display:none;"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span class="fs-text">Volledig scherm</span>
+            </button>
+            <button type="button" class="d-btn" data-action="export-svg" title="Exporteer als SVG">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>SVG</span>
+            </button>
+          </div>
+        </div>
+        <div class="diagram-viewport" tabindex="0" role="region" aria-label="Interactief sequentiediagram citizen development">
+          <div class="diagram-canvas">
+            <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Medewerker as Business Medewerker (Citizen Dev)
+    participant AI as Generatieve AI (Claude / ChatGPT)
+    participant IT as IT OpenAPI Contracten (Swagger)
+    participant Browser as Browser van Gebruiker (SPA)
+    participant GW as On-Premise API Gateway (Kong)
+    participant DB as Centrale On-Premise Database
+
+    Note over Medewerker,AI: Stap 1: Vraag in Natuurlijke Taal
+    Medewerker->>AI: "Bouw een calculatietool voor tunnelprojecten met vestigingsfilters"
+    
+    Note over AI,IT: Stap 2: Machine-leesbaar API-Contract
+    AI->>IT: Leest officiële OpenAPI v3 specificatie (endpoints, datatypes, validaties)
+    IT-->>AI: Gestandaardiseerde endpoints (/api/v1/tarieven, /api/v1/calculaties)
+    
+    Note over AI,Browser: Stap 3: Generatie van Sandboxed Front-end
+    AI->>Browser: Genereert complete HTML/CSS/JS Single Page Application
+    
+    Note over Browser,DB: Stap 4: Veilige Runtime Communicatie
+    Browser->>GW: REST Call met Active Directory Auth Token
+    GW->>GW: Valideert token, past rol & vestigingssegregatie toe
+    GW->>DB: Haalt uitsluitend geautoriseerde data op
+    DB-->>GW: Resultaatset
+    GW-->>Browser: Veilige JSON respons
+    Browser-->>Medewerker: Direct werkend en up-to-date scherm
+            </pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <h3>1. Natuurlijke Taal als Programmeertaal</h3>
+        <p>Niet-technische collega's hoeven geen syntax, SQL of frameworks te leren. Zij formuleren in helder Nederlands hun functionele wens:</p>
+        <div class="notice">
+          <strong>Voorbeeld Prompt:</strong>
+          <p><em>"Maak een dashboard voor de vestigingsleider in Rilland dat openstaande offertes boven € 50.000 toont met geautomatiseerde opvolgingsdatums."</em></p>
+        </div>
+        <p>Claude of ChatGPT genereert direct een complete, responsieve Single Page Application die exact aansluit op de huisstijl van VSVK.</p>
+      </div>
+
+      <div class="panel">
+        <h3>2. API-Contracten als Onwrikbare Blauwdruk</h3>
+        <p>De AI codeert niet in het wilde weg, maar volgt strikt de door IT gepubliceerde <strong>OpenAPI (Swagger) specificaties</strong>:</p>
+        <ul>
+          <li>De AI weet exact welke datavelden bestaan (bijv. <code>tarief_per_uur</code>, <code>vestiging_id</code>, <code>status</code>).</li>
+          <li>De AI kan geen velden of endpoints verzinnen die IT niet vooraf heeft goedgekeurd.</li>
+          <li>De resulterende applicatie voldoet automatisch aan de security- en architectural rules van VSVK.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 4: WAAROM DEZE KOERS -->
+  <section class="tab-pane" id="pane-voordelen">
+    <div class="panel highlight">
+      <h2>Waarom de Directie voor deze Koers Moet Kiezen</h2>
+      <p>Vier fundamentele strategische voordelen die de continuïteit, veiligheid en wendbaarheid van VSVK borgen:</p>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h4>1. 100% Data Soevereiniteit (Veiligheid &amp; Compliancy)</h4>
+        <p>Alle bedrijfsdata blijft fysiek binnen de eigen muren en op eigen on-premise servers. Data verlaat de organisatie niet naar publieke clouds of AI-trainingsservers. Dit is essentieel voor privacywetgeving (AVG/GDPR), bescherming van calculatiemarges en intellectueel eigendom van VSVK.</p>
+      </div>
+
+      <div class="card">
+        <h4>2. Zero-Trust Beveiliging &amp; Rolsegregatie</h4>
+        <p>Omdat alle AI-gegenereerde applicaties verplicht via de centrale on-premise API Gateway moeten communiceren, behoudt IT de volledige controle. Gebruikers kunnen via een AI-app nooit data inzien waar zij op basis van hun Active Directory bedrijfsprofiel en vestiging geen expliciet recht op hebben.</p>
+      </div>
+
+      <div class="card">
+        <h4>3. Extreme Versnelling van Innovatie</h4>
+        <p>De business kan binnen enkele uren in plaats van maanden specifieke tools bouwen die processen direct optimaliseren. De druk op de IT-afdeling verschuift: IT hoeft geen schermen meer te bouwen en te onderhouden, maar concentreert zich op het betrouwbaar en snel beschikbaar stellen van data.</p>
+      </div>
+
+      <div class="card">
+        <h4>4. Geen Vendor Lock-in (Toekomstbestendig)</h4>
+        <p>De architectuur is volledig modulair en technologie-agnostisch opgebouwd op basis van open standaarden (REST, JSON, OpenAPI, PostgreSQL). Mocht VSVK in de toekomst willen wisselen van AI-model, database of gateway, dan kan dat moeiteloos zonder dat bestaande applicaties herschreven hoeven te worden.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Strategische Vergelijking: Traditioneel vs. On-Premise AI-Driven</h3>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Criterium</th>
+              <th>Traditionele IT-Ontwikkeling</th>
+              <th>On-Premise AI-Driven Development</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Doorlooptijd nieuwe tool</strong></td>
+              <td>3 tot 9 maanden (lange backlog)</td>
+              <td><strong>Enkele uren tot 2 dagen</strong></td>
+            </tr>
+            <tr>
+              <td><strong>Dataopslag &amp; Soevereiniteit</strong></td>
+              <td>Vaak versnipperd over SaaS-clouds of lokale pc's</td>
+              <td><strong>100% On-Premise (Single Source of Truth)</strong></td>
+            </tr>
+            <tr>
+              <td><strong>Rol van de IT-afdeling</strong></td>
+              <td>Bouwer van formulieren &amp; schermen (bottleneck)</td>
+              <td><strong>Beheerder van de veilige snelweg &amp; data-API's</strong></td>
+            </tr>
+            <tr>
+              <td><strong>Shadow IT Risico</strong></td>
+              <td>Hoog: personeel gebruikt onveilige externe tools</td>
+              <td><strong>Nul: medewerkers bouwen binnen het IT-raamwerk</strong></td>
+            </tr>
+            <tr>
+              <td><strong>Kosten per nieuwe applicatie</strong></td>
+              <td>Hoog (€ 25k &minus; € 100k per maatwerk app)</td>
+              <td><strong>Marginaal (AI-generatie op bestaande API's)</strong></td>
+            </tr>
+            <tr>
+              <td><strong>Veiligheid &amp; Zero-Trust</strong></td>
+              <td>Per app wisselend en moeilijk te auditen</td>
+              <td><strong>Centraal afgedwongen op de API Gateway</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 5: GOVERNANCE & IT-ROL -->
+  <section class="tab-pane" id="pane-governance">
+    <div class="panel highlight">
+      <h2>De Nieuwe Rol van IT: Van Schermenbouwer naar Data-Enabler</h2>
+      <p>In deze moderne architectuur transformeert de IT-afdeling van een reactieve servicedesk naar een strategische facilitator van bedrijfsgroei.</p>
+    </div>
+
+    <div class="grid3">
+      <div class="panel">
+        <span class="chip orange">Pijler 1</span>
+        <h3>API-Catalogus &amp; Contracten</h3>
+        <p>IT publiceert en beheert een centrale catalogus van OpenAPI-specificaties. Deze contracten definiëren exact welke data (tarieven, offertes, projecten) beschikbaar is en garanderen dat AI-applicaties foutloos aansluiten.</p>
+      </div>
+
+      <div class="panel">
+        <span class="chip orange">Pijler 2</span>
+        <h3>Identiteit &amp; Toegangsbeheer</h3>
+        <p>Koppeling met Microsoft Active Directory / Entra ID. Gebruikers loggen in met Single Sign-On (SSO) en Multi-Factor Authenticatie (MFA). De gateway segregeert data strikt per vestiging (Pijnacker, Rilland, Wamel).</p>
+      </div>
+
+      <div class="panel">
+        <span class="chip orange">Pijler 3</span>
+        <h3>Monitoring, Rate Limiting &amp; Audit</h3>
+        <p>Realtime monitoring op query-snelheden en API-gebruik. Ongewoon gedrag of overbelasting wordt direct afgevangen. Volledige audit-logs tonen exact wie welke calculatie of offerte heeft opgevraagd of gewijzigd.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Design System &amp; Visuele Richtlijnen</h3>
+      <p>Om te voorkomen dat elke AI-applicatie er anders uitziet, stelt IT een gestandaardiseerd CSS-framework (VSVK UI Design Kit) beschikbaar. Wanneer een medewerker aan Claude of ChatGPT vraagt een app te genereren, verwijst de prompt naar dit stijldocument. Het resultaat is een professionele, uniforme gebruikerservaring over alle bedrijfsapplicaties heen.</p>
+    </div>
+  </section>
+
+  <!-- TAB 6: DIRECTIE BESLUITEN -->
+  <section class="tab-pane" id="pane-besluiten">
+    <div class="panel highlight">
+      <h2>Besluitvorming voor het Directieoverleg</h2>
+      <p>Drie concrete besluiten om de overgang naar deze toekomstbestendige applicatie-infrastructuur in gang te zetten:</p>
+    </div>
+
+    <div class="grid3">
+      <div class="panel">
+        <span class="chip orange">Besluit 1</span>
+        <h3>Inrichten On-Premise API Gateway</h3>
+        <p><strong>Aanbeveling:</strong> Goedkeuring voor het installeren en configureren van een enterprise on-premise API Gateway (Kong of Traefik) gekoppeld aan de interne Active Directory.</p>
+      </div>
+
+      <div class="panel">
+        <span class="chip orange">Besluit 2</span>
+        <h3>Standaardisatie op OpenAPI Contracten</h3>
+        <p><strong>Aanbeveling:</strong> Vastleggen dat alle toekomstige backend-services verplicht via machine-leesbare OpenAPI v3 specificaties worden ontsloten voor AI-gestuurde ontwikkeling.</p>
+      </div>
+
+      <div class="panel">
+        <span class="chip orange">Besluit 3</span>
+        <h3>Start Citizen Development Pilot Calculatie</h3>
+        <p><strong>Aanbeveling:</strong> De huidige calculatie- en offerteapplicatie formaliseren als eerste volwaardige pilot van deze 4-lagen architectuur en de werkwijze documenteren voor de overige vestigingen.</p>
+      </div>
+    </div>
+
+    <div class="notice">
+      <strong>Samenvattende Conclusie voor de Directie:</strong>
+      <p>Door nú te kiezen voor deze ontkoppelde 4-lagen architectuur voorkomt VSVK kostbare desinvesteringen en software-wildgroei. We combineren het beste van twee werelden: <strong>maximale wendbaarheid en innovatiekracht voor de business</strong> via AI, met <strong>absolute controle, veiligheid en data-soevereiniteit</strong> voor IT.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+  // Tab Switching Logic
+  const tabBtns = document.querySelectorAll('nav.tabs button');
+  const panes = document.querySelectorAll('.tab-pane');
+
+  function selectTab(tabKey) {
+    if (tabKey === 'alles') {
+      panes.forEach(p => p.classList.add('active'));
+      tabBtns.forEach(b => b.classList.remove('active'));
+      document.querySelector('nav.tabs button[data-tab="alles"]')?.classList.add('active');
+      renderVisibleDiagrams();
+      return;
+    }
+
+    tabBtns.forEach(b => {
+      b.classList.toggle('active', b.dataset.tab === tabKey);
+    });
+
+    panes.forEach(p => {
+      p.classList.toggle('active', p.id === 'pane-' + tabKey);
+    });
+
+    try { history.replaceState(null, '', '#' + tabKey); } catch(e) {}
+
+    renderVisibleDiagrams();
+  }
+
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectTab(btn.dataset.tab);
+    });
+  });
+
+  // Theme Management
+  const themeBtn = document.getElementById('themeBtn');
+  let currentTheme = localStorage.getItem('vsvk-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', currentTheme);
+
+  // Mermaid Configuration Generator
+  function getMermaidConfig(theme) {
+    return {
+      startOnLoad: false,
+      securityLevel: 'loose',
+      theme: theme === 'dark' ? 'dark' : 'neutral',
+      themeVariables: {
+        fontFamily: 'Interstate, Overpass, Arial, sans-serif',
+        fontSize: '14px',
+        primaryColor: theme === 'dark' ? '#242424' : '#ffffff',
+        primaryTextColor: theme === 'dark' ? '#f5f5f5' : '#1a1a1a',
+        primaryBorderColor: '#ff4e02',
+        lineColor: theme === 'dark' ? '#a8a6a1' : '#5b5b5b',
+        textColor: theme === 'dark' ? '#f5f5f5' : '#1a1a1a',
+        mainBkg: theme === 'dark' ? '#1f1e1b' : '#edebe6',
+        nodeBorder: '#ff4e02'
+      },
+      flowchart: {
+        useMaxWidth: false,
+        htmlLabels: true,
+        curve: 'basis'
+      },
+      sequence: {
+        useMaxWidth: false,
+        diagramMarginX: 30,
+        diagramMarginY: 20
+      }
+    };
+  }
+
+  if (window.mermaid) {
+    mermaid.initialize(getMermaidConfig(currentTheme));
+  }
+
+  // Interactive Pan & Zoom Controller Class
+  class DiagramPanZoom {
+    constructor(viewer) {
+      this.viewer = viewer;
+      this.viewport = viewer.querySelector('.diagram-viewport');
+      this.canvas = viewer.querySelector('.diagram-canvas');
+      this.zoomBadge = viewer.querySelector('.d-zoom-badge');
+      
+      this.state = {
+        scale: 1.0,
+        minScale: 0.15,
+        maxScale: 5.0,
+        x: 0,
+        y: 0,
+        isDragging: false,
+        startX: 0,
+        startY: 0
+      };
+
+      this.activePointers = new Map();
+      this.prevPinchDist = null;
+      this.prevPinchCenter = null;
+      this.hasRendered = false;
+      this.hasInitialFitted = false;
+
+      this.bindEvents();
+    }
+
+    bindEvents() {
+      // Toolbar buttons
+      this.viewer.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const action = btn.dataset.action;
+          if (action === 'zoom-in') this.zoom(1.25);
+          else if (action === 'zoom-out') this.zoom(0.8);
+          else if (action === 'reset') this.reset();
+          else if (action === 'fit') this.fit();
+          else if (action === 'fullscreen') this.toggleFullscreen();
+          else if (action === 'export-svg') this.exportSvg();
+        });
+      });
+
+      // Pointer events for drag & pinch
+      this.viewport.addEventListener('pointerdown', this.onPointerDown.bind(this));
+      this.viewport.addEventListener('pointermove', this.onPointerMove.bind(this));
+      this.viewport.addEventListener('pointerup', this.onPointerUp.bind(this));
+      this.viewport.addEventListener('pointercancel', this.onPointerUp.bind(this));
+      this.viewport.addEventListener('pointerleave', () => {
+        if (this.activePointers.size === 0) {
+          this.state.isDragging = false;
+          this.viewport.classList.remove('is-grabbing');
+        }
+      });
+
+      // Wheel zoom centered on cursor
+      this.viewport.addEventListener('wheel', this.onWheel.bind(this), { passive: false });
+
+      // Double-click to zoom
+      this.viewport.addEventListener('dblclick', this.onDblClick.bind(this));
+
+      // Keyboard navigation
+      this.viewport.addEventListener('keydown', this.onKeyDown.bind(this));
+
+      // ResizeObserver
+      if (window.ResizeObserver) {
+        new ResizeObserver(() => {
+          if (this.viewer.classList.contains('is-fullscreen')) {
+            this.fit();
+          }
+        }).observe(this.viewport);
+      }
+    }
+
+    onPointerDown(e) {
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
+      this.viewport.focus();
+      this.activePointers.set(e.pointerId, e);
+
+      if (this.activePointers.size === 1) {
+        this.state.isDragging = true;
+        this.state.startX = e.clientX - this.state.x;
+        this.state.startY = e.clientY - this.state.y;
+        this.viewport.classList.add('is-grabbing');
+        try { this.viewport.setPointerCapture(e.pointerId); } catch(err) {}
+      } else if (this.activePointers.size === 2) {
+        this.state.isDragging = false;
+        const pts = Array.from(this.activePointers.values());
+        this.prevPinchDist = Math.hypot(pts[0].clientX - pts[1].clientX, pts[0].clientY - pts[1].clientY);
+        const rect = this.viewport.getBoundingClientRect();
+        this.prevPinchCenter = {
+          x: (pts[0].clientX + pts[1].clientX) / 2 - rect.left,
+          y: (pts[0].clientY + pts[1].clientY) / 2 - rect.top
+        };
+      }
+    }
+
+    onPointerMove(e) {
+      if (!this.activePointers.has(e.pointerId)) return;
+      this.activePointers.set(e.pointerId, e);
+
+      if (this.activePointers.size === 1 && this.state.isDragging) {
+        this.state.x = e.clientX - this.state.startX;
+        this.state.y = e.clientY - this.state.startY;
+        this.applyTransform();
+      } else if (this.activePointers.size === 2) {
+        const pts = Array.from(this.activePointers.values());
+        const dist = Math.hypot(pts[0].clientX - pts[1].clientX, pts[0].clientY - pts[1].clientY);
+        const rect = this.viewport.getBoundingClientRect();
+        const center = {
+          x: (pts[0].clientX + pts[1].clientX) / 2 - rect.left,
+          y: (pts[0].clientY + pts[1].clientY) / 2 - rect.top
+        };
+
+        if (this.prevPinchDist && this.prevPinchDist > 0) {
+          const factor = dist / this.prevPinchDist;
+          const newScale = Math.min(this.state.maxScale, Math.max(this.state.minScale, this.state.scale * factor));
+          const ratio = newScale / this.state.scale;
+
+          this.state.x = center.x - (center.x - this.state.x) * ratio;
+          this.state.y = center.y - (center.y - this.state.y) * ratio;
+          this.state.scale = newScale;
+
+          if (this.prevPinchCenter) {
+            this.state.x += (center.x - this.prevPinchCenter.x);
+            this.state.y += (center.y - this.prevPinchCenter.y);
+          }
+
+          this.applyTransform();
+        }
+
+        this.prevPinchDist = dist;
+        this.prevPinchCenter = center;
+      }
+    }
+
+    onPointerUp(e) {
+      this.activePointers.delete(e.pointerId);
+      try { this.viewport.releasePointerCapture(e.pointerId); } catch(err) {}
+
+      if (this.activePointers.size === 0) {
+        this.state.isDragging = false;
+        this.viewport.classList.remove('is-grabbing');
+        this.prevPinchDist = null;
+        this.prevPinchCenter = null;
+      } else if (this.activePointers.size === 1) {
+        const remaining = this.activePointers.values().next().value;
+        this.state.isDragging = true;
+        this.state.startX = remaining.clientX - this.state.x;
+        this.state.startY = remaining.clientY - this.state.y;
+        this.prevPinchDist = null;
+        this.prevPinchCenter = null;
+      }
+    }
+
+    onWheel(e) {
+      e.preventDefault();
+      const rect = this.viewport.getBoundingClientRect();
+      const cursorX = e.clientX - rect.left;
+      const cursorY = e.clientY - rect.top;
+
+      const delta = -e.deltaY;
+      const factor = delta > 0 ? 1.15 : (1 / 1.15);
+      this.zoomAt(factor, cursorX, cursorY);
+    }
+
+    zoomAt(factor, originX, originY) {
+      const newScale = Math.min(this.state.maxScale, Math.max(this.state.minScale, this.state.scale * factor));
+      if (newScale === this.state.scale) return;
+
+      const ratio = newScale / this.state.scale;
+      this.state.x = originX - (originX - this.state.x) * ratio;
+      this.state.y = originY - (originY - this.state.y) * ratio;
+      this.state.scale = newScale;
+
+      this.applyTransform();
+    }
+
+    zoom(factor) {
+      const rect = this.viewport.getBoundingClientRect();
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      this.zoomAt(factor, centerX, centerY);
+    }
+
+    onDblClick(e) {
+      const rect = this.viewport.getBoundingClientRect();
+      const cursorX = e.clientX - rect.left;
+      const cursorY = e.clientY - rect.top;
+      const factor = e.shiftKey ? 0.7 : 1.4;
+      this.zoomAt(factor, cursorX, cursorY);
+    }
+
+    onKeyDown(e) {
+      if (['+', '='].includes(e.key)) {
+        e.preventDefault();
+        this.zoom(1.25);
+      } else if (['-', '_'].includes(e.key)) {
+        e.preventDefault();
+        this.zoom(0.8);
+      } else if (e.key === '0') {
+        e.preventDefault();
+        this.reset();
+      } else if (e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        this.fit();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        this.state.y += 40;
+        this.applyTransform();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        this.state.y -= 40;
+        this.applyTransform();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        this.state.x += 40;
+        this.applyTransform();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        this.state.x -= 40;
+        this.applyTransform();
+      }
+    }
+
+    reset() {
+      this.state.scale = 1.0;
+      const svg = this.canvas.querySelector('svg');
+      if (svg) {
+        const vpWidth = this.viewport.clientWidth;
+        const svgWidth = this.getSvgDimensions(svg).width;
+        this.state.x = Math.max(20, (vpWidth - svgWidth) / 2);
+        this.state.y = 20;
+      } else {
+        this.state.x = 20;
+        this.state.y = 20;
+      }
+      this.applyTransform();
+    }
+
+    getSvgDimensions(svg) {
+      let width = 0;
+      let height = 0;
+      try {
+        const bbox = svg.getBBox();
+        if (bbox.width > 0 && bbox.height > 0) {
+          width = bbox.width;
+          height = bbox.height;
+        }
+      } catch(err) {}
+
+      if (!width || !height) {
+        const vb = svg.viewBox?.baseVal;
+        if (vb && vb.width > 0 && vb.height > 0) {
+          width = vb.width;
+          height = vb.height;
+        }
+      }
+
+      if (!width || !height) {
+        const attrW = parseFloat(svg.getAttribute('width'));
+        const attrH = parseFloat(svg.getAttribute('height'));
+        if (attrW && attrH) {
+          width = attrW;
+          height = attrH;
+        }
+      }
+
+      if (!width || !height) {
+        const rect = svg.getBoundingClientRect();
+        width = rect.width / (this.state.scale || 1);
+        height = rect.height / (this.state.scale || 1);
+      }
+
+      return {
+        width: width || 900,
+        height: height || 600
+      };
+    }
+
+    fit(padding = 24) {
+      const svg = this.canvas.querySelector('svg');
+      if (!svg) return;
+      const { width: svgW, height: svgH } = this.getSvgDimensions(svg);
+      const vpW = this.viewport.clientWidth;
+      const vpH = this.viewport.clientHeight;
+
+      const availW = Math.max(100, vpW - padding * 2);
+      const availH = Math.max(100, vpH - padding * 2);
+
+      const scale = Math.min(availW / svgW, availH / svgH);
+      const newScale = Math.min(3.0, Math.max(this.state.minScale, scale));
+
+      this.state.scale = newScale;
+      this.state.x = (vpW - svgW * newScale) / 2;
+      this.state.y = (vpH - svgH * newScale) / 2;
+
+      this.applyTransform();
+    }
+
+    initialFit() {
+      const svg = this.canvas.querySelector('svg');
+      if (!svg) return;
+      const { width: svgW, height: svgH } = this.getSvgDimensions(svg);
+      const vpW = this.viewport.clientWidth;
+      const vpH = this.viewport.clientHeight;
+
+      const scaleW = (vpW - 48) / svgW;
+      const scaleH = (vpH - 48) / svgH;
+
+      let initialScale;
+      if (scaleH >= 0.85) {
+        initialScale = Math.min(scaleW, scaleH);
+        this.state.scale = Math.min(2.0, Math.max(this.state.minScale, initialScale));
+        this.state.x = (vpW - svgW * this.state.scale) / 2;
+        this.state.y = (vpH - svgH * this.state.scale) / 2;
+      } else {
+        initialScale = Math.min(Math.max(scaleW, 0.95), 1.25);
+        this.state.scale = Math.min(this.state.maxScale, Math.max(this.state.minScale, initialScale));
+        this.state.x = Math.max(20, (vpW - svgW * this.state.scale) / 2);
+        this.state.y = 24;
+      }
+
+      this.applyTransform();
+      this.hasInitialFitted = true;
+    }
+
+    applyTransform() {
+      this.canvas.style.transform = `translate3d(${Math.round(this.state.x)}px, ${Math.round(this.state.y)}px, 0) scale(${this.state.scale})`;
+      if (this.zoomBadge) {
+        this.zoomBadge.textContent = `${Math.round(this.state.scale * 100)}%`;
+      }
+    }
+
+    toggleFullscreen() {
+      const isFs = this.viewer.classList.toggle('is-fullscreen');
+      document.body.style.overflow = isFs ? 'hidden' : '';
+
+      const iconExp = this.viewer.querySelector('.icon-expand');
+      const iconComp = this.viewer.querySelector('.icon-compress');
+      const fsText = this.viewer.querySelector('.fs-text');
+
+      if (iconExp) iconExp.style.display = isFs ? 'none' : 'block';
+      if (iconComp) iconComp.style.display = isFs ? 'block' : 'none';
+      if (fsText) fsText.textContent = isFs ? 'Sluiten (Esc)' : 'Volledig scherm';
+
+      setTimeout(() => {
+        this.fit();
+      }, 60);
+    }
+
+    exportSvg() {
+      const svg = this.canvas.querySelector('svg');
+      if (!svg) return;
+      const clone = svg.cloneNode(true);
+      clone.removeAttribute('style');
+      const serializer = new XMLSerializer();
+      let source = serializer.serializeToString(clone);
+      if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
+        source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+      }
+      const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `vsvk-${this.viewer.id || 'visie-diagram'}.svg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+  }
+
+  // Initialize Viewers & Diagram Rendering
+  const viewers = [];
+  document.querySelectorAll('.diagram-viewer').forEach(viewer => {
+    const pre = viewer.querySelector('pre.mermaid');
+    if (pre && !viewer.dataset.rawMermaid) {
+      viewer.dataset.rawMermaid = pre.textContent.trim();
+    }
+    const pz = new DiagramPanZoom(viewer);
+    viewer._panZoom = pz;
+    viewers.push(pz);
+  });
+
+  async function renderDiagram(viewer) {
+    const canvas = viewer.querySelector('.diagram-canvas');
+    const pre = canvas.querySelector('pre.mermaid');
+    
+    if (!pre) {
+      if (viewer._panZoom && !viewer._panZoom.hasInitialFitted && viewer.offsetParent !== null) {
+        viewer._panZoom.initialFit();
+      }
+      return;
+    }
+
+    try {
+      await mermaid.run({ nodes: [pre] });
+      viewer._panZoom.hasRendered = true;
+      setTimeout(() => {
+        viewer._panZoom.initialFit();
+      }, 50);
+    } catch (err) {
+      console.error('Mermaid render error for viewer:', viewer.id, err);
+    }
+  }
+
+  async function renderVisibleDiagrams() {
+    const activePanes = document.querySelectorAll('.tab-pane.active');
+    for (const pane of activePanes) {
+      const paneViewers = pane.querySelectorAll('.diagram-viewer');
+      for (const v of paneViewers) {
+        await renderDiagram(v);
+      }
+    }
+  }
+
+  // Global Escape Listener to Close Fullscreen
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const activeFs = document.querySelector('.diagram-viewer.is-fullscreen');
+      if (activeFs && activeFs._panZoom) {
+        activeFs._panZoom.toggleFullscreen();
+      }
+    }
+  });
+
+  // Re-render all diagrams on theme change
+  async function updateTheme(theme) {
+    currentTheme = theme;
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('vsvk-theme', theme);
+
+    if (window.mermaid) {
+      mermaid.initialize(getMermaidConfig(currentTheme));
+
+      for (const viewer of document.querySelectorAll('.diagram-viewer')) {
+        const raw = viewer.dataset.rawMermaid;
+        if (!raw) continue;
+        const canvas = viewer.querySelector('.diagram-canvas');
+        canvas.innerHTML = `<pre class="mermaid">${raw}</pre>`;
+        const pre = canvas.querySelector('pre.mermaid');
+        try {
+          await mermaid.run({ nodes: [pre] });
+          if (viewer._panZoom) {
+            viewer._panZoom.applyTransform();
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+  }
+
+  themeBtn?.addEventListener('click', () => {
+    const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    updateTheme(nextTheme);
+  });
+
+  // Initial Hash Routing & Startup Render
+  const initialHash = window.location.hash.replace('#', '');
+  if (initialHash && document.getElementById('pane-' + initialHash)) {
+    selectTab(initialHash);
+  } else if (initialHash === 'alles') {
+    selectTab('alles');
+  } else {
+    renderVisibleDiagrams();
+  }
+</script>
+
+</body>
+</html>
+
