@@ -1,0 +1,1019 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>VSVK Enterprise Doelarchitectuur &amp; Digitaal Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Overpass:wght@400;600;700&display=swap">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #f5f5f5;
+      --surface: #ffffff;
+      --surface-2: #edebe6;
+      --ink: #1a1a1a;
+      --muted: #5b5b5b;
+      --line: #dbd7cd;
+      --signal: #ff4e02;
+      --signal-ink: #ffffff;
+      --signal-soft: #ffe3d6;
+      --title: #1a1a1a;
+      --danger: #b3261e;
+      --ok: #1e7a46;
+      --beige: #dbd7cd;
+      --beige-light: #edebe6;
+      --th-bg: #1a1a1a;
+      --head: #ffffff;
+      --head-ink: #1a1a1a;
+      --head-muted: #5b5b5b;
+      --logo-ink: #1a1a1a;
+      --brand-orange: #ff4e02;
+      --f-display: "Arial Black", "Archivo Black", "Arial Bold", Arial, sans-serif;
+      --f-body: Interstate, "Overpass", Arial, "Helvetica Neue", sans-serif;
+      --f-mono: Interstate, "Overpass", Arial, sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #121212;
+        --surface: #1a1a1a;
+        --surface-2: #242424;
+        --ink: #f5f5f5;
+        --muted: #a8a6a1;
+        --line: #34322e;
+        --signal: #ff4e02;
+        --signal-ink: #ffffff;
+        --signal-soft: #3a1d10;
+        --title: #f5f5f5;
+        --danger: #ff8a80;
+        --ok: #5fc48a;
+        --beige: #2b2925;
+        --beige-light: #211f1c;
+        --th-bg: #34322e;
+        --head: #1a1a1a;
+        --head-ink: #ffffff;
+        --head-muted: #a8a6a1;
+        --logo-ink: #ffffff;
+        color-scheme: dark;
+      }
+    }
+
+    :root[data-theme="dark"] {
+      --bg: #121212;
+      --surface: #1a1a1a;
+      --surface-2: #242424;
+      --ink: #f5f5f5;
+      --muted: #a8a6a1;
+      --line: #34322e;
+      --signal: #ff4e02;
+      --signal-ink: #ffffff;
+      --signal-soft: #3a1d10;
+      --title: #f5f5f5;
+      --danger: #ff8a80;
+      --ok: #5fc48a;
+      --beige: #2b2925;
+      --beige-light: #211f1c;
+      --th-bg: #34322e;
+      --head: #1a1a1a;
+      --head-ink: #ffffff;
+      --head-muted: #a8a6a1;
+      --logo-ink: #ffffff;
+      color-scheme: dark;
+    }
+
+    :root[data-theme="light"] {
+      --bg: #f5f5f5;
+      --surface: #ffffff;
+      --surface-2: #edebe6;
+      --ink: #1a1a1a;
+      --muted: #5b5b5b;
+      --line: #dbd7cd;
+      --signal: #ff4e02;
+      --signal-ink: #ffffff;
+      --signal-soft: #ffe3d6;
+      --title: #1a1a1a;
+      --danger: #b3261e;
+      --ok: #1e7a46;
+      --beige: #dbd7cd;
+      --beige-light: #edebe6;
+      --th-bg: #1a1a1a;
+      --head: #ffffff;
+      --head-ink: #1a1a1a;
+      --head-muted: #5b5b5b;
+      --logo-ink: #1a1a1a;
+      color-scheme: light;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 15px/1.55 var(--f-body);
+    }
+
+    .wrap {
+      padding-left: max(16px, env(safe-area-inset-left, 0px));
+      padding-right: max(16px, env(safe-area-inset-right, 0px));
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    header.top {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--head);
+      color: var(--head-ink);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 24px;
+      padding-block: 12px 8px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo-svg {
+      display: block;
+      height: 28px;
+      width: auto;
+    }
+
+    .brand span {
+      font: 700 12px/1.2 var(--f-body);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--head-muted);
+      border-left: 1px solid var(--line);
+      padding-left: 16px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      margin-left: auto;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    nav.tabs {
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      border-top: 1px solid var(--line);
+      padding-top: 2px;
+    }
+
+    nav.tabs button {
+      font: 400 12.5px var(--f-display);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      background: none;
+      border: 0;
+      color: var(--head-muted);
+      padding: 10px 14px 11px;
+      border-bottom: 4px solid transparent;
+      margin-bottom: -1px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color .15s;
+    }
+
+    nav.tabs button:hover {
+      color: var(--head-ink);
+    }
+
+    nav.tabs button.active {
+      color: var(--head-ink);
+      border-bottom-color: var(--brand-orange);
+    }
+
+    main {
+      padding-block: 0 60px;
+      display: grid;
+      gap: 24px;
+    }
+
+    .pagehead {
+      background: var(--beige);
+      padding: 34px 140px 30px 28px;
+      clip-path: polygon(0 0, 100% 0, calc(100% - 110px) 100%, 0 100%);
+      margin-bottom: 6px;
+    }
+
+    .pagehead h1 {
+      font: 400 clamp(24px, 3.8vw, 38px)/1.15 var(--f-display);
+      text-transform: uppercase;
+      margin: 0;
+      border-left: 6px solid var(--brand-orange);
+      padding-left: 16px;
+      color: var(--ink);
+    }
+
+    .pagehead p {
+      margin: 10px 0 0 22px;
+      color: var(--muted);
+      max-width: 85ch;
+      font-size: 15px;
+    }
+
+    .tab-pane {
+      display: none;
+      grid-template-columns: 1fr;
+      gap: 22px;
+    }
+
+    .tab-pane.active {
+      display: grid;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      padding: 22px 24px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .panel.highlight {
+      border-top: 4px solid var(--brand-orange);
+    }
+
+    h2 {
+      font: 400 20px/1.2 var(--f-display);
+      text-transform: uppercase;
+      margin: 0;
+      color: var(--title);
+      border-left: 5px solid var(--brand-orange);
+      padding-left: 14px;
+    }
+
+    h3 {
+      font: 400 15px/1.2 var(--f-display);
+      letter-spacing: .03em;
+      text-transform: uppercase;
+      margin: 0;
+      color: var(--ink);
+    }
+
+    .grid2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 20px;
+    }
+
+    .grid3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 18px;
+    }
+
+    .btn {
+      font: 700 12px var(--f-body);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      border: 2px solid var(--ink);
+      background: transparent;
+      color: var(--ink);
+      padding: 6px 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:hover {
+      background: var(--ink);
+      color: var(--surface);
+    }
+
+    .btn.primary {
+      background: var(--signal);
+      color: var(--signal-ink);
+      border-color: var(--signal);
+    }
+
+    .btn.primary:hover {
+      background: #e04400;
+      border-color: #e04400;
+      color: #fff;
+    }
+
+    .notice {
+      background: var(--signal-soft);
+      border-left: 6px solid var(--signal);
+      padding: 14px 18px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .notice strong {
+      color: var(--ink);
+      font-size: 15px;
+    }
+
+    .notice p {
+      margin: 0;
+      color: var(--ink);
+      font-size: 14px;
+    }
+
+    .chip {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      padding: 2px 8px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: var(--surface-2);
+    }
+
+    .chip.orange {
+      border-color: var(--brand-orange);
+      color: var(--brand-orange);
+      background: var(--signal-soft);
+    }
+
+    .chip.ok {
+      border-color: var(--ok);
+      color: var(--ok);
+    }
+
+    .scroll {
+      overflow-x: auto;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 14px;
+    }
+
+    th {
+      font: 600 12px var(--f-body);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--muted);
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .scroll > table thead th {
+      background: var(--th-bg);
+      color: #ffffff;
+      border-bottom: 0;
+    }
+
+    td {
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+      background: var(--surface-2);
+    }
+
+    .diagram-box {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      padding: 20px;
+      text-align: center;
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow-x: auto;
+    }
+
+    .card {
+      background: var(--surface-2);
+      border-left: 4px solid var(--brand-orange);
+      padding: 14px 16px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .card h4 {
+      margin: 0;
+      font: 700 14px var(--f-body);
+      text-transform: uppercase;
+      letter-spacing: .03em;
+      color: var(--ink);
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13.5px;
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .stat-box {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-top: 3px solid var(--brand-orange);
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat-val {
+      font: 400 32px/1 var(--f-display);
+      color: var(--brand-orange);
+      margin-bottom: 6px;
+    }
+
+    .stat-lab {
+      font: 600 12px var(--f-body);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+    }
+
+    @media print {
+      header.top nav, .header-actions { display: none !important; }
+      .tab-pane { display: grid !important; page-break-after: always; }
+      .pagehead { clip-path: none !important; padding: 16px !important; }
+      body { background: #fff !important; color: #000 !important; }
+      .panel { border: 1px solid #ccc !important; box-shadow: none !important; }
+    }
+
+    @media (max-width: 768px) {
+      .pagehead {
+        padding: 24px 60px 22px 16px;
+        clip-path: polygon(0 0, 100% 0, calc(100% - 50px) 100%, 0 100%);
+      }
+      .brand span { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="bar">
+      <div class="brand">
+        <svg class="logo-svg" viewBox="0 0 700 130" role="img" aria-label="VSVK">
+          <path fill="var(--brand-orange)" d="M 0 127.2 L 68.1 64.4 L 0 1.5 L 58.4 1.5 L 125.6 64.1 L 58.4 127.2 Z M 0 127.2M 0 93.1 L 32.6 64.4 L 0 35.6 Z M 0 93.1M 125.7 32 L 93.4 1.5 L 125.7 1.5 Z M 125.7 32M 95.2 127.2 L 125.7 94.9 L 125.7 127.2 Z M 95.2 127.2"/>
+          <path fill="var(--logo-ink)" d="M 242.8 128.1 L 289.6 2.1 L 250.1 2.1 L 222.1 92.8 L 193.8 2.1 L 153 2.1 L 200.6 128.1 Z M 354.1 130.2 C 366.3 130.2 376.4 128.5 384.4 125 C 392.4 121.4 398.7 116.3 403.2 109.5 C 407.6 102.6 409.9 95.2 409.9 87.1 C 409.9 80.2 408.2 74 404.8 68.5 C 401.5 62.9 396.1 58.3 388.8 54.5 C 381.4 50.8 369.2 47.1 352.2 43.4 C 345.3 42 341 40.4 339.1 38.8 C 337.3 37.1 336.3 35.3 336.3 33.3 C 336.3 30.6 337.5 28.3 339.7 26.3 C 342 24.4 345.4 23.5 350 23.5 C 355.5 23.5 359.8 24.7 362.9 27.3 C 366 29.9 368.1 34 369 39.7 L 405.7 37.5 C 404.1 24.5 399.1 15 390.7 9 C 382.2 3 369.9 0 353.8 0 C 340.7 0 330.4 1.6 322.9 4.9 C 315.3 8.2 309.7 12.8 305.9 18.5 C 302.2 24.3 300.3 30.4 300.3 36.9 C 300.3 46.7 304 54.8 311.3 61.2 C 318.6 67.5 330.8 72.6 347.8 76.5 C 358.2 78.8 364.9 81.2 367.8 83.8 C 370.6 86.3 372.1 89.3 372.1 92.5 C 372.1 96 370.5 99 367.5 101.6 C 364.5 104.2 360.3 105.5 354.7 105.5 C 347.2 105.5 341.5 103 337.5 97.9 C 335.1 94.7 333.4 90.1 332.6 84.1 L 295.6 86.4 C 296.7 99.1 301.3 109.6 309.6 117.9 C 317.8 126.1 332.7 130.2 354.1 130.2 Z M 506.8 128.1 L 553.5 2.1 L 514 2.1 L 486.1 92.8 L 457.7 2.1 L 417 2.1 L 464.6 128.1 Z M 605.4 128.1 L 605.4 97.3 L 625.5 76.3 L 652.1 128.1 L 700 128.1 L 652.1 49.7 L 697.9 2.1 L 646.2 2.1 L 605.4 49.7 L 605.4 2.1 L 566.5 2.1 L 566.5 128.1 Z M 605.4 128.1"/>
+        </svg>
+        <span>Platform Architectuur &amp; Advies</span>
+      </div>
+      <div class="header-actions">
+        <a href="index.html" class="btn" title="Open de actieve calculatie-app">Naar Calculatie App &rarr;</a>
+        <button class="btn" id="themeBtn" title="Wissel tussen donker en licht thema">Thema</button>
+        <button class="btn primary" onclick="window.print()" title="Print directie-dossier">Afdrukken / PDF</button>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="active" data-tab="samenvatting">1. Samenvatting</button>
+      <button data-tab="lagen">2. 3-Lagen Model</button>
+      <button data-tab="microservices">3. Microservices Visie</button>
+      <button data-tab="security">4. Security &amp; AVG</button>
+      <button data-tab="nfr">5. NFR &amp; Beheer</button>
+      <button data-tab="roadmap">6. Roadmap &amp; Aanpak</button>
+      <button data-tab="directie">7. Directie Agenda</button>
+      <button data-tab="alles">Alles Tonen</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="pagehead">
+    <h1>VSVK Digitaal Platform: Doelarchitectuur</h1>
+    <p>Strategisch advies voor de directie van VSVK over het creëren van een centraal enterprise dataplatform als fundament voor snelle applicatieontwikkeling.</p>
+  </div>
+
+  <!-- TAB 1: SAMENVATTING -->
+  <section class="tab-pane active" id="pane-samenvatting">
+    <div class="panel highlight">
+      <h2>Executive Summary: Van Losse Tool naar Enterprise Fundament</h2>
+      <p>VSVK wil sneller nieuwe bedrijfsapplicaties kunnen ontwikkelen (o.a. calculatie, werkvoorbereiding, planning, urenregistratie, materieel en directie-dashboards). De huidige calculatietool bewijst de functionele meerwaarde, maar slaat data lokaal in de browser op.</p>
+      
+      <div class="notice">
+        <strong>Kernboodschap voor de directie:</strong>
+        <p>Snelheid van applicatieontwikkeling kan alleen duurzaam worden behaald met een <strong>gestandaardiseerd centraal fundament</strong> (Single Source of Truth + API Gateway). Zonder dit fundament leidt elke nieuwe app tot gefragmenteerde data, foutieve calculaties en hoge beheerskosten.</p>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-box">
+          <div class="stat-val">1</div>
+          <div class="stat-lab">Centrale Datalaag (SSOT)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">&minus;60%</div>
+          <div class="stat-lab">Bouwtijd per Volgende App</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">100%</div>
+          <div class="stat-lab">M365 Entra ID SSO &amp; MFA</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">0</div>
+          <div class="stat-lab">Dataverlies bij Browser-reset</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <h3>Huidige Situatie (Baseline Prototype)</h3>
+        <ul>
+          <li>Data staat lokaal in browser <code>localStorage</code> (risico bij wissen/pc-wissel).</li>
+          <li>Artikelen, vestigingen en handtekeningen zitten opgeslagen in één 240 kB JSON-blob.</li>
+          <li>Geen centrale autorisatie of beveiligde koppeling met bedrijfsnetwerk.</li>
+          <li>Nummering en concurrency-checks zijn afhankelijk van een browserclient.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h3>Doelsituatie (Enterprise Dataplatform)</h3>
+        <ul>
+          <li>Centrale interne PostgreSQL database met robuuste relationele kernentiteiten.</li>
+          <li>Centrale API Gateway voor autorisatie, rekenregels en unieke nummeruitgifte.</li>
+          <li>Frontends (web/tablet) kunnen razendsnel inhaken op kant-en-klare API-bouwstenen.</li>
+          <li>Volledig geïntegreerd met bestaande VSVK Microsoft 365 / Entra ID accounts.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 2: 3-LAGEN MODEL -->
+  <section class="tab-pane" id="pane-lagen">
+    <div class="panel highlight">
+      <h2>Het 3-Lagen Model in Detail</h2>
+      <p>Frontends praten nooit direct met de database. De API Gateway reguleert alle verkeersstromen, beveiliging en bedrijfslogica.</p>
+      
+      <div class="diagram-box">
+        <pre class="mermaid">
+graph TD
+    subgraph AppLaag ["3. Applicatielaag (Frontends & Apps)"]
+        A1["Calculatie & Offerte (Web)"]
+        A2["Planning & Werkbonnen (Tablet/Mobiel)"]
+        A3["Uren & Materieel (Web/Mobiel)"]
+        A4["Directie Dashboard & BI"]
+    end
+
+    subgraph GatewayLaag ["2. API Gateway & Business Services"]
+        GW["API Gateway (Reverse Proxy / Routing / Rate Limiting)"]
+        AUTH["Auth Service (Microsoft Entra ID / SSO & MFA)"]
+        CORE_API["Core Domain Services (Klanten, Vestigingen, Tarieven, Calculaties)"]
+        CALC_ENGINE["Calculatie & Nummering Engine (Centraal Rekenmodel)"]
+    end
+
+    subgraph DataLaag ["1. Centrale Datalaag (Single Source of Truth)"]
+        DB[("PostgreSQL Database (ACID / Transacties / Audit Trail)")]
+        BLOB[("Beveiligde Document Storage (PDF's, Handtekeningen)")]
+    end
+
+    A1 -->|HTTPS / REST / JSON| GW
+    A2 -->|HTTPS / REST / JSON| GW
+    A3 -->|HTTPS / REST / JSON| GW
+    A4 -->|HTTPS / REST / JSON| GW
+
+    GW --> AUTH
+    GW --> CORE_API
+    GW --> CALC_ENGINE
+
+    CORE_API --> DB
+    CALC_ENGINE --> DB
+    CORE_API --> BLOB
+        </pre>
+      </div>
+    </div>
+
+    <div class="grid3">
+      <div class="panel">
+        <h3>Laag 1: PostgreSQL Datalaag</h3>
+        <p><strong>Waarom PostgreSQL 16+?</strong></p>
+        <ul>
+          <li><strong>ACID-garanties:</strong> Foutloze nummeruitgifte en statuswijzigingen zonder dubbele records.</li>
+          <li><strong>Hybride:</strong> Relationele kern gecombineerd met geïndexeerde JSONB voor calculatiedetails.</li>
+          <li><strong>Open Source:</strong> Geen vendor lock-in; draait on-premise of in private cloud.</li>
+          <li><strong>Audit Trail:</strong> Automatische vastlegging van wie wat wanneer wijzigt.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h3>Laag 2: API Gateway (Node / .NET)</h3>
+        <p><strong>Verantwoordelijkheden:</strong></p>
+        <ul>
+          <li><strong>Centrale Rekenregels:</strong> Calculatieformules, AK/W&amp;R opslagen en btw staan op de server.</li>
+          <li><strong>Nummer-sequencer:</strong> Concurrency-veilige uitgifte van calculatienummers (bijv. <code>2027-001</code>).</li>
+          <li><strong>OpenAPI / Swagger:</strong> Gestandaardiseerde endpoints voor alle frontends.</li>
+          <li><strong>Security filter:</strong> Rate limiting, token-validatie en threat protection.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h3>Laag 3: Applicatielaag</h3>
+        <p><strong>Snelheid door hergebruik:</strong></p>
+        <ul>
+          <li><strong>Gedeelde DataStore SDK:</strong> Elke app gebruikt dezelfde client voor login en datakoppeling.</li>
+          <li><strong>VSVK UI Stijl:</strong> Knoppen, tabellen, modals en headers zijn eenmalig ontworpen.</li>
+          <li><strong>Multi-device:</strong> Geschikt voor desktop (calculators) én tablets/mobiel (uitvoerders buiten).</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Entity Relationship Diagram (Core Entiteiten)</h3>
+      <div class="diagram-box">
+        <pre class="mermaid">
+erDiagram
+    VESTIGING ||--o{ MEDEWERKER : heeft
+    VESTIGING ||--o{ PROJECT : beheert
+    KLANT ||--o{ PROJECT : "opdrachtgever voor"
+    PROJECT ||--o{ CALCULATIE : bevat
+    CALCULATIE ||--o{ BLOK : "bestaat uit"
+    BLOK ||--o{ REGEL : bevat
+    ARTIKEL ||--o{ REGEL : "wordt gekozen in"
+    CALCULATIE ||--o{ OFFERTE : genereert
+    CALCULATIE ||--o{ PLANNING_ITEM : bevat
+        </pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3: MICROSERVICES -->
+  <section class="tab-pane" id="pane-microservices">
+    <div class="panel highlight">
+      <h2>Enterprise Visie op Microservices: De Pragmatische Evolutie</h2>
+      <p>Moet VSVK alles direct opsplitsen in 20 losse microservices? <strong>Nee.</strong> De bewezen best practice voor deze fase is de <strong>Modulaire Monoliet</strong>.</p>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <h3>De Valkuil van Vroegtijdige Microservices</h3>
+        <ul>
+          <li><strong>Explosie van operationele kosten:</strong> Direct behoefte aan Kubernetes, distributed tracing en complexe service meshes.</li>
+          <li><strong>Verlies van transactie-integriteit:</strong> Cross-service transacties vereisen Saga-patronen en leiden snel tot dataverschillen tussen calculatie, offerte en planning.</li>
+          <li><strong>Vertraging i.p.v. versnelling:</strong> Ontwikkelaars zijn meer tijd kwijt aan netwerkcontracten en containerdeployment dan aan bedrijfsfunctionaliteit.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h3>De Oplossing: De Modulaire Monoliet</h3>
+        <ul>
+          <li><strong>Eén deployment runtime &amp; database:</strong> Eenvoudig te onderhouden, monitoren en back-uppen.</li>
+          <li><strong>Strikte Bounded Contexts:</strong> Modules (Stamdata, Calculaties, Planning, Uren) zijn in de code strikt gescheiden.</li>
+          <li><strong>Geen illegale dwarsverbanden:</strong> Modules praten uitsluitend via expliciete service-interfaces met elkaar.</li>
+          <li><strong>Maximale ontwikkelsnelheid:</strong> Nieuwe apps kunnen direct in gebruik worden genomen.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Modulaire Bounded Contexts &amp; Event-Driven Integratie</h3>
+      <div class="diagram-box">
+        <pre class="mermaid">
+graph TD
+    subgraph APIGw ["API Gateway (Centrale Ingang)"]
+        GW["API Gateway / Reverse Proxy (Routing & Auth)"]
+    end
+
+    subgraph CoreBackend ["Centraal Backend Platform (Modulaire Bounded Contexts)"]
+        AUTH_MOD["Domein 1: Identiteit & Autorisatie"]
+        STAM_MOD["Domein 2: Stamdata (Artikelen, Vestigingen, Tarieven)"]
+        CALC_MOD["Domein 3: Calculatie & Offerte"]
+        PLAN_MOD["Domein 4: Planning & Uitvoering (Toekomstig)"]
+        UREN_MOD["Domein 5: Uren & Materieel (Toekomstig)"]
+    end
+
+    subgraph EventBroker ["Asynchrone Event Bus (Ontkoppeling)"]
+        BUS["Berichtenbus / Events (bijv. OrderGeaccordeerdEvent)"]
+    end
+
+    subgraph DataLaag ["Centrale Datalaag (PostgreSQL)"]
+        DB_STAM[("Schema: Stamdata")]
+        DB_CALC[("Schema: Calculaties")]
+        DB_PLAN[("Schema: Planning")]
+    end
+
+    GW --> AUTH_MOD
+    GW --> STAM_MOD
+    GW --> CALC_MOD
+    GW --> PLAN_MOD
+    GW --> UREN_MOD
+
+    CALC_MOD -.->|Publiceert Event| BUS
+    BUS -.->|Triggert| PLAN_MOD
+
+    STAM_MOD --> DB_STAM
+    CALC_MOD --> DB_CALC
+    PLAN_MOD --> DB_PLAN
+        </pre>
+      </div>
+
+      <div class="notice">
+        <strong>Wanneer wél een microservice afsplitsen?</strong>
+        <p>Omdat de domeinen logisch al strikt gescheiden zijn, kan VSVK in de toekomst zónder herontwerp een domein afsplitsen als zelfstandige microservice. Bijvoorbeeld bij een toekomstige <strong>IoT / Telemetrie module</strong> die tienduizenden GPS- en sensormeldingen per minuut van botsabsorbers en actiewagens ontvangt. De API Gateway schermt dit af: voor de gebruikers blijft de API identiek.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 4: SECURITY -->
+  <section class="tab-pane" id="pane-security">
+    <div class="panel highlight">
+      <h2>Security, Authenticatie &amp; Autorisatie</h2>
+      <p>Enterprise beveiliging gebaseerd op de standaarden van Microsoft 365, gecombineerd met strikte vestigingssegregatie.</p>
+    </div>
+
+    <div class="grid3">
+      <div class="panel">
+        <h3>1. Microsoft Entra ID (SSO &amp; MFA)</h3>
+        <p>Medewerkers loggen in met hun bestaande VSVK-account via <strong>OpenID Connect / OAuth 2.0</strong>.</p>
+        <ul>
+          <li>Geen losse wachtwoorden in de applicatie.</li>
+          <li>MFA wordt automatisch centraal afgedwongen.</li>
+          <li>Bij uitdiensttreding direct uitgeschakeld in alle apps.</li>
+          <li>Kortlevende JWT-tokens bij elk verzoek.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h3>2. Vestigingssegregatie (Data Scoping)</h3>
+        <p>VSVK opereert vanuit 3 vestigingen: <strong>Pijnacker</strong>, <strong>Rilland</strong> en <strong>Wamel</strong>.</p>
+        <ul>
+          <li>De API Gateway filtert queries automatisch op <code>vestiging_id</code>.</li>
+          <li>Calculators zien uitsluitend calculaties van hun eigen vestiging.</li>
+          <li>Directie en centrale administratie hebben overkoepelend inzicht.</li>
+          <li>Voorkomt overschrijffouten en datalekken.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h3>3. AVG &amp; Handtekeningenbeheer</h3>
+        <p>In het prototype zit directie-handtekening <code>SIG_PVK</code> als ongecodeerde base64 in de code.</p>
+        <ul>
+          <li>Handtekeningen verhuizen naar een <strong>beveiligde private object storage</strong>.</li>
+          <li>Alleen geautoriseerde backend-processen renderen handtekeningen in officiële PDF's.</li>
+          <li>Volledige encryptie in transit (TLS 1.3) en at rest (AES-256).</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Autorisatiematrix (Role-Based Access Control)</h3>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Rol</th>
+              <th>Calculaties &amp; Offertes</th>
+              <th>Planning &amp; Uitvoering</th>
+              <th>Stamdata (Tarieven &amp; Artikelen)</th>
+              <th>Vestigingsbereik</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Calculator</strong></td>
+              <td>Aanmaken, wijzigen, indienen</td>
+              <td>Alleen inzien</td>
+              <td>Alleen raadplegen</td>
+              <td>Eigen vestiging</td>
+            </tr>
+            <tr>
+              <td><strong>Projectleider</strong></td>
+              <td>Inzien &amp; status wijzigen</td>
+              <td>Volledig beheer (planning &amp; afroep)</td>
+              <td>Alleen raadplegen</td>
+              <td>Eigen vestiging</td>
+            </tr>
+            <tr>
+              <td><strong>Vestigingsmanager</strong></td>
+              <td>Volledig beheer &amp; goedkeuren</td>
+              <td>Volledig beheer</td>
+              <td>Vestigingsinstellingen</td>
+              <td>Eigen vestiging</td>
+            </tr>
+            <tr>
+              <td><strong>Directie / Beheerder</strong></td>
+              <td>Volledig inzicht &amp; akkoord</td>
+              <td>Volledig inzicht</td>
+              <td>Volledig beheer (uurtarieven &amp; marges)</td>
+              <td>Alle vestigingen (Pijnacker, Rilland, Wamel)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 5: NFR & BEHEER -->
+  <section class="tab-pane" id="pane-nfr">
+    <div class="panel highlight">
+      <h2>Non-Functional Requirements (NFR's) &amp; Beheer</h2>
+      <p>Randvoorwaarden om stabiliteit, snelheid en bedrijfscontinuïteit te garanderen.</p>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <h3>Performance &amp; Caching</h3>
+        <ul>
+          <li><strong>API responstijden:</strong> &lt; 100 ms voor reguliere data-opvragingen; &lt; 300 ms voor complexe lijsten.</li>
+          <li><strong>In-memory Caching:</strong> Artikelen en tarieven wijzigen zelden en worden in het servergeheugen gecachet.</li>
+          <li><strong>Database Connection Pooling:</strong> Efficiënt hergebruik van databaseverbindingen bij piekdrukte.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h3>Back-up &amp; Disaster Recovery</h3>
+        <ul>
+          <li><strong>RPO (Recovery Point Objective) &lt; 1 uur:</strong> Dagelijkse volledige back-up + PostgreSQL Write-Ahead Logging (WAL) voor Point-in-Time Recovery.</li>
+          <li><strong>RTO (Recovery Time Objective) &lt; 2 uur:</strong> Volledig herstel op alternatieve infrastructuur binnen 2 uur bij een calamiteit.</li>
+          <li><strong>Geen klantdata in Git:</strong> Strikte scheiding tussen code en bedrijfsdata.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <h3>Containerization (Docker)</h3>
+        <p>Zowel de database, de API gateway als de webapplicaties draaien in lichtgewicht Docker-containers. Dit garandeert dat de ontwikkel-, test- en productieomgeving 100% identiek zijn.</p>
+      </div>
+
+      <div class="panel">
+        <h3>CI/CD Pipeline (GitHub Actions)</h3>
+        <p>Elke pull request wordt automatisch gecontroleerd op security-kwetsbaarheden, syntax en unit-tests. Goedgekeurde wijzigingen kunnen met één druk op de knop veilig worden uitgerold.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 6: ROADMAP -->
+  <section class="tab-pane" id="pane-roadmap">
+    <div class="panel highlight">
+      <h2>Gefaseerd Software Development Traject</h2>
+      <p>Geen maandenlang risicovol traject in een ivoren toren, maar stapsgewijs waarde leveren met de calculatietool als live pilot.</p>
+      
+      <div class="diagram-box">
+        <pre class="mermaid">
+gantt
+    title Roadmap Digitaal Platform VSVK
+    dateFormat  YYYY-MM-DD
+    section Fase 1: Fundament
+    Architectuurbesluit & Inrichting PostgreSQL :done, 2026-11-01, 10d
+    Core Entiteiten & Datamigratie Stamdata   :active, 2026-11-10, 10d
+    API Gateway Baseline & Entra ID Koppeling  :2026-11-20, 10d
+    section Fase 2: Pilot Calculatie
+    DataStore & GatewayStore Implementatie      :2026-12-01, 10d
+    Valideren Transacties, PDF & Nummering     :2026-12-11, 10d
+    Uitfaseren Claude/LocalStorage fallback    :2026-12-21, 5d
+    Livegang Calculatie op Centrale Datalaag    :milestone, 2026-12-31, 1d
+    section Fase 3: Schalen
+    Ontwikkeling Gedeelde UI Kit & Client SDK   :2027-01-05, 15d
+    Ontwikkelen App 2 (bijv. Uren / Planning)   :2027-01-20, 25d
+        </pre>
+      </div>
+    </div>
+
+    <div class="grid3">
+      <div class="card">
+        <h4>Fase 1: Het Fundament (Weken 1-4)</h4>
+        <p>PostgreSQL database inrichten; migratie van artikelen, tarieven en vestigingen; basis API Gateway met Entra ID SSO.</p>
+      </div>
+      <div class="card">
+        <h4>Fase 2: Pilot Calculatie (Weken 5-7)</h4>
+        <p>Aansluiten huidige calculatietool via <code>GatewayStore</code>; beveiligen van handtekeningen; definitieve livegang van de eerste enterprise app.</p>
+      </div>
+      <div class="card">
+        <h4>Fase 3: Schalen naar Nieuwe Apps (Week 8+)</h4>
+        <p>Opleveren van de herbruikbare VSVK UI Kit &amp; SDK; start van App 2 (bijv. Uren of Werkbonnen) met 60% kortere ontwikkeltijd.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 7: DIRECTIE AGENDA -->
+  <section class="tab-pane" id="pane-directie">
+    <div class="panel highlight">
+      <h2>Gespreksagenda voor het Directieoverleg</h2>
+      <p>Drie concrete strategische besluiten om voor te leggen aan de directietafel.</p>
+    </div>
+
+    <div class="grid3">
+      <div class="panel">
+        <span class="chip orange">Besluit 1</span>
+        <h3>Hostinglocatie</h3>
+        <p><strong>Voorstel:</strong> Private Cloud (Microsoft Azure Nederland / West-Europa) naadloos aangesloten op Microsoft 365.</p>
+        <p><em>Alternatief:</em> On-premise server op hoofdkantoor Pijnacker met VPN-tunnels naar Rilland en Wamel.</p>
+      </div>
+
+      <div class="panel">
+        <span class="chip orange">Besluit 2</span>
+        <h3>Authenticatiebeleid</h3>
+        <p><strong>Voorstel:</strong> Bestaande zakelijke Microsoft 365-accounts aanwijzen als de enige geautoriseerde inlog voor alle interne software (MFA verplicht).</p>
+      </div>
+
+      <div class="panel">
+        <span class="chip orange">Besluit 3</span>
+        <h3>Prioriteit Volgende App</h3>
+        <p><strong>Voorstel:</strong> Akkoord op Fase 1 &amp; 2 (Calculatie-app als live pilot). Vaststellen welke applicatie daarna prioriteit krijgt (Urenregistratie, Buitendienst Werkbonnen of Planning).</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Business Case &amp; Return on Investment (ROI)</h3>
+      <div class="grid2">
+        <div>
+          <h4>Kwantitatieve Baten</h4>
+          <ul>
+            <li><strong>60% kortere bouwtijd:</strong> Vervolgapplicaties hoeven authenticatie, dataontsluiting en opmaak niet opnieuw te ontwikkelen.</li>
+            <li><strong>Minder faalkosten:</strong> Geen verouderde artikeltarieven meer in offertes; tariefwijzigingen zijn in één seconde bedrijfsbreed actief.</li>
+          </ul>
+        </div>
+        <div>
+          <h4>Kwalitatieve Baten</h4>
+          <ul>
+            <li><strong>Professionele audit trail:</strong> Direct inzicht in wie welke offerte heeft goedgekeurd.</li>
+            <li><strong>AVG-compliance:</strong> Handtekeningen en persoonsgegevens veilig afgeschermd volgens de wet.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  // Tab switcher logic
+  const tabBtns = document.querySelectorAll('nav.tabs button');
+  const panes = document.querySelectorAll('.tab-pane');
+
+  function selectTab(tabKey) {
+    if (tabKey === 'alles') {
+      panes.forEach(p => p.classList.add('active'));
+      tabBtns.forEach(b => b.classList.remove('active'));
+      document.querySelector('nav.tabs button[data-tab="alles"]')?.classList.add('active');
+      return;
+    }
+
+    tabBtns.forEach(b => {
+      b.classList.toggle('active', b.dataset.tab === tabKey);
+    });
+
+    panes.forEach(p => {
+      p.classList.toggle('active', p.id === 'pane-' + tabKey);
+    });
+
+    try { history.replaceState(null, '', '#' + tabKey); } catch(e) {}
+  }
+
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectTab(btn.dataset.tab);
+    });
+  });
+
+  // URL hash support
+  const initialHash = window.location.hash.replace('#', '');
+  if (initialHash && document.getElementById('pane-' + initialHash)) {
+    selectTab(initialHash);
+  } else if (initialHash === 'alles') {
+    selectTab('alles');
+  }
+
+  // Theme toggle support
+  const themeBtn = document.getElementById('themeBtn');
+  let currentTheme = localStorage.getItem('vsvk-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', currentTheme);
+
+  themeBtn?.addEventListener('click', () => {
+    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    localStorage.setItem('vsvk-theme', currentTheme);
+  });
+
+  // Initialize Mermaid with clean neutral styling
+  if (window.mermaid) {
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: currentTheme === 'dark' ? 'dark' : 'neutral',
+      fontFamily: 'Interstate, Overpass, Arial, sans-serif'
+    });
+  }
+</script>
+
+</body>
+</html>

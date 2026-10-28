@@ -1,0 +1,13 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+dist/
+coverage/
+# Back-ups van calculaties bevatten klantdata en horen niet in git
+VSVK back-up*.json

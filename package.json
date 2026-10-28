@@ -1,0 +1,16 @@
+{
+  "name": "vsvk-calc",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VSVK Calculatie & Offerte - baseline voor de enterprise datalaag",
+  "scripts": {
+    "dev": "serve apps/calculatie -l 8080 --no-clipboard",
+    "start": "npm run dev"
+  },
+  "devDependencies": {
+    "serve": "^14.2.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
