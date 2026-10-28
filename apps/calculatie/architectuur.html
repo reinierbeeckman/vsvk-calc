@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>VSVK Enterprise Doelarchitectuur &amp; Digitaal Platform</title>
+  <title>VSVK Enterprise Doelarchitectuur: API-First &amp; Data-Centric AI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Overpass:wght@400;600;700&display=swap">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
@@ -176,13 +176,13 @@
     }
 
     nav.tabs button {
-      font: 400 12.5px var(--f-display);
+      font: 400 12px var(--f-display);
       letter-spacing: .04em;
       text-transform: uppercase;
       background: none;
       border: 0;
       color: var(--head-muted);
-      padding: 10px 14px 11px;
+      padding: 10px 12px 11px;
       border-bottom: 4px solid transparent;
       margin-bottom: -1px;
       cursor: pointer;
@@ -213,7 +213,7 @@
     }
 
     .pagehead h1 {
-      font: 400 clamp(24px, 3.8vw, 38px)/1.15 var(--f-display);
+      font: 400 clamp(22px, 3.5vw, 36px)/1.15 var(--f-display);
       text-transform: uppercase;
       margin: 0;
       border-left: 6px solid var(--brand-orange);
@@ -224,7 +224,7 @@
     .pagehead p {
       margin: 10px 0 0 22px;
       color: var(--muted);
-      max-width: 85ch;
+      max-width: 90ch;
       font-size: 15px;
     }
 
@@ -251,7 +251,7 @@
     }
 
     h2 {
-      font: 400 20px/1.2 var(--f-display);
+      font: 400 19px/1.2 var(--f-display);
       text-transform: uppercase;
       margin: 0;
       color: var(--title);
@@ -260,7 +260,7 @@
     }
 
     h3 {
-      font: 400 15px/1.2 var(--f-display);
+      font: 400 14.5px/1.2 var(--f-display);
       letter-spacing: .03em;
       text-transform: uppercase;
       margin: 0;
@@ -277,6 +277,12 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 18px;
+    }
+
+    .grid4 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
     }
 
     .btn {
@@ -403,6 +409,18 @@
       overflow-x: auto;
     }
 
+    .ascii-box {
+      font-family: var(--f-mono);
+      font-size: 13px;
+      line-height: 1.4;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      padding: 16px;
+      white-space: pre;
+      overflow-x: auto;
+      color: var(--ink);
+    }
+
     .card {
       background: var(--surface-2);
       border-left: 4px solid var(--brand-orange);
@@ -413,7 +431,7 @@
 
     .card h4 {
       margin: 0;
-      font: 700 14px var(--f-body);
+      font: 700 13.5px var(--f-body);
       text-transform: uppercase;
       letter-spacing: .03em;
       color: var(--ink);
@@ -479,7 +497,7 @@
           <path fill="var(--brand-orange)" d="M 0 127.2 L 68.1 64.4 L 0 1.5 L 58.4 1.5 L 125.6 64.1 L 58.4 127.2 Z M 0 127.2M 0 93.1 L 32.6 64.4 L 0 35.6 Z M 0 93.1M 125.7 32 L 93.4 1.5 L 125.7 1.5 Z M 125.7 32M 95.2 127.2 L 125.7 94.9 L 125.7 127.2 Z M 95.2 127.2"/>
           <path fill="var(--logo-ink)" d="M 242.8 128.1 L 289.6 2.1 L 250.1 2.1 L 222.1 92.8 L 193.8 2.1 L 153 2.1 L 200.6 128.1 Z M 354.1 130.2 C 366.3 130.2 376.4 128.5 384.4 125 C 392.4 121.4 398.7 116.3 403.2 109.5 C 407.6 102.6 409.9 95.2 409.9 87.1 C 409.9 80.2 408.2 74 404.8 68.5 C 401.5 62.9 396.1 58.3 388.8 54.5 C 381.4 50.8 369.2 47.1 352.2 43.4 C 345.3 42 341 40.4 339.1 38.8 C 337.3 37.1 336.3 35.3 336.3 33.3 C 336.3 30.6 337.5 28.3 339.7 26.3 C 342 24.4 345.4 23.5 350 23.5 C 355.5 23.5 359.8 24.7 362.9 27.3 C 366 29.9 368.1 34 369 39.7 L 405.7 37.5 C 404.1 24.5 399.1 15 390.7 9 C 382.2 3 369.9 0 353.8 0 C 340.7 0 330.4 1.6 322.9 4.9 C 315.3 8.2 309.7 12.8 305.9 18.5 C 302.2 24.3 300.3 30.4 300.3 36.9 C 300.3 46.7 304 54.8 311.3 61.2 C 318.6 67.5 330.8 72.6 347.8 76.5 C 358.2 78.8 364.9 81.2 367.8 83.8 C 370.6 86.3 372.1 89.3 372.1 92.5 C 372.1 96 370.5 99 367.5 101.6 C 364.5 104.2 360.3 105.5 354.7 105.5 C 347.2 105.5 341.5 103 337.5 97.9 C 335.1 94.7 333.4 90.1 332.6 84.1 L 295.6 86.4 C 296.7 99.1 301.3 109.6 309.6 117.9 C 317.8 126.1 332.7 130.2 354.1 130.2 Z M 506.8 128.1 L 553.5 2.1 L 514 2.1 L 486.1 92.8 L 457.7 2.1 L 417 2.1 L 464.6 128.1 Z M 605.4 128.1 L 605.4 97.3 L 625.5 76.3 L 652.1 128.1 L 700 128.1 L 652.1 49.7 L 697.9 2.1 L 646.2 2.1 L 605.4 49.7 L 605.4 2.1 L 566.5 2.1 L 566.5 128.1 Z M 605.4 128.1"/>
         </svg>
-        <span>Platform Architectuur &amp; Advies</span>
+        <span>API-First &amp; Data-Centric AI Platform</span>
       </div>
       <div class="header-actions">
         <a href="index.html" class="btn" title="Open de actieve calculatie-app">Naar Calculatie App &rarr;</a>
@@ -489,12 +507,13 @@
     </div>
     <nav class="tabs" role="tablist">
       <button class="active" data-tab="samenvatting">1. Samenvatting</button>
-      <button data-tab="lagen">2. 3-Lagen Model</button>
-      <button data-tab="microservices">3. Microservices Visie</button>
-      <button data-tab="security">4. Security &amp; AVG</button>
-      <button data-tab="nfr">5. NFR &amp; Beheer</button>
-      <button data-tab="roadmap">6. Roadmap &amp; Aanpak</button>
-      <button data-tab="directie">7. Directie Agenda</button>
+      <button data-tab="lagen">2. 4-Lagen Model</button>
+      <button data-tab="rag">3. RAG &amp; AI-Logica</button>
+      <button data-tab="microservices">4. Microservices Visie</button>
+      <button data-tab="security">5. Security &amp; AI Governance</button>
+      <button data-tab="nfr">6. NFR &amp; Beheer</button>
+      <button data-tab="roadmap">7. Roadmap</button>
+      <button data-tab="directie">8. Directie Agenda</button>
       <button data-tab="alles">Alles Tonen</button>
     </nav>
   </div>
@@ -502,453 +521,401 @@
 
 <main class="wrap">
   <div class="pagehead">
-    <h1>VSVK Digitaal Platform: Doelarchitectuur</h1>
-    <p>Strategisch advies voor de directie van VSVK over het creëren van een centraal enterprise dataplatform als fundament voor snelle applicatieontwikkeling.</p>
+    <h1>API-First &amp; Data-Centric AI Architectuur</h1>
+    <p>Strategisch advies voor de directie van VSVK over het creëren van een ontkoppeld enterprise dataplatform waarin data, AI-orkestratie en interfaces strikt gescheiden zijn.</p>
   </div>
 
   <!-- TAB 1: SAMENVATTING -->
   <section class="tab-pane active" id="pane-samenvatting">
     <div class="panel highlight">
-      <h2>Executive Summary: Van Losse Tool naar Enterprise Fundament</h2>
-      <p>VSVK wil sneller nieuwe bedrijfsapplicaties kunnen ontwikkelen (o.a. calculatie, werkvoorbereiding, planning, urenregistratie, materieel en directie-dashboards). De huidige calculatietool bewijst de functionele meerwaarde, maar slaat data lokaal in de browser op.</p>
+      <h2>Executive Summary: Snelle Applicaties én Betrouwbare AI</h2>
+      <p>VSVK wil sneller nieuwe bedrijfsapplicaties kunnen bouwen (o.a. calculatie, werkvoorbereiding, planning, urenregistratie, materieel en directie-dashboards), en tegelijk de kracht van <strong>moderne AI</strong> (besteksanalyse, slimme calculatiesuggesties, offerte-assistentie) direct kunnen benutten.</p>
       
       <div class="notice">
-        <strong>Kernboodschap voor de directie:</strong>
-        <p>Snelheid van applicatieontwikkeling kan alleen duurzaam worden behaald met een <strong>gestandaardiseerd centraal fundament</strong> (Single Source of Truth + API Gateway). Zonder dit fundament leidt elke nieuwe app tot gefragmenteerde data, foutieve calculaties en hoge beheerskosten.</p>
+        <strong>De Kernboodschap:</strong>
+        <p>In moderne softwarearchitectuur zijn <strong>data</strong>, <strong>AI-logica</strong> en de <strong>presentatielaag</strong> strikt van elkaar gescheiden. AI-modellen 'hallucineren' niet als ze via het <em>Retrieval-Augmented Generation (RAG)</em> principe gevoed worden met de actuele, centrale stamdata van VSVK.</p>
       </div>
 
       <div class="stat-row">
         <div class="stat-box">
-          <div class="stat-val">1</div>
-          <div class="stat-lab">Centrale Datalaag (SSOT)</div>
+          <div class="stat-val">4</div>
+          <div class="stat-lab">Kernlagen (Data, Model, API, UI)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">100%</div>
+          <div class="stat-lab">Model-Flexibiliteit (Geen Vendor Lock-in)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">0%</div>
+          <div class="stat-lab">AI-Hallucinatie van Tarieven</div>
         </div>
         <div class="stat-box">
           <div class="stat-val">&minus;60%</div>
           <div class="stat-lab">Bouwtijd per Volgende App</div>
         </div>
-        <div class="stat-box">
-          <div class="stat-val">100%</div>
-          <div class="stat-lab">M365 Entra ID SSO &amp; MFA</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-val">0</div>
-          <div class="stat-lab">Dataverlies bij Browser-reset</div>
-        </div>
       </div>
     </div>
 
     <div class="grid2">
       <div class="panel">
-        <h3>Huidige Situatie (Baseline Prototype)</h3>
+        <h3>Huidige Situatie (Prototype Baseline)</h3>
         <ul>
           <li>Data staat lokaal in browser <code>localStorage</code> (risico bij wissen/pc-wissel).</li>
-          <li>Artikelen, vestigingen en handtekeningen zitten opgeslagen in één 240 kB JSON-blob.</li>
-          <li>Geen centrale autorisatie of beveiligde koppeling met bedrijfsnetwerk.</li>
-          <li>Nummering en concurrency-checks zijn afhankelijk van een browserclient.</li>
+          <li>Geen centrale opslag voor ongestructureerde data (bestekken, PDF's).</li>
+          <li>Geen AI-orkestratielaag: calculaties moeten handmatig worden opgebouwd.</li>
+          <li>Ongecontroleerde dataopslag (handtekeningen in base64).</li>
         </ul>
       </div>
 
       <div class="panel">
-        <h3>Doelsituatie (Enterprise Dataplatform)</h3>
+        <h3>Doelarchitectuur: Data-Centric AI Platform</h3>
         <ul>
-          <li>Centrale interne PostgreSQL database met robuuste relationele kernentiteiten.</li>
-          <li>Centrale API Gateway voor autorisatie, rekenregels en unieke nummeruitgifte.</li>
-          <li>Frontends (web/tablet) kunnen razendsnel inhaken op kant-en-klare API-bouwstenen.</li>
-          <li>Volledig geïntegreerd met bestaande VSVK Microsoft 365 / Entra ID accounts.</li>
+          <li>Centrale PostgreSQL datalaag met <code>pgvector</code> voor zowel financiële tabellen als document-embeddings.</li>
+          <li>Model-agnostische AI-laag: naadloos wisselen tussen Azure OpenAI, Claude of lokale Mistral/Llama.</li>
+          <li>API Gateway als centrale poort: strikte security, Entra ID SSO/MFA en vestigingssegregatie.</li>
+          <li>Lichte, snelle frontends (web/tablet/AI-chat) zonder eigen database- of AI-logica.</li>
         </ul>
       </div>
     </div>
   </section>
 
-  <!-- TAB 2: 3-LAGEN MODEL -->
+  <!-- TAB 2: 4-LAGEN MODEL -->
   <section class="tab-pane" id="pane-lagen">
     <div class="panel highlight">
-      <h2>Het 3-Lagen Model in Detail</h2>
-      <p>Frontends praten nooit direct met de database. De API Gateway reguleert alle verkeersstromen, beveiliging en bedrijfslogica.</p>
+      <h2>Het 4-Lagen Model in Detail</h2>
+      <p>Data, AI-modellen, de API-orkestratie en de consumenten zijn strikt van elkaar ontkoppeld:</p>
+      
+      <div class="ascii-box">+-------------------------------------------------------------+
+| 1. Presentatielaag / Consumenten (Web, Mobiel, IoT, AI-Chat)|
++-------------------------------------------------------------+
+              ▲ REST / GraphQL / gRPC ▼
++-------------------------------------------------------------+
+| 2. API- &amp; Orchestratielaag (Gateway, LangChain, Agents)     |
++-------------------------------------------------------------+
+              ▲ Aanroepen AI / Data queries ▼
++-------------------------------------------------------------+
+| 3. AI- &amp; Model-laag (LLM's, Embedding-modellen, Regels)     |
++-------------------------------------------------------------+
+              ▲ Vector- en Metadata-lookups ▼
++-------------------------------------------------------------+
+| 4. Centrale Datalaag (Data Lakehouse, Vector DB, RDBMS)     |
++-------------------------------------------------------------+</div>
+
+      <div class="diagram-box">
+        <pre class="mermaid">
+graph TD
+    subgraph Laag1 ["1. Presentatielaag / Consumenten"]
+        UI_CALC["Calculatie & Offerte (Web)"]
+        UI_MOB["Planning & Werkbonnen (Tablet/Mobiel)"]
+        UI_AI["VSVK Copilot / AI Assistent"]
+        UI_DASH["Directie Dashboard & BI"]
+    end
+
+    subgraph Laag2 ["2. API- & Orchestratielaag (Interface & Lijm)"]
+        GW["API Gateway (OAuth2/OIDC, Rate Limiting, Audit)"]
+        ORCH["AI Orchestrator (LangChain / LlamaIndex / Agents)"]
+        CORE_SRV["Core Domein Services (Klanten, Projecten, Tarieven)"]
+        CALC_ENG["Calculatie & Sequencing Engine (Centrale Rekenregels)"]
+    end
+
+    subgraph Laag3 ["3. AI- & Model-laag (Stateless Intelligence)"]
+        LLM_PUB["Publieke Cloud LLM's (Azure OpenAI / Anthropic)"]
+        LLM_LOCAL["Private / On-Premise Modellen (Mistral / Llama via vLLM)"]
+        EMBED["Embedding Modellen (Tekst & Bestekken naar Vectoren)"]
+    end
+
+    subgraph Laag4 ["4. Centrale Datalaag (Data Centricity & SSOT)"]
+        DB[("PostgreSQL met pgvector (Relationeel + Vector DB)")]
+        LAKE[("Data Lakehouse / Document Archief (Bestekken, PDF's)")]
+        PIPE["ELT/ETL Data Pipelines (Continu synchroniseren & indexeren)"]
+    end
+
+    UI_CALC -->|HTTPS / REST| GW
+    UI_MOB -->|HTTPS / REST| GW
+    UI_AI -->|HTTPS / GraphQL| GW
+    UI_DASH -->|HTTPS / REST| GW
+
+    GW --> CORE_SRV
+    GW --> CALC_ENG
+    GW --> ORCH
+
+    ORCH -->|Prompt met Context| LLM_PUB
+    ORCH -->|Prompt met Context| LLM_LOCAL
+    ORCH -->|Vectoriseer Vraag| EMBED
+
+    CORE_SRV --> DB
+    CALC_ENG --> DB
+    ORCH -->|RAG: SQL & Vector Lookups| DB
+    PIPE --> DB
+    PIPE --> LAKE
+        </pre>
+      </div>
+    </div>
+
+    <div class="grid4">
+      <div class="panel">
+        <span class="chip orange">Laag 4</span>
+        <h3>Centrale Datalaag</h3>
+        <ul>
+          <li><strong>PostgreSQL + pgvector:</strong> Relationele tabellen én vector-embeddings in 1 vertrouwde database.</li>
+          <li><strong>Document Archief:</strong> Opslag van PDF's, RAW-bestekken en handtekeningen.</li>
+          <li><strong>ELT/ETL Pipelines:</strong> Continue synchronisatie, schoning en vectorisatie.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <span class="chip orange">Laag 3</span>
+        <h3>AI- &amp; Model-laag</h3>
+        <ul>
+          <li><strong>Stateless Intelligence:</strong> Modellen slaan zélf geen data op; data lekt niet.</li>
+          <li><strong>Model Flexibiliteit:</strong> Wisselen tussen Azure OpenAI, Claude of on-prem Mistral.</li>
+          <li><strong>Embedding Models:</strong> Realtime omzetten van vragen en teksten naar vectoren.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <span class="chip orange">Laag 2</span>
+        <h3>API &amp; Orchestratie</h3>
+        <ul>
+          <li><strong>API Gateway:</strong> OAuth2/OIDC (Entra ID), rate-limiting, audit-logging.</li>
+          <li><strong>AI Orchestrator:</strong> (LangChain/LlamaIndex) regelt de RAG-flow en prompt-injectie.</li>
+          <li><strong>Centrale Rekenregels:</strong> Calculatieformules, marges en nummerreeksen.</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <span class="chip orange">Laag 1</span>
+        <h3>Presentatielaag</h3>
+        <ul>
+          <li><strong>Lichte frontends:</strong> Bevatten géén AI- of datalogica; enkel gebruikersinteractie.</li>
+          <li><strong>Multi-device:</strong> Desktop web, buitendienst tablets en management dashboards.</li>
+          <li><strong>API-First:</strong> Eenvoudig nieuwe interfaces toevoegen (bijv. voice of WhatsApp-bot).</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3: RAG & AI LOGICA -->
+  <section class="tab-pane" id="pane-rag">
+    <div class="panel highlight">
+      <h2>Hoe AI Concreet Werkt voor VSVK: Het RAG-Patroon</h2>
+      <p>Traditionele AI verzint vaak antwoorden (hallucinaties). In onze architectuur haalt de <strong>AI Orchestrator</strong> éérst de gevalideerde feiten uit de centrale datalaag op via <strong>Retrieval-Augmented Generation (RAG)</strong>:</p>
       
       <div class="diagram-box">
         <pre class="mermaid">
-graph TD
-    subgraph AppLaag ["3. Applicatielaag (Frontends & Apps)"]
-        A1["Calculatie & Offerte (Web)"]
-        A2["Planning & Werkbonnen (Tablet/Mobiel)"]
-        A3["Uren & Materieel (Web/Mobiel)"]
-        A4["Directie Dashboard & BI"]
-    end
+sequenceDiagram
+    autonumber
+    actor Calc as Calculator
+    participant UI as Calculatie App (Web)
+    participant GW as API Gateway & Orchestrator
+    participant DB as PostgreSQL (pgvector)
+    participant LLM as AI Model (Azure OpenAI / Mistral)
 
-    subgraph GatewayLaag ["2. API Gateway & Business Services"]
-        GW["API Gateway (Reverse Proxy / Routing / Rate Limiting)"]
-        AUTH["Auth Service (Microsoft Entra ID / SSO & MFA)"]
-        CORE_API["Core Domain Services (Klanten, Vestigingen, Tarieven, Calculaties)"]
-        CALC_ENGINE["Calculatie & Nummering Engine (Centraal Rekenmodel)"]
-    end
-
-    subgraph DataLaag ["1. Centrale Datalaag (Single Source of Truth)"]
-        DB[("PostgreSQL Database (ACID / Transacties / Audit Trail)")]
-        BLOB[("Beveiligde Document Storage (PDF's, Handtekeningen)")]
-    end
-
-    A1 -->|HTTPS / REST / JSON| GW
-    A2 -->|HTTPS / REST / JSON| GW
-    A3 -->|HTTPS / REST / JSON| GW
-    A4 -->|HTTPS / REST / JSON| GW
-
-    GW --> AUTH
-    GW --> CORE_API
-    GW --> CALC_ENGINE
-
-    CORE_API --> DB
-    CALC_ENGINE --> DB
-    CORE_API --> BLOB
-        </pre>
-      </div>
-    </div>
-
-    <div class="grid3">
-      <div class="panel">
-        <h3>Laag 1: PostgreSQL Datalaag</h3>
-        <p><strong>Waarom PostgreSQL 16+?</strong></p>
-        <ul>
-          <li><strong>ACID-garanties:</strong> Foutloze nummeruitgifte en statuswijzigingen zonder dubbele records.</li>
-          <li><strong>Hybride:</strong> Relationele kern gecombineerd met geïndexeerde JSONB voor calculatiedetails.</li>
-          <li><strong>Open Source:</strong> Geen vendor lock-in; draait on-premise of in private cloud.</li>
-          <li><strong>Audit Trail:</strong> Automatische vastlegging van wie wat wanneer wijzigt.</li>
-        </ul>
-      </div>
-
-      <div class="panel">
-        <h3>Laag 2: API Gateway (Node / .NET)</h3>
-        <p><strong>Verantwoordelijkheden:</strong></p>
-        <ul>
-          <li><strong>Centrale Rekenregels:</strong> Calculatieformules, AK/W&amp;R opslagen en btw staan op de server.</li>
-          <li><strong>Nummer-sequencer:</strong> Concurrency-veilige uitgifte van calculatienummers (bijv. <code>2027-001</code>).</li>
-          <li><strong>OpenAPI / Swagger:</strong> Gestandaardiseerde endpoints voor alle frontends.</li>
-          <li><strong>Security filter:</strong> Rate limiting, token-validatie en threat protection.</li>
-        </ul>
-      </div>
-
-      <div class="panel">
-        <h3>Laag 3: Applicatielaag</h3>
-        <p><strong>Snelheid door hergebruik:</strong></p>
-        <ul>
-          <li><strong>Gedeelde DataStore SDK:</strong> Elke app gebruikt dezelfde client voor login en datakoppeling.</li>
-          <li><strong>VSVK UI Stijl:</strong> Knoppen, tabellen, modals en headers zijn eenmalig ontworpen.</li>
-          <li><strong>Multi-device:</strong> Geschikt voor desktop (calculators) én tablets/mobiel (uitvoerders buiten).</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="panel">
-      <h3>Entity Relationship Diagram (Core Entiteiten)</h3>
-      <div class="diagram-box">
-        <pre class="mermaid">
-erDiagram
-    VESTIGING ||--o{ MEDEWERKER : heeft
-    VESTIGING ||--o{ PROJECT : beheert
-    KLANT ||--o{ PROJECT : "opdrachtgever voor"
-    PROJECT ||--o{ CALCULATIE : bevat
-    CALCULATIE ||--o{ BLOK : "bestaat uit"
-    BLOK ||--o{ REGEL : bevat
-    ARTIKEL ||--o{ REGEL : "wordt gekozen in"
-    CALCULATIE ||--o{ OFFERTE : genereert
-    CALCULATIE ||--o{ PLANNING_ITEM : bevat
-        </pre>
-      </div>
-    </div>
-  </section>
-
-  <!-- TAB 3: MICROSERVICES -->
-  <section class="tab-pane" id="pane-microservices">
-    <div class="panel highlight">
-      <h2>Enterprise Visie op Microservices: De Pragmatische Evolutie</h2>
-      <p>Moet VSVK alles direct opsplitsen in 20 losse microservices? <strong>Nee.</strong> De bewezen best practice voor deze fase is de <strong>Modulaire Monoliet</strong>.</p>
-    </div>
-
-    <div class="grid2">
-      <div class="panel">
-        <h3>De Valkuil van Vroegtijdige Microservices</h3>
-        <ul>
-          <li><strong>Explosie van operationele kosten:</strong> Direct behoefte aan Kubernetes, distributed tracing en complexe service meshes.</li>
-          <li><strong>Verlies van transactie-integriteit:</strong> Cross-service transacties vereisen Saga-patronen en leiden snel tot dataverschillen tussen calculatie, offerte en planning.</li>
-          <li><strong>Vertraging i.p.v. versnelling:</strong> Ontwikkelaars zijn meer tijd kwijt aan netwerkcontracten en containerdeployment dan aan bedrijfsfunctionaliteit.</li>
-        </ul>
-      </div>
-
-      <div class="panel">
-        <h3>De Oplossing: De Modulaire Monoliet</h3>
-        <ul>
-          <li><strong>Eén deployment runtime &amp; database:</strong> Eenvoudig te onderhouden, monitoren en back-uppen.</li>
-          <li><strong>Strikte Bounded Contexts:</strong> Modules (Stamdata, Calculaties, Planning, Uren) zijn in de code strikt gescheiden.</li>
-          <li><strong>Geen illegale dwarsverbanden:</strong> Modules praten uitsluitend via expliciete service-interfaces met elkaar.</li>
-          <li><strong>Maximale ontwikkelsnelheid:</strong> Nieuwe apps kunnen direct in gebruik worden genomen.</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="panel">
-      <h3>Modulaire Bounded Contexts &amp; Event-Driven Integratie</h3>
-      <div class="diagram-box">
-        <pre class="mermaid">
-graph TD
-    subgraph APIGw ["API Gateway (Centrale Ingang)"]
-        GW["API Gateway / Reverse Proxy (Routing & Auth)"]
-    end
-
-    subgraph CoreBackend ["Centraal Backend Platform (Modulaire Bounded Contexts)"]
-        AUTH_MOD["Domein 1: Identiteit & Autorisatie"]
-        STAM_MOD["Domein 2: Stamdata (Artikelen, Vestigingen, Tarieven)"]
-        CALC_MOD["Domein 3: Calculatie & Offerte"]
-        PLAN_MOD["Domein 4: Planning & Uitvoering (Toekomstig)"]
-        UREN_MOD["Domein 5: Uren & Materieel (Toekomstig)"]
-    end
-
-    subgraph EventBroker ["Asynchrone Event Bus (Ontkoppeling)"]
-        BUS["Berichtenbus / Events (bijv. OrderGeaccordeerdEvent)"]
-    end
-
-    subgraph DataLaag ["Centrale Datalaag (PostgreSQL)"]
-        DB_STAM[("Schema: Stamdata")]
-        DB_CALC[("Schema: Calculaties")]
-        DB_PLAN[("Schema: Planning")]
-    end
-
-    GW --> AUTH_MOD
-    GW --> STAM_MOD
-    GW --> CALC_MOD
-    GW --> PLAN_MOD
-    GW --> UREN_MOD
-
-    CALC_MOD -.->|Publiceert Event| BUS
-    BUS -.->|Triggert| PLAN_MOD
-
-    STAM_MOD --> DB_STAM
-    CALC_MOD --> DB_CALC
-    PLAN_MOD --> DB_PLAN
+    Calc->>UI: Uploadt bestek of typt: "Vervangen 200 LED-armaturen Noordtunnel"
+    UI->>GW: POST /api/v1/calculaties/ai-suggest
+    GW->>DB: 1. Vector Search in bestekken & offerteteksten
+    GW->>DB: 2. SQL Query actuele VSVK uurtarieven (Monteur E&M, Hoogwerker)
+    DB-->>GW: Gevalideerde context & actuele prijzen
+    GW->>LLM: Prompt: "Genereer calculatieregels UITSLUITEND op basis van deze tarieven"
+    LLM-->>GW: Gestructureerd JSON-antwoord met blokken en uren
+    GW-->>UI: Live calculatievoorstel in de tabel
+    Calc->>UI: Calculator controleert en accordeert voorstel
         </pre>
       </div>
 
       <div class="notice">
-        <strong>Wanneer wél een microservice afsplitsen?</strong>
-        <p>Omdat de domeinen logisch al strikt gescheiden zijn, kan VSVK in de toekomst zónder herontwerp een domein afsplitsen als zelfstandige microservice. Bijvoorbeeld bij een toekomstige <strong>IoT / Telemetrie module</strong> die tienduizenden GPS- en sensormeldingen per minuut van botsabsorbers en actiewagens ontvangt. De API Gateway schermt dit af: voor de gebruikers blijft de API identiek.</p>
+        <strong>De Garantie voor de Directie:</strong>
+        <p>Het AI-model mag nooit zelf prijzen verzinnen. Prijzen komen altijd 1-op-1 uit de officiële artikelenlijst in PostgreSQL. De AI assisteert uitsluitend bij het koppelen van de tekst, het inschatten van uren en het formuleren van de offertetekst.</p>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <h3>Use Case 1: Slimme Besteksanalyse</h3>
+        <p>Een calculator uploadt een RAW-bestek of tunnelprogramma van Rijkswaterstaat (PDF). De data pipeline splitst en vectoriseert het document. De AI identificeert direct welke van de 77 VSVK-artikelen van toepassing zijn en stelt een concept-calculatie op.</p>
+      </div>
+
+      <div class="panel">
+        <h3>Use Case 2: Gepersonaliseerde Offertes</h3>
+        <p>De AI-laag selecteert automatisch de juiste uitgangspunten en uitsluitingen op basis van soortgelijke eerdere tunnelprojecten, inclusief de voorwaarden van de specifieke vestiging (Pijnacker, Rilland of Wamel).</p>
       </div>
     </div>
   </section>
 
-  <!-- TAB 4: SECURITY -->
-  <section class="tab-pane" id="pane-security">
+  <!-- TAB 4: MICROSERVICES VISIE -->
+  <section class="tab-pane" id="pane-microservices">
     <div class="panel highlight">
-      <h2>Security, Authenticatie &amp; Autorisatie</h2>
-      <p>Enterprise beveiliging gebaseerd op de standaarden van Microsoft 365, gecombineerd met strikte vestigingssegregatie.</p>
+      <h2>Enterprise Visie op Microservices: De Pragmatische Modulaire Monoliet</h2>
+      <p>Direct beginnen met 20 losse microservices is een valkuil voor snelle AI-applicatieontwikkeling. De best practice is de <strong>Modulaire Monoliet (Domain-Driven Design)</strong>.</p>
     </div>
 
-    <div class="grid3">
+    <div class="grid2">
       <div class="panel">
-        <h3>1. Microsoft Entra ID (SSO &amp; MFA)</h3>
-        <p>Medewerkers loggen in met hun bestaande VSVK-account via <strong>OpenID Connect / OAuth 2.0</strong>.</p>
+        <h3>Waarom géén overhaaste Microservices?</h3>
         <ul>
-          <li>Geen losse wachtwoorden in de applicatie.</li>
-          <li>MFA wordt automatisch centraal afgedwongen.</li>
-          <li>Bij uitdiensttreding direct uitgeschakeld in alle apps.</li>
-          <li>Kortlevende JWT-tokens bij elk verzoek.</li>
+          <li><strong>Gefragmenteerde Data:</strong> Als data over 10 databases verspreid is, wordt RAG (vector + relationele query) traag en storingsgevoelig.</li>
+          <li><strong>Verlies van ACID-transacties:</strong> Calculatienummering en offertestatus vereisen rotsvaste consistentie zonder complexe distributed transactions.</li>
+          <li><strong>Tragere oplevering:</strong> Ontwikkelaars besteden tijd aan netwerkpijplijnen in plaats van directe bedrijfswaarde.</li>
         </ul>
       </div>
 
       <div class="panel">
-        <h3>2. Vestigingssegregatie (Data Scoping)</h3>
-        <p>VSVK opereert vanuit 3 vestigingen: <strong>Pijnacker</strong>, <strong>Rilland</strong> en <strong>Wamel</strong>.</p>
+        <h3>De Oplossing: Modulair Binnen 1 Platform</h3>
         <ul>
-          <li>De API Gateway filtert queries automatisch op <code>vestiging_id</code>.</li>
-          <li>Calculators zien uitsluitend calculaties van hun eigen vestiging.</li>
-          <li>Directie en centrale administratie hebben overkoepelend inzicht.</li>
-          <li>Voorkomt overschrijffouten en datalekken.</li>
+          <li><strong>Eén robuuste backend:</strong> Eenvoudig beheer, geautomatiseerde back-ups en maximale query-snelheid voor AI.</li>
+          <li><strong>Strikte Bounded Contexts:</strong> Domeinen (Stamdata, Calculatie, AI Knowledge, Planning) zijn in de code strikt geïsoleerd.</li>
+          <li><strong>Evolutionair pad:</strong> Pas wanneer een module een afwijkend profiel krijgt (bijv. high-throughput IoT sensordata), knippen we die los als zelfstandige microservice.</li>
         </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 5: SECURITY & GOVERNANCE -->
+  <section class="tab-pane" id="pane-security">
+    <div class="panel highlight">
+      <h2>Security, Governance &amp; AVG bij AI-Gebruik</h2>
+      <p>Zakelijke AI vereist waterdichte afscherming van bedrijfsgeheimen en persoonsgegevens.</p>
+    </div>
+
+    <div class="grid3">
+      <div class="panel">
+        <h3>1. Geen Training op VSVK Data</h3>
+        <p>Contractuele enterprise garantie: prompts, calculaties en klantgegevens worden <strong>nooit</strong> gebruikt om openbare AI-modellen te trainen.</p>
+      </div>
+
+      <div class="panel">
+        <h3>2. Data Scoping vóór AI-Aanroep</h3>
+        <p>De API Gateway past rol- en vestigingsfilters (Pijnacker, Rilland, Wamel) toe <em>voordat</em> context naar het AI-model gaat. Geen datalekken tussen vestigingen.</p>
       </div>
 
       <div class="panel">
         <h3>3. AVG &amp; Handtekeningenbeheer</h3>
-        <p>In het prototype zit directie-handtekening <code>SIG_PVK</code> als ongecodeerde base64 in de code.</p>
-        <ul>
-          <li>Handtekeningen verhuizen naar een <strong>beveiligde private object storage</strong>.</li>
-          <li>Alleen geautoriseerde backend-processen renderen handtekeningen in officiële PDF's.</li>
-          <li>Volledige encryptie in transit (TLS 1.3) en at rest (AES-256).</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="panel">
-      <h3>Autorisatiematrix (Role-Based Access Control)</h3>
-      <div class="scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>Rol</th>
-              <th>Calculaties &amp; Offertes</th>
-              <th>Planning &amp; Uitvoering</th>
-              <th>Stamdata (Tarieven &amp; Artikelen)</th>
-              <th>Vestigingsbereik</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>Calculator</strong></td>
-              <td>Aanmaken, wijzigen, indienen</td>
-              <td>Alleen inzien</td>
-              <td>Alleen raadplegen</td>
-              <td>Eigen vestiging</td>
-            </tr>
-            <tr>
-              <td><strong>Projectleider</strong></td>
-              <td>Inzien &amp; status wijzigen</td>
-              <td>Volledig beheer (planning &amp; afroep)</td>
-              <td>Alleen raadplegen</td>
-              <td>Eigen vestiging</td>
-            </tr>
-            <tr>
-              <td><strong>Vestigingsmanager</strong></td>
-              <td>Volledig beheer &amp; goedkeuren</td>
-              <td>Volledig beheer</td>
-              <td>Vestigingsinstellingen</td>
-              <td>Eigen vestiging</td>
-            </tr>
-            <tr>
-              <td><strong>Directie / Beheerder</strong></td>
-              <td>Volledig inzicht &amp; akkoord</td>
-              <td>Volledig inzicht</td>
-              <td>Volledig beheer (uurtarieven &amp; marges)</td>
-              <td>Alle vestigingen (Pijnacker, Rilland, Wamel)</td>
-            </tr>
-          </tbody>
-        </table>
+        <p>Handtekeningen en PII (persoonsgegevens) worden gefilterd en opgeslagen in private storage; uitsluitend server-side on-demand gerenderd bij officiële PDF's.</p>
       </div>
     </div>
   </section>
 
-  <!-- TAB 5: NFR & BEHEER -->
+  <!-- TAB 6: NFR & BEHEER -->
   <section class="tab-pane" id="pane-nfr">
     <div class="panel highlight">
-      <h2>Non-Functional Requirements (NFR's) &amp; Beheer</h2>
-      <p>Randvoorwaarden om stabiliteit, snelheid en bedrijfscontinuïteit te garanderen.</p>
+      <h2>Non-Functional Requirements (NFR's) &amp; Prestaties</h2>
+      <p>Snelheids- en betrouwbaarheidsdoelen voor het enterprise platform:</p>
     </div>
 
     <div class="grid2">
       <div class="panel">
-        <h3>Performance &amp; Caching</h3>
+        <h3>Performance Targets</h3>
         <ul>
-          <li><strong>API responstijden:</strong> &lt; 100 ms voor reguliere data-opvragingen; &lt; 300 ms voor complexe lijsten.</li>
-          <li><strong>In-memory Caching:</strong> Artikelen en tarieven wijzigen zelden en worden in het servergeheugen gecachet.</li>
-          <li><strong>Database Connection Pooling:</strong> Efficiënt hergebruik van databaseverbindingen bij piekdrukte.</li>
+          <li><strong>API CRUD Queries:</strong> &lt; 100 ms op PostgreSQL.</li>
+          <li><strong>Vector Lookups:</strong> &lt; 50 ms via geïndexeerde HNSW-indexen in <code>pgvector</code>.</li>
+          <li><strong>AI Streaming Response:</strong> Eerste token binnen &lt; 800 ms op het scherm.</li>
+          <li><strong>In-Memory Caching:</strong> Artikelen en tarieven worden in het servergeheugen gecachet.</li>
         </ul>
       </div>
 
       <div class="panel">
-        <h3>Back-up &amp; Disaster Recovery</h3>
+        <h3>Disaster Recovery &amp; Ops</h3>
         <ul>
-          <li><strong>RPO (Recovery Point Objective) &lt; 1 uur:</strong> Dagelijkse volledige back-up + PostgreSQL Write-Ahead Logging (WAL) voor Point-in-Time Recovery.</li>
-          <li><strong>RTO (Recovery Time Objective) &lt; 2 uur:</strong> Volledig herstel op alternatieve infrastructuur binnen 2 uur bij een calamiteit.</li>
-          <li><strong>Geen klantdata in Git:</strong> Strikte scheiding tussen code en bedrijfsdata.</li>
+          <li><strong>RPO &lt; 1 uur:</strong> Dagelijkse back-ups + PostgreSQL Write-Ahead Logging (WAL).</li>
+          <li><strong>RTO &lt; 2 uur:</strong> Herstart op uitwijk-infrastructuur binnen 2 uur bij calamiteiten.</li>
+          <li><strong>Docker Containers:</strong> Identieke omgevingen voor dev, test en productie.</li>
+          <li><strong>GitHub Actions:</strong> Geautomatiseerde unittests en security scans.</li>
         </ul>
-      </div>
-    </div>
-
-    <div class="grid2">
-      <div class="panel">
-        <h3>Containerization (Docker)</h3>
-        <p>Zowel de database, de API gateway als de webapplicaties draaien in lichtgewicht Docker-containers. Dit garandeert dat de ontwikkel-, test- en productieomgeving 100% identiek zijn.</p>
-      </div>
-
-      <div class="panel">
-        <h3>CI/CD Pipeline (GitHub Actions)</h3>
-        <p>Elke pull request wordt automatisch gecontroleerd op security-kwetsbaarheden, syntax en unit-tests. Goedgekeurde wijzigingen kunnen met één druk op de knop veilig worden uitgerold.</p>
       </div>
     </div>
   </section>
 
-  <!-- TAB 6: ROADMAP -->
+  <!-- TAB 7: ROADMAP -->
   <section class="tab-pane" id="pane-roadmap">
     <div class="panel highlight">
-      <h2>Gefaseerd Software Development Traject</h2>
-      <p>Geen maandenlang risicovol traject in een ivoren toren, maar stapsgewijs waarde leveren met de calculatietool als live pilot.</p>
+      <h2>Gefaseerde Implementatie Roadmap (Inclusief AI)</h2>
+      <p>In 4 logische stappen van de huidige prototype-situatie naar een volwaardig AI-ondersteund platform:</p>
       
       <div class="diagram-box">
         <pre class="mermaid">
 gantt
-    title Roadmap Digitaal Platform VSVK
+    title Roadmap VSVK Digitaal Platform & AI
     dateFormat  YYYY-MM-DD
     section Fase 1: Fundament
-    Architectuurbesluit & Inrichting PostgreSQL :done, 2026-11-01, 10d
-    Core Entiteiten & Datamigratie Stamdata   :active, 2026-11-10, 10d
-    API Gateway Baseline & Entra ID Koppeling  :2026-11-20, 10d
+    PostgreSQL met pgvector inrichten       :done, 2026-11-01, 10d
+    Migratie Stamdata (77 artikelen, vest.) :active, 2026-11-10, 10d
+    API Gateway Baseline & Entra ID SSO     :2026-11-20, 10d
     section Fase 2: Pilot Calculatie
-    DataStore & GatewayStore Implementatie      :2026-12-01, 10d
-    Valideren Transacties, PDF & Nummering     :2026-12-11, 10d
-    Uitfaseren Claude/LocalStorage fallback    :2026-12-21, 5d
-    Livegang Calculatie op Centrale Datalaag    :milestone, 2026-12-31, 1d
-    section Fase 3: Schalen
-    Ontwikkeling Gedeelde UI Kit & Client SDK   :2027-01-05, 15d
-    Ontwikkelen App 2 (bijv. Uren / Planning)   :2027-01-20, 25d
+    DataStore & GatewayStore Koppeling       :2026-12-01, 10d
+    Valideren Transacties & Livegang Pilot   :2026-12-11, 10d
+    Uitfaseren LocalStorage/Claude fallback  :2026-12-21, 5d
+    section Fase 3: AI & RAG Orchestratie
+    Vectoriseren Offerteteksten & Bestekken  :2027-01-05, 12d
+    AI Orchestrator (RAG voor Calculaties)   :2027-01-17, 15d
+    Pilot AI Besteksassistent voor Calculators:2027-02-01, 15d
+    section Fase 4: Schalen
+    Ontwikkeling Mobiele App / Werkbonnen    :2027-02-15, 25d
         </pre>
       </div>
     </div>
 
-    <div class="grid3">
+    <div class="grid4">
       <div class="card">
-        <h4>Fase 1: Het Fundament (Weken 1-4)</h4>
-        <p>PostgreSQL database inrichten; migratie van artikelen, tarieven en vestigingen; basis API Gateway met Entra ID SSO.</p>
+        <h4>Fase 1: Fundament (Weken 1-4)</h4>
+        <p>PostgreSQL met <code>pgvector</code>; stamdata-migratie; API Gateway met Microsoft Entra ID.</p>
       </div>
       <div class="card">
         <h4>Fase 2: Pilot Calculatie (Weken 5-7)</h4>
-        <p>Aansluiten huidige calculatietool via <code>GatewayStore</code>; beveiligen van handtekeningen; definitieve livegang van de eerste enterprise app.</p>
+        <p>Huidige app via <code>GatewayStore</code> koppelen; veilige nummering; eerste livegang.</p>
       </div>
       <div class="card">
-        <h4>Fase 3: Schalen naar Nieuwe Apps (Week 8+)</h4>
-        <p>Opleveren van de herbruikbare VSVK UI Kit &amp; SDK; start van App 2 (bijv. Uren of Werkbonnen) met 60% kortere ontwikkeltijd.</p>
+        <h4>Fase 3: AI &amp; RAG (Weken 8-11)</h4>
+        <p>Vectoriseren van bestekken; AI Orchestrator koppelen voor automatische besteksanalyse.</p>
+      </div>
+      <div class="card">
+        <h4>Fase 4: Schalen (Week 12+)</h4>
+        <p>Ontwikkeling van mobiele apps (buitendienst/planning) met 60% kortere bouwtijd.</p>
       </div>
     </div>
   </section>
 
-  <!-- TAB 7: DIRECTIE AGENDA -->
+  <!-- TAB 8: DIRECTIE AGENDA -->
   <section class="tab-pane" id="pane-directie">
     <div class="panel highlight">
       <h2>Gespreksagenda voor het Directieoverleg</h2>
-      <p>Drie concrete strategische besluiten om voor te leggen aan de directietafel.</p>
+      <p>Drie strategische beslispunten om voor te leggen aan de directietafel:</p>
     </div>
 
     <div class="grid3">
       <div class="panel">
         <span class="chip orange">Besluit 1</span>
-        <h3>Hostinglocatie</h3>
-        <p><strong>Voorstel:</strong> Private Cloud (Microsoft Azure Nederland / West-Europa) naadloos aangesloten op Microsoft 365.</p>
-        <p><em>Alternatief:</em> On-premise server op hoofdkantoor Pijnacker met VPN-tunnels naar Rilland en Wamel.</p>
+        <h3>Hosting &amp; AI-Infrastructuur</h3>
+        <p><strong>Aanbeveling:</strong> Private Cloud (Microsoft Azure NL) naadloos aangesloten op Microsoft 365 en Azure OpenAI (met enterprise data-isolatie).</p>
       </div>
 
       <div class="panel">
         <span class="chip orange">Besluit 2</span>
-        <h3>Authenticatiebeleid</h3>
-        <p><strong>Voorstel:</strong> Bestaande zakelijke Microsoft 365-accounts aanwijzen als de enige geautoriseerde inlog voor alle interne software (MFA verplicht).</p>
+        <h3>PostgreSQL met pgvector</h3>
+        <p><strong>Aanbeveling:</strong> Eén centrale database voor zowel financiële tabellen als document-vectoren (geen losse extra vector-databases nodig).</p>
       </div>
 
       <div class="panel">
         <span class="chip orange">Besluit 3</span>
-        <h3>Prioriteit Volgende App</h3>
-        <p><strong>Voorstel:</strong> Akkoord op Fase 1 &amp; 2 (Calculatie-app als live pilot). Vaststellen welke applicatie daarna prioriteit krijgt (Urenregistratie, Buitendienst Werkbonnen of Planning).</p>
+        <h3>AI Governance Beleid</h3>
+        <p><strong>Aanbeveling:</strong> Vastleggen dat bedrijfsdata nooit voor openbare training wordt gebruikt, en dat AI-calculaties altijd door een menselijke calculator worden geaccordeerd.</p>
       </div>
     </div>
 
     <div class="panel">
-      <h3>Business Case &amp; Return on Investment (ROI)</h3>
+      <h3>Business Case &amp; ROI voor VSVK</h3>
       <div class="grid2">
         <div>
-          <h4>Kwantitatieve Baten</h4>
+          <h4>Kwantitatieve Winst</h4>
           <ul>
-            <li><strong>60% kortere bouwtijd:</strong> Vervolgapplicaties hoeven authenticatie, dataontsluiting en opmaak niet opnieuw te ontwikkelen.</li>
-            <li><strong>Minder faalkosten:</strong> Geen verouderde artikeltarieven meer in offertes; tariefwijzigingen zijn in één seconde bedrijfsbreed actief.</li>
+            <li><strong>Besteksanalyse in minuten i.p.v. uren:</strong> AI matcht RAW-teksten direct met VSVK-artikelen.</li>
+            <li><strong>60% lagere bouwkosten:</strong> Nieuwe apps hoeven auth, datalaag en AI niet opnieuw te ontwikkelen.</li>
           </ul>
         </div>
         <div>
-          <h4>Kwalitatieve Baten</h4>
+          <h4>Kwalitatieve Winst</h4>
           <ul>
-            <li><strong>Professionele audit trail:</strong> Direct inzicht in wie welke offerte heeft goedgekeurd.</li>
-            <li><strong>AVG-compliance:</strong> Handtekeningen en persoonsgegevens veilig afgeschermd volgens de wet.</li>
+            <li><strong>Geen dataverlies of hallucinaties:</strong> Altijd 100% actuele uurtarieven via RAG.</li>
+            <li><strong>Toekomstbestendig:</strong> Schakelen tussen AI-modellen zonder de applicaties aan te passen.</li>
           </ul>
         </div>
       </div>
@@ -957,7 +924,6 @@ gantt
 </main>
 
 <script>
-  // Tab switcher logic
   const tabBtns = document.querySelectorAll('nav.tabs button');
   const panes = document.querySelectorAll('.tab-pane');
 
@@ -986,7 +952,6 @@ gantt
     });
   });
 
-  // URL hash support
   const initialHash = window.location.hash.replace('#', '');
   if (initialHash && document.getElementById('pane-' + initialHash)) {
     selectTab(initialHash);
@@ -994,7 +959,6 @@ gantt
     selectTab('alles');
   }
 
-  // Theme toggle support
   const themeBtn = document.getElementById('themeBtn');
   let currentTheme = localStorage.getItem('vsvk-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   document.documentElement.setAttribute('data-theme', currentTheme);
@@ -1005,7 +969,6 @@ gantt
     localStorage.setItem('vsvk-theme', currentTheme);
   });
 
-  // Initialize Mermaid with clean neutral styling
   if (window.mermaid) {
     mermaid.initialize({
       startOnLoad: true,

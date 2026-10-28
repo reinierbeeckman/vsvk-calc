@@ -1,353 +1,278 @@
 # Strategisch Advies & Doelarchitectuur: VSVK Digitaal Platform
+## API-First & Data-Centric AI Architectuur
 
 > **Doelgroep:** Directie & Management VSVK  
-> **Auteur:** Software Architectuur & Ontwikkeling  
+> **Auteur:** Software & AI Architectuur  
 > **Status:** Voorstel t.b.v. besluitvorming  
-> **Uitgangspunt:** Transitie van stand-alone calculatie-tool naar een schaalbaar, veilig enterprise applicatielandschap.
+> **Uitgangspunt:** Transitie van stand-alone prototype naar een schaalbaar, veilig, API-first en AI-gereed enterprise platform.
 
 ---
 
 ## 1. Executive Summary
 
-VSVK wil sneller nieuwe applicaties en functionaliteiten kunnen ontwikkelen (zoals calculatie, werkvoorbereiding, planning, urenregistratie, materieelbeheer en directie-dashboards). 
+VSVK wil sneller nieuwe applicaties en functionaliteiten ontwikkelen (o.a. calculatie, werkvoorbereiding, planning, urenregistratie, materieelbeheer en directie-dashboards), en tevens de kracht van **moderne AI** (zoals geautomatiseerde besteksanalyse, slimme calculatiesuggesties en offerte-generatie) kunnen benutten.
 
-In de huidige situatie is de calculatie-applicatie een stand-alone frontend waarbij data lokaal in browsers of in losse JSON-documenten wordt opgeslagen. Als er op deze manier meer applicaties worden gebouwd, ontstaan **datasilo's**: gegevens over klanten, tarieven, medewerkers en projecten raken gefragmenteerd, wijzigingen moeten op meerdere plekken handmatig worden doorgevoerd, en er ontstaan compliance- en beveiligingsrisico's.
+In de huidige situatie is de calculatie-applicatie een stand-alone frontend waarbij data lokaal in browsers of in losse JSON-documenten wordt opgeslagen. Als hierop voortgebouwd wordt, ontstaan **datasilo's** en is betrouwbare AI onmogelijk: AI-modellen hebben immers een betrouwbare, actuele en centrale databron nodig om te voorkomen dat ze 'hallucineren' of verouderde tarieven hanteren.
 
-**De oplossing:**  
-Een professionele **3-lagen doelarchitectuur** met:
-1. **Centrale Datalaag (Single Source of Truth):** Eén robuuste interne database met de kernentiteiten van VSVK.
-2. **API Gateway & Business Logic Laag:** De centrale verkeersregelaar die zorgt voor beveiliging, autorisatie, validatie en consistente bedrijfslogica.
-3. **Modulaire Applicatielaag:** Frontends (web en mobiel) die snel en goedkoop ontwikkeld kunnen worden omdat ze direct kunnen inhaken op kant-en-klare, beveiligde API-bouwstenen.
+### De Oplossing: Een 4-Lagen API-First & Data-Centric AI Architectuur
+In deze doelarchitectuur zijn **data**, **AI-logica**, **orkestratie** en de **presentatielaag** strikt van elkaar ontkoppeld. Dit garandeert maximale schaalbaarheid, veiligheid en flexibiliteit.
+
+```
++-------------------------------------------------------------+
+| 1. Presentatielaag / Consumenten (Web, Mobiel, IoT, AI-Chat)|
++-------------------------------------------------------------+
+              ▲ REST / GraphQL / gRPC ▼
++-------------------------------------------------------------+
+| 2. API- & Orchestratielaag (Gateway, LangChain, Agents)     |
++-------------------------------------------------------------+
+              ▲ Aanroepen AI / Data queries ▼
++-------------------------------------------------------------+
+| 3. AI- & Model-laag (LLM's, Embedding-modellen, Regels)     |
++-------------------------------------------------------------+
+              ▲ Vector- en Metadata-lookups ▼
++-------------------------------------------------------------+
+| 4. Centrale Datalaag (Data Lakehouse, Vector DB, RDBMS)     |
++-------------------------------------------------------------+
+```
 
 ```mermaid
 graph TD
-    subgraph AppLaag ["3. Applicatielaag (Frontends & Apps)"]
-        A1["Calculatie & Offerte (Web)"]
-        A2["Planning & Werkbonnen (Tablet/Mobiel)"]
-        A3["Uren & Materieel (Web/Mobiel)"]
-        A4["Directie Dashboard & BI"]
+    subgraph Laag1 ["1. Presentatielaag / Consumenten"]
+        UI_CALC["Calculatie & Offerte (Web)"]
+        UI_MOB["Planning & Werkbonnen (Tablet/Mobiel)"]
+        UI_AI["VSVK Copilot / AI Assistent"]
+        UI_DASH["Directie Dashboard & BI"]
     end
 
-    subgraph GatewayLaag ["2. API Gateway & Business Services"]
-        GW["API Gateway (Reverse Proxy / Routing / Rate Limiting)"]
-        AUTH["Auth Service (Microsoft Entra ID / SSO & MFA)"]
-        CORE_API["Core Domain Services (Klanten, Vestigingen, Tarieven, Calculaties)"]
-        CALC_ENGINE["Calculatie & Nummering Engine (Centraal Rekenmodel)"]
+    subgraph Laag2 ["2. API- & Orchestratielaag (Interface & Lijm)"]
+        GW["API Gateway (OAuth2/OIDC, Rate Limiting, Audit)"]
+        ORCH["AI Orchestrator (LangChain / LlamaIndex / Agents)"]
+        CORE_SRV["Core Domein Services (Klanten, Projecten, Tarieven)"]
+        CALC_ENG["Calculatie & Sequencing Engine (Centrale Rekenregels)"]
     end
 
-    subgraph DataLaag ["1. Centrale Datalaag (Single Source of Truth)"]
-        DB[("PostgreSQL Database (ACID / Transacties / Audit Trail)")]
-        BLOB[("Beveiligde Document Storage (PDF's, Handtekeningen)")]
+    subgraph Laag3 ["3. AI- & Model-laag (Stateless Intelligence)"]
+        LLM_PUB["Publieke Cloud LLM's (Azure OpenAI / Anthropic)"]
+        LLM_LOCAL["Private / On-Premise Modellen (Mistral / Llama via vLLM)"]
+        EMBED["Embedding Modellen (Tekst & Bestekken naar Vectoren)"]
     end
 
-    A1 -->|HTTPS / REST / JSON| GW
-    A2 -->|HTTPS / REST / JSON| GW
-    A3 -->|HTTPS / REST / JSON| GW
-    A4 -->|HTTPS / REST / JSON| GW
+    subgraph Laag4 ["4. Centrale Datalaag (Data Centricity & SSOT)"]
+        DB[("PostgreSQL met pgvector (Relationeel + Vector DB)")]
+        LAKE[("Data Lakehouse / Document Archief (Bestekken, PDF's)")]
+        PIPE["ELT/ETL Data Pipelines (Continu synchroniseren & indexeren)"]
+    end
 
-    GW --> AUTH
-    GW --> CORE_API
-    GW --> CALC_ENGINE
+    UI_CALC -->|HTTPS / REST| GW
+    UI_MOB -->|HTTPS / REST| GW
+    UI_AI -->|HTTPS / GraphQL| GW
+    UI_DASH -->|HTTPS / REST| GW
 
-    CORE_API --> DB
-    CALC_ENGINE --> DB
-    CORE_API --> BLOB
+    GW --> CORE_SRV
+    GW --> CALC_ENG
+    GW --> ORCH
+
+    ORCH -->|Prompt met Context| LLM_PUB
+    ORCH -->|Prompt met Context| LLM_LOCAL
+    ORCH -->|Vectoriseer Vraag| EMBED
+
+    CORE_SRV --> DB
+    CALC_ENG --> DB
+    ORCH -->|RAG: SQL & Vector Lookups| DB
+    PIPE --> DB
+    PIPE --> LAKE
 ```
 
 ---
 
-## 2. De 3-Lagen Architectuur in Detail
+## 2. De 4 Kernlagen in Detail
 
-### Laag 1: Centrale Datalaag (Core Entiteiten & SSOT)
-**Technologieadvies:** **PostgreSQL** (versie 16+)
+### Laag 4: Centrale Datalaag (Data Centricity & Single Source of Truth)
+Data wordt niet lokaal in applicaties opgeslagen, maar gecentraliseerd en gestructureerd voor zowel transactioneel gebruik als AI-consumptie.
 
-#### Waarom PostgreSQL?
-- **Rotsvaste ACID-garanties:** Essentieel voor financiële calculaties, offertes en unieke nummeruitgifte zonder risico op dubbele nummers of dataverlies bij netwerkstoringen.
-- **Hybride kracht (Relationeel + JSONB):** Gestructureerde kernentiteiten (Klant, Vestiging, Artikel) zijn relationeel gemodelleerd; flexibele velden kunnen veilig en geïndexeerd als JSONB worden opgeslagen.
-- **Open source & geen vendor lock-in:** Draait probleemloos op eigen hardware (on-premise in het VSVK-datacenter) of in een private cloud omgeving.
-- **Rijke tooling:** Uitstekende ondersteuning voor geautomatiseerde migraties, point-in-time herstel en audit-logging.
+1. **Hybride Database: PostgreSQL met `pgvector`**
+   * **Waarom deze keuze?** In plaats van een aparte losse vector-database (zoals Pinecone of Milvus) naast een relationele database, biedt PostgreSQL met de `pgvector`-extensie het beste van twee werelden binnen één betrouwbare datastore.
+   * **Gestructureerde bedrijfsdata:** Klanten, vestigingen, artikelen, uurtarieven, offertes en calculaties worden relationeel met strikte ACID-transacties bewaard.
+   * **Vector Data (Embeddings):** Ongestructureerde data (eerdere offertes, standaardteksten, bestekken, RAW-bepalingen, schouwrapporten) wordt omgezet in wiskundige vectoren en direct in PostgreSQL opgeslagen en doorzocht met cosine-similarity.
+2. **Centraal Document- & Data-archief:**
+   * Veilige opslag voor officiële PDF's, getekende overeenkomsten, foto's van situaties en handtekeningen.
+3. **Data Pipeline (ELT/ETL):**
+   * Geautomatiseerde processen die nieuwe data (bijv. nieuw ingevoerde artikelen of geaccepteerde offertes) automatisch schonen, valideren en vectoriseren zodat de AI altijd beschikt over up-to-date context.
 
-#### Core Entiteitenmodel
-De data wordt ontkoppeld uit losse JSON-blobs naar duidelijke domeinentiteiten:
+---
 
-```mermaid
-erDiagram
-    VESTIGING ||--o{ MEDEWERKER : heeft
-    VESTIGING ||--o{ PROJECT : beheert
-    KLANT ||--o{ PROJECT : "opdrachtgever voor"
-    PROJECT ||--o{ CALCULATIE : bevat
-    CALCULATIE ||--o{ BLOK : "bestaat uit"
-    BLOK ||--o{ REGEL : bevat
-    ARTIKEL ||--o{ REGEL : "wordt gekozen in"
-    CALCULATIE ||--o{ OFFERTE : genereert
-    CALCULATIE ||--o{ PLANNING_ITEM : bevat
+### Laag 3: AI- & Model-laag (Stateless Intelligence)
+Deze laag verwerkt de AI-logica **zonder zelf data permanent op te slaan**. Dit garandeert dat bedrijfsdata nooit 'lekt' naar het model.
 
-    VESTIGING {
-        uuid id PK
-        string naam
-        string vestigingscode
-        string adres
-        string postcode
-        string plaats
-        string iban
-        string btw_nummer
-    }
+1. **Model-Flexibiliteit (Geen Vendor Lock-in):**
+   * De architectuur is model-agnostisch. VSVK kan flexibel schakelen tussen:
+     * **Enterprise Cloud API's:** Bijvoorbeeld Microsoft Azure OpenAI (GPT-4o) of Anthropic Claude onder strikte zakelijke verwerkersovereenkomsten (waarbij Microsoft/OpenAI garandeert dat data *niet* wordt gebruikt om modellen te trainen).
+     * **On-Premise / Lokale Modellen:** Opensource modellen (zoals Mistral of Llama 3) draaiend in eigen beheer (via vLLM of Hugging Face) voor 100% data-soevereiniteit.
+   * *Voordeel:* Komt er morgen een sneller, goedkoper of slimmer model uit? Dan wordt uitsluitend de adapter in deze laag vervangen; de frontends en de database merken hier niets van.
+2. **Embedding Models:**
+   * Snelle, gespecialiseerde modellen die binnenkomende bestekken of zoekvragen van calculators in milliseconden omzetten in vectoren om de centrale database semantisch te doorzoeken.
 
-    KLANT {
-        uuid id PK
-        string bedrijfsnaam
-        string contactpersoon
-        string email
-        string telefoon
-        string debiteurnummer
-        boolean actief
-    }
+---
 
-    ARTIKEL {
-        uuid id PK
-        string code
-        string omschrijving
-        string categorie
-        string eenheid
-        decimal standaard_tarief
-        boolean actief
-        timestamp geldig_vanaf
-    }
+### Laag 3 (Detail): Hoe AI concreet werkt voor VSVK via RAG
+In plaats van AI direct antwoorden te laten 'verzinnen', passen we het **Retrieval-Augmented Generation (RAG)** patroon toe:
 
-    PROJECT {
-        uuid id PK
-        string projectnummer
-        string naam
-        uuid klant_id FK
-        uuid vestiging_id FK
-        uuid projectleider_id FK
-        string status
-    }
-
-    CALCULATIE {
-        uuid id PK
-        string calculatienummer
-        uuid project_id FK
-        int versie
-        string status
-        decimal totaal_excl_btw
-        timestamp bijgewerkt_op
-        uuid bijgewerkt_door FK
-    }
 ```
-
-#### Datakwaliteit & Auditability
-- **Onherroepelijke Audit Trail:** Voor calculaties en financiële offertes geldt een audittrail (`created_at`, `created_by`, `updated_at`, `updated_by`).
-- **Versiebeheer & Snapshotting:** Wanneer een offerte de status *Verstuurd* of *Opdracht* bereikt, wordt een definitieve snapshot vastgelegd. Wijzigingen in de stamdata (bijv. artikelprijs stijgt volgend jaar) mogen reeds verzonden offertes immers nooit met terugwerkende kracht wijzigen.
-- **Soft Deletes:** Records worden niet fysiek verwijderd, maar gemarkeerd als gearchiveerd (`deleted_at IS NOT NULL`).
-
----
-
-### Laag 2: API Gateway & Business Logic Laag
-**Technologieadvies:** **Node.js met TypeScript (bijv. Fastify/NestJS)** of **.NET Core (C#)**
-
-De API Gateway fungeert als het centrale zenuwstelsel. Frontends praten **nooit** rechtstreeks met de database.
-
-#### Kernverantwoordelijkheden:
-1. **Centrale Bedrijfs- en Rekenlogica:**
-   Calculatieregels, opslagpercentages (AK en W&R), toeslagen en btw-berekeningen worden op de backend berekend of gevalideerd. De frontend toont realtime berekeningen, maar de backend is bindend.
-2. **Concurrency-veilige Nummeruitgifte:**
-   Nummerreeksen (`2027-001`, `2027-002`) worden via een transactionele databank-sequence of gecontroleerde locking toegekend. Dit voorkomt dat twee calculators gelijktijdig hetzelfde nummer claimen.
-3. **Gestandaardiseerde REST / OpenAPI Specificaties:**
-   Elk eindpunt is voorzien van een Swagger/OpenAPI-contract. Frontends hebben een strakke interface en weten exact welk datatype verwacht wordt.
-4. **Rate Limiting & Threat Protection:**
-   Beveiliging tegen abuse, brute force en injectieaanvallen (SQL injection, XSS).
-
----
-
-### Laag 3: Applicatielaag (Frontends & Snelle Uitbreiding)
-**Technologieadvies:** Moderne Web Standards (HTML5 / TypeScript / CSS) of een component-framework met een gedeelde VSVK UI Design Library.
-
-#### Hoe zorgt dit voor "snel applicaties kunnen maken"?
-- **Gedeelde `DataStore` SDK:** Elke nieuwe frontend (urenapp, planningstool, calculatie) importeert een kleine interne client-bibliotheek die automatisch authenticatie, foutafhandeling en API-communicatie regelt.
-- **Huisstijl & Componenten:** Knoppen, tabellen, modals, formulieren en navigatie worden eenmalig ontworpen volgens de VSVK-standaard.
-- **Focus op de business:** Een ontwikkelaar hoeft zich voor een nieuwe app alleen te richten op het scherm en de workflow; de data-opslag, beveiliging en autorisatie zijn al geregeld.
-
----
-
-## 3. Enterprise Visie op Microservices: De Pragmatische Evolutie
-
-Een veelvoorkomende vraag bij moderniseringstrajecten is: *"Moeten we alles direct opsplitsen in microservices?"*  
-Voor een organisatie met de schaal, dynamiek en wensen van VSVK is een **ondoordachte microservices-aanpak een groot risico**.
-
-### 3.1 De Valkuil van Vroegtijdige Microservices
-Wanneer elke functie (calculaties, klanten, artikelen, planning) vanaf dag één als een aparte microservice met een eigen database en eigen container wordt gebouwd:
-* **Explosie van operationele complexiteit:** Er is direct behoefte aan geavanceerde container-orchestratie (Kubernetes), distributed tracing, complexe netwerkbeveiliging en monitoring van tientallen losse processen.
-* **Verlies van transactie-integriteit (ACID):** Zodra een handeling meerdere services raakt (bijvoorbeeld een calculatie die tegelijkertijd planning en budgetten reserveert), vervallen klassieke database-transacties. Er zijn dan complexe "Saga-patronen" en tweefasen-commits nodig, wat vaak leidt tot data-inconsistenties.
-* **Tragere ontwikkelsnelheid:** De directie wil juist **snel** nieuwe functionaliteit kunnen uitrollen. Als ontwikkelaars voortdurend netwerkcontracten, deployment-volgordes en API-versies tussen losse services moeten synchroniseren, daalt de productiviteit drastisch.
-
-### 3.2 De Best Practice: De Modulaire Monoliet (Domain-Driven Design)
-Voor VSVK adviseren wij een **Modulaire Monoliet** als startpunt en fundament van de enterprise visie:
-
-1. **Eén centrale runtime en database:** Eenvoudig te deployen, beheren en back-uppen.
-2. **Strikte logische domeinscheiding (Bounded Contexts):** Binnen de backend worden de domeinen strikt van elkaar gescheiden:
-   - *Domein Stamdata & Identiteit* (Artikelen, Tarieven, Vestigingen, Medewerkers)
-   - *Domein Calculatie & Offerte* (Calculaties, Blokken, Regels, Offerte-modellen)
-   - *Domein Planning & Uitvoering* (Planningsitems, Mijlpalen, Werkbonnen)
-   - *Domein Uren & Materieel* (Urenregistratie, Inzet materieel)
-3. **Geen ongecontroleerde dwarsverbanden:** Domein A mag uitsluitend communiceren met Domein B via een gedefinieerde service-interface, nooit door rechtstreeks in elkaars databasetabellen te schrijven.
-
-```mermaid
-graph TD
-    subgraph APIGw ["API Gateway (Centrale Ingang)"]
-        GW["API Gateway / Reverse Proxy (Routing & Auth)"]
-    end
-
-    subgraph CoreBackend ["Centraal Backend Platform (Modulaire Bounded Contexts)"]
-        AUTH_MOD["Domein 1: Identiteit & Autorisatie"]
-        STAM_MOD["Domein 2: Stamdata (Artikelen, Vestigingen, Tarieven)"]
-        CALC_MOD["Domein 3: Calculatie & Offerte"]
-        PLAN_MOD["Domein 4: Planning & Uitvoering (Toekomstig)"]
-        UREN_MOD["Domein 5: Uren & Materieel (Toekomstig)"]
-    end
-
-    subgraph EventBroker ["Asynchrone Event Bus (Ontkoppeling)"]
-        BUS["Berichtenbus / Events (bijv. OrderGeaccordeerdEvent)"]
-    end
-
-    subgraph DataLaag ["Centrale Datalaag (PostgreSQL)"]
-        DB_STAM[("Schema: Stamdata")]
-        DB_CALC[("Schema: Calculaties")]
-        DB_PLAN[("Schema: Planning")]
-    end
-
-    GW --> AUTH_MOD
-    GW --> STAM_MOD
-    GW --> CALC_MOD
-    GW --> PLAN_MOD
-    GW --> UREN_MOD
-
-    CALC_MOD -.->|Publiceert Event| BUS
-    BUS -.->|Triggert| PLAN_MOD
-
-    STAM_MOD --> DB_STAM
-    CALC_MOD --> DB_CALC
-    PLAN_MOD --> DB_PLAN
+[ Calculator typt: "Maak calculatie voor vervangen 200 LED-armaturen in Noordtunnel" ]
+                                  │
+                                  ▼
+                    [ 2. AI Orchestrator (LangChain) ]
+                                  │
+          ┌───────────────────────┴───────────────────────┐
+          │ 1. Vector Search                              │ 2. SQL Query
+          ▼                                               ▼
+[ Zoek relevante bestekbepalingen ]              [ Haal actuele uurtarieven op: ]
+[ en uitgangspunten in pgvector   ]              [ Monteur E&M (€62,70),       ]
+          │                                      [ Hoogwerker (€38,59), etc.   ]
+          └───────────────────────┬───────────────────────┘
+                                  │
+                                  ▼
+[ Verrijkte Prompt naar LLM: "Gebruik UITSLUITEND deze data om de regels op te bouwen" ]
+                                  │
+                                  ▼
+[ Gestructureerde JSON Calculatieregels terug naar API Gateway -> Direct in de UI ]
 ```
-
-### 3.3 De Evolutionaire Stap: Wanneer wél een Microservice afsplitsen?
-Omdat de domeinen al strak zijn gemodelleerd en geïsoleerd, behoudt VSVK de **volledige architectonische flexibiliteit**. Een domein kan op elk gewenst moment worden losgeknipt tot een zelfstandige microservice zodra daar een gegronde technische of operationele reden voor is:
-
-* **Afwijkend schaalprofiel:** Bijvoorbeeld een toekomstige IoT-module die realtime GPS- en sensordata van botsabsorbers en actiewagens verwerkt (duizenden berichten per minuut). Dit hoort technisch thuis in een aparte, lichtgewicht microservice.
-* **Onafhankelijke teams of externe partners:** Als een gespecialiseerde externe partij een specifieke app bouwt (bijv. mobiele schouw-app), kan die module als zelfstandige service worden beheerd.
-* **Transparant voor de gebruiker:** Omdat de **API Gateway** tussen de frontends en de backends staat, merken de applicaties hier niets van. Het endpoint `/api/v1/calculaties` of `/api/v1/telemetrie` blijft voor de frontends identiek, ongeacht of de logica erachter in de modulaire monoliet of in een losse microservice draait.
-
-### 3.4 Asynchrone Koppeling via Domein-Events
-Om domeinen nu alvast losjes te koppelen zonder netwerkvertraging, maken we gebruik van **Domain Events**:
-* **Voorbeeld:** Zodra een calculatie in de app de status `Opdracht` krijgt, publiceert het calculatiedomein het event `CalculatieGeaccordeerd`.
-* De planningsmodule en de financiële administratie vangen dit event op en voeren hun eigen taken uit (bijv. projectdossier en concept-planning aanmaken), zonder dat de calculatie-app afhankelijk is van de interne logica van die modules.
-
----
-
-## 4. Security, Authenticatie & Autorisatie
-
-### A. Authenticatie: Microsoft Entra ID (voorheen Azure AD)
-VSVK werkt met Microsoft 365.
-- **Single Sign-On (SSO):** Medewerkers loggen in met hun bestaande VSVK-account via het **OAuth 2.0 / OpenID Connect (OIDC)** protocol.
-- **Multi-Factor Authenticatie (MFA):** Wordt direct geërfd van het centrale Microsoft-beleid. Geen eigen wachtwoorden in de applicatie.
-- **Token-based communicatie:** De frontend ontvangt na login een kortlevende JWT (JSON Web Token), die bij elk API-verzoek in de `Authorization: Bearer <token>` header wordt meegestuurd.
-
-### B. Autorisatie: Role-Based Access Control (RBAC) & Vestigingsscheiding
-Niet elke medewerker mag overal bij. We richten een matrix in:
-
-| Rol | Rechten | Toelichting |
-|---|---|---|
-| **Calculator** | CRUD Calculaties & Offertes (eigen vestiging) | Kan geen stamdata (uurtarieven) definitief wijzigen. |
-| **Projectleider** | Inzien Calculaties, beheren Planning & Status | Kan calculaties overdragen naar uitvoering. |
-| **Vestigingsmanager** | Volledige toegang eigen vestiging (incl. goedkeuringen) | Ziet uitsluitend data van bijv. Pijnacker of Rilland. |
-| **Directie / Admin** | Overkoepelend inzicht (alle vestigingen), Stamdata beheer | Kan tarieven, artikelen en bedrijfsbrede instellingen beheren. |
 
 > [!IMPORTANT]
-> **Vestigingsscheiding (Data Scoping):** De API Gateway dwingt af dat queries automatisch gefilterd worden op `vestiging_id`, tenzij de gebruiker overkoepelende rechten heeft. Dit voorkomt dat medewerkers onbedoeld calculaties van andere vestigingen overschrijven.
+> **Geen Hallucinaties:** Het AI-model berekent geen tarieven uit het hoofd. De orchestrator haalt eerst de **gevalideerde stamdata** (de 77 officiële VSVK-artikelen) op uit PostgreSQL. Het AI-model structureert en matcht de tekst uitsluitend op basis van de feiten.
 
-### C. AVG / Privacy & Bescherming van Persoonsgegevens
-- **Handtekeningen:** In het huidige prototype zit de handtekening van de directie (`SIG_PVK`) als een ongecodeerde base64-string in de broncode en lokale browser. In de doelarchitectuur worden handtekeningen en identiteitsbewijzen opgeslagen in een **beveiligde private object storage** en uitsluitend on-demand gerenderd door geautoriseerde backend-processen (bij het genereren van een officiële PDF).
-- **Encryptie:** 
-  - *In transit:* Verplicht TLS 1.3 (HTTPS) voor al het interne en externe verkeer.
-  - *At rest:* Database-versleuteling (LUKS / encrypted storage volume).
+---
+
+### Laag 2: API- & Orchestratielaag (De Interface & Lijm)
+Ontworpen volgens het **API-First principe**: de API is het primaire product; applicaties zijn slechts consumenten.
+
+1. **API Gateway:**
+   * Centrale toegangspoort voor alle frontends.
+   * Regelt authenticatie via **Microsoft Entra ID (OAuth2/OIDC)**, centrale rate limiting, IP-filtering en audit logging.
+2. **API Interfaces (Standaarden):**
+   * **REST met OpenAPI (Swagger):** Voor alle standaard CRUD-operaties (klanten, calculaties, uren, planning).
+   * **GraphQL / WebSockets:** Voor realtime AI-streaming (bijv. realtime gegenereerde calculatiesuggesties of chat-antwoorden) en live dashboard-statistieken.
+3. **AI Orchestrator (bijv. LangChain of LlamaIndex):**
+   * Vangt de vraag op vanuit de frontend.
+   * Voert de semantische zoekopdracht uit in `pgvector`.
+   * Stelt de 'verrijkte prompt' samen met bedrijfsspecifieke context en veiligheidsregels.
+   * Valideert de AI-output tegen een strikt JSON-schema voordat deze naar de frontend wordt gestuurd.
+4. **Centrale Bedrijfs- en Rekenregels:**
+   * Zorgt dat opslagpercentages (AK en W&R), toeslagen en unieke nummeruitgifte (`2027-001`) server-side worden gevalideerd en vastgelegd.
+
+---
+
+### Laag 1: Presentatielaag / Consumenten (Front-end)
+De applicatielaag bevat **geen database- en geen AI-logica**. Frontends zijn lichte, snelle en veilige interfaces:
+
+* **Consumenten:**
+  * Webapplicatie: Calculatie & Offerte (de huidige tool omgebouwd tot API-client).
+  * Mobiel / Tablet: Buitendienst-app voor monteurs en uitvoerders (schouwingen, werkbonnen, uren).
+  * AI Copilot: Een chat- of assistenten-interface voor werkvoorbereiders.
+  * Directie Dashboard: Realtime BI en managementrapportages.
+* **Voordeel van de ontkoppeling:**
+  Wil VSVK volgend jaar een mobiele app lanceren voor verkeersregelaars of een spraakgestuurde invoer op de bouwplaats? Dan kan die direct aansluiten op de bestaande API Gateway zonder aanpassingen aan de database of AI-modellen.
+
+---
+
+## 3. Enterprise Visie: Modulaire Monoliet vs. Microservices
+
+Hoe verhoudt de wens voor microservices zich tot deze AI-first architectuur?
+
+### De Valkuil: Vroegtijdige Microservices
+Het direct opknippen in 15-20 losse microservices leidt bij de huidige schaal van VSVK tot:
+* Enorme operationele overhead (Kubernetes, distributed tracing, netwerk-latency).
+* Moeizame dataverzameling voor AI: als data verspreid is over 10 databases, is RAG (Retrieval-Augmented Generation) traag en complex.
+* Verlies van ACID-transacties bij financiële nummeruitgifte en offertestatus.
+
+### Het Advies: Modulaire Monoliet met Bounded Contexts
+We bouwen de API- en datalaag als een **Modulaire Monoliet** met strikte domeinscheiding (Domain-Driven Design):
+1. **Domein Stamdata & Identiteit:** Klanten, Vestigingen, Artikelen, Uurtarieven.
+2. **Domein Calculatie & Offerte:** Calculatieblokken, Rekenregels, Offertes, Snapshotting.
+3. **Domein AI & Knowledge:** Vector-indexen, Besteksanalyse, Prompt-sjablonen.
+4. **Domein Planning & Uitvoering (Toekomstig):** Mijlpalen, Werkbonnen, Uitvoering.
+
+**Evolutionair pad:** Zodra een module (bijvoorbeeld de AI-orkestratie of realtime telemetrie van actiewagens) een afwijkend schaalprofiel krijgt of door een ander team wordt beheerd, kan deze **zonder herontwerp** worden losgeknipt tot een zelfstandige microservice. De API Gateway zorgt ervoor dat de frontends hier niets van merken.
+
+---
+
+## 4. Security, Governance & AVG bij AI-gebruik
+
+Het toevoegen van AI aan een bedrijfsarchitectuur stelt specifieke eisen aan security:
+
+1. **Geen Training op VSVK-Data:**
+   Bij gebruik van publieke cloud LLM's (zoals Azure OpenAI) worden expliciete zakelijke voorwaarden contractueel vastgelegd: prompts en bedrijfsgegevens worden **nooit** gebruikt om publieke modellen te trainen.
+2. **Data Scoping & Vestigingssegregatie vóór AI-aanroep:**
+   De API Gateway past *vóórdat* context naar het AI-model wordt gestuurd al de rol- en vestigingsfilters toe. Een calculator in Rilland krijgt via de AI uitsluitend data en bestekken te zien die geautoriseerd zijn voor vestiging Rilland.
+3. **AVG / Privacybescherming:**
+   Persoonsgegevens (zoals handtekeningen, personeelsdossiers of BSN-nummers) worden door de Data Pipeline geanonimiseerd of gefilterd voordat ze in de vector-database belanden.
+4. **Centrale Entra ID (M365) Login:**
+   Toegang tot zowel de webapps als de AI-mogelijkheden verloopt via Single Sign-On (SSO) en verplichte Multi-Factor Authenticatie (MFA).
 
 ---
 
 ## 5. Non-Functional Requirements (NFR's)
 
-### Performance
-- **API Response Tijden:** `< 100 ms` voor reguliere CRUD-operaties; `< 300 ms` voor complexe calculatielijsten.
-- **In-Memory Caching:** Stamdata die zelden verandert (artikelen, uurtarieven, vestigingen) wordt in het geheugen gecachet (bijv. Redis of node-cache), zodat niet voor elke regel de database geraadpleegd hoeft te worden.
-
-### Betrouwbaarheid & Back-up (RPO & RTO)
-- **RPO (Recovery Point Objective):** Maximaal 1 uur dataverlies. Gerealiseerd door dagelijkse volledige back-ups in combinatie met PostgreSQL WAL-archivering (Write-Ahead Logging / Point-in-Time Recovery).
-- **RTO (Recovery Time Objective):** Binnen 2 uur een volledige herstart op alternatieve infrastructuur bij calamiteiten.
-
-### Onderhoudbaarheid & CI/CD
-- **Infrastructuur als Code (Docker):** Zowel de database, de API gateway als de webapps draaien in Docker-containers. Dit garandeert dat de ontwikkelomgeving 100% gelijk is aan de productieomgeving.
-- **Geautomatiseerde CI/CD Pipeline:** Wijzigingen worden via GitHub Actions automatisch getest (linting, unittests, security checks) voordat ze naar productie worden gedeployed.
+| NFR | Doelstelling & Inrichting |
+|---|---|
+| **API Responstijd (Standaard)** | `< 100 ms` voor reguliere CRUD-operaties op PostgreSQL. |
+| **AI Responstijd (Streaming)** | Eerste token binnen `< 800 ms` via server-sent events (SSE) of WebSockets. |
+| **Vector Search Latency** | `< 50 ms` voor semantische lookups via geïndexeerde HNSW/IVFFlat indexen in `pgvector`. |
+| **Data Integriteit** | 100% ACID-transacties bij nummeruitgifte en statuswijzigingen (`Concept` &rarr; `Verstuurd` &rarr; `Opdracht`). |
+| **Back-up & Herstel** | Dagelijkse geautomatiseerde snapshots + PostgreSQL WAL-archivering. RPO `< 1 uur`, RTO `< 2 uur`. |
+| **Infrastructuur** | Volledig containerized via Docker; geautomatiseerde CI/CD via GitHub Actions. |
 
 ---
 
-## 6. Gefaseerd Software Development Traject (Roadmap)
-
-Om het risico minimaal te houden en direct waarde te leveren, adviseren we een **3-fasen aanpak**. We bouwen niet maanden aan een "black box", maar migreren de bestaande calculatie-app stap voor stap als pilot.
+## 6. Gefaseerde Roadmap (Inclusief AI-Integratie)
 
 ```mermaid
 gantt
-    title Roadmap Digitaal Platform VSVK
+    title Roadmap VSVK Digitaal Platform & AI
     dateFormat  YYYY-MM-DD
     section Fase 1: Fundament
-    Architectuurbesluit & Inrichting PostgreSQL :done, 2026-11-01, 10d
-    Core Entiteiten & Datamigratie Stamdata   :active, 2026-11-10, 10d
-    API Gateway Baseline & Entra ID Koppeling  :2026-11-20, 10d
+    PostgreSQL met pgvector inrichten       :done, 2026-11-01, 10d
+    Migratie Stamdata (77 artikelen, vest.) :active, 2026-11-10, 10d
+    API Gateway Baseline & Entra ID SSO     :2026-11-20, 10d
     section Fase 2: Pilot Calculatie
-    DataStore & GatewayStore Implementatie      :2026-12-01, 10d
-    Valideren Transacties, PDF & Nummering     :2026-12-11, 10d
-    Uitfaseren Claude/LocalStorage fallback    :2026-12-21, 5d
-    Livegang Calculatie op Centrale Datalaag    :milestone, 2026-12-31, 1d
-    section Fase 3: Schalen
-    Ontwikkeling Gedeelde UI Kit & Client SDK   :2027-01-05, 15d
-    Ontwikkelen App 2 (bijv. Uren / Planning)   :2027-01-20, 25d
+    DataStore & GatewayStore Koppeling       :2026-12-01, 10d
+    Valideren Transacties & Livegang Pilot   :2026-12-11, 10d
+    Uitfaseren LocalStorage/Claude fallback  :2026-12-21, 5d
+    section Fase 3: AI & RAG Orchestratie
+    Vectoriseren Offerteteksten & Bestekken  :2027-01-05, 12d
+    AI Orchestrator (RAG voor Calculaties)   :2027-01-17, 15d
+    Pilot AI Besteksassistent voor Calculators:2027-02-01, 15d
+    section Fase 4: Schalen
+    Ontwikkeling Mobiele App / Werkbonnen    :2027-02-15, 25d
 ```
 
-### Fase 1: Het Fundament (Datalaag & API Gateway)
-- Inrichten interne PostgreSQL database (containerized).
-- Datamigratie van de huidige stamdata (de 77 artikelen, tarieven, 3 vestigingen, medewerkers en offerteteksten).
-- Basis API Gateway opzetten met Microsoft Entra ID (SSO) en endpoints voor stamdata.
-
-### Fase 2: Pilot — Calculatie-applicatie Aansluiten
-- In `apps/calculatie/index.html` de opslag-naad ontkoppelen (zie `docs/storage-seam.md`): vervangen van de ad-hoc `localStorage`- en Claude-code door een robuuste `GatewayStore`.
-- Concurrency-veilige nummeruitgifte live testen.
-- Officiële PDF-generatie valideren en handtekeningen beveiligen.
-- **Resultaat na Fase 2:** De eerste volwaardige enterprise webapplicatie draait live op de nieuwe centrale datalaag!
-
-### Fase 3: Het Ecosysteem Schalen (Nieuwe Functionaliteit)
-- Opleveren van de herbruikbare VSVK Frontend SDK.
-- Start van volgende functionaliteiten (bijvoorbeeld: Planning & Werkbonnen voor de buitendienst, of Urenregistratie gekoppeld aan de calculatieblokken).
+1. **Fase 1: Fundament (Weken 1-4)**  
+   Centrale PostgreSQL datalaag met `pgvector` opzetten; stamdata migreren; API Gateway met Entra ID inrichten.
+2. **Fase 2: Pilot Calculatie Live (Weken 5-7)**  
+   Huidige calculatietool via `GatewayStore` koppelen aan de API Gateway; unieke nummering live brengen. Eerste enterprise app live!
+3. **Fase 3: AI Orchestratie & RAG Pilot (Weken 8-11)**  
+   Vectoriseren van historische calculaties en standaardteksten; toevoegen van de AI Orchestrator (LangChain/LlamaIndex) die calculators helpt bestekken te koppelen aan de juiste VSVK-artikelen.
+4. **Fase 4: Ecosysteem Uitbreiden (Week 12+)**  
+   Bouw van vervolgapplicaties (planning, buitendienst werkbonnen, urenregistratie) met 60% kortere ontwikkeltijd.
 
 ---
 
 ## 7. Gespreksagenda voor het Directieoverleg
 
-Gebruik onderstaande punten als kapstok voor het overleg met de directie:
-
-### A. De Strategische Keuze (Waarom nu?)
-* **Snelheid vs. Chaos:** Uitleggen dat snel applicaties bouwen *alleen* duurzaam kan als het fundament (één centrale bron van waarheid) goed staat. Zonder dit fundament resulteert elke nieuwe app in dubbele data en administratieve fouten.
-* **Beheersbaarheid:** Prijswijzigingen in artikelen of tarieven hoeven straks maar op **één plek** te worden aangepast en gelden direct voor alle vestigingen en toekomstige apps.
-* **Pragmatische architectuur:** We kiezen niet voor een modieus, complex doolhof van 20 losse microservices, maar voor een **Modulaire Monoliet**. Dit geeft maximale ontwikkelsnelheid nu, met behoud van de flexibiliteit om later onderdelen los te trekken.
+### A. De Strategische Keuze: Waarom API-First & Data-Centric AI?
+* **Voorkom desinvesteringen:** Veel bedrijven bouwen eerst losse apps en proberen er later AI "aan vast te plakken". Door nú te kiezen voor een ontkoppelde 4-lagen architectuur, is elke applicatie die we bouwen vanaf dag één AI-gereed.
+* **Geen hallucinaties:** Dankzij RAG (Retrieval-Augmented Generation) put de AI altijd uit de actuele, gevalideerde uurtarieven van VSVK.
+* **Model-onafhankelijkheid:** We worden niet gegijzeld door één AI-leverancier. We kunnen vandaag Azure OpenAI gebruiken en morgen een lokaal open-source model zonder dat onze software verbouwd hoeft te worden.
 
 ### B. Beslispunten voor de Directie
 1. **Hostinglocatie van het platform:**  
-   *Optie 1 (Aanbevolen):* Private Cloud (bijv. Microsoft Azure in de regio Nederland/West-Europa, naadloos aansluitend op Microsoft 365).  
-   *Optie 2:* On-premise server op het hoofdkantoor in Pijnacker (met VPN-verbindingen vanuit Rilland en Wamel).
-2. **Authenticatiebeleid:**  
-   Akkoord geven op het gebruik van de bestaande Microsoft 365 / Entra ID accounts als centrale login voor alle bedrijfssoftware.
-3. **Prioritering van de Roadmap:**  
-   Akkoord op Fase 1 & 2 (Calculatie als succesvolle pilot), en vaststellen welke bedrijfsfunctie als tweede app prioriteit heeft (bijv. Werkbonnen/Buitendienst of Uren).
+   *Aanbeveling:* Private Cloud (Microsoft Azure NL) naadloos aangesloten op Microsoft 365 en Azure OpenAI (met enterprise data-bescherming).
+2. **Datalaag met AI-capaciteit:**  
+   Akkoord op PostgreSQL met `pgvector` als centrale interne bron van waarheid voor zowel financiële data als documentvectoren.
+3. **AI Governance Beleid:**  
+   Vaststellen dat bedrijfsdata nooit mag worden gebruikt voor openbare modeltraining, en dat AI-suggesties altijd door een mens (calculator) worden goedgekeurd vóór verzending van de offerte.
 
 ### C. Return on Investment (ROI)
-* **Lagere ontwikkelkosten:** Na oplevering van de API Gateway en het datamodel daalt de bouwtijd van vervolgschermen en -apps met **50% tot 70%**, omdat dataontsluiting en authenticatie al gereed zijn.
-* **Geen data-verlies:** Elimineert het risico dat calculaties kwijtraken bij een browser-opschoning of computerwissel.
-* **Foutreductie:** Calculators en projectleiders werken altijd met de actuele, door de directie geaccordeerde uurtarieven en marges.
-
+* **Tijdwinst Calculatie:** Besteksanalyse en het opzetten van calculatieblokken gaat van uren handwerk naar minuten met AI-assistentie.
+* **Bouwtijd Volgende Apps:** Ontwikkelsnelheid voor nieuwe schermen en functionaliteiten stijgt met 60%.
+* **Foutreductie & Kwaliteit:** Gegarandeerd correcte uurtarieven en marges, consistente offerteteksten en volledige audit-traceerbaarheid.
