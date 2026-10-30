@@ -1,4 +1,5 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.IdentityModel.Tokens;
@@ -169,6 +170,16 @@ static CalculatieTotals ExtractTotals(System.Text.Json.JsonElement root, string 
   );
 }
 
+static JsonElement GetOrNull(System.Text.Json.JsonElement element, string propertyName)
+{
+  if (element.TryGetProperty(propertyName, out var value))
+  {
+    return value.Clone();
+  }
+
+  using var doc = System.Text.Json.JsonDocument.Parse("null");
+  return doc.RootElement.Clone();
+}
 static List<CalculationArticleSelection> ExtractSelectedArticles(string dataJson)
 {
   var selected = new List<CalculationArticleSelection>();
@@ -538,13 +549,13 @@ app.MapGet("/api/instellingen/algemeen", async (HttpContext ctx, InstellingenRep
       bijgewerkt = settings.UpdatedAt.ToString("o"),
       version = settings.Version,
       // Payload as-is
-      artikelen = settings.Data.TryGetProperty("artikelen", out var a) ? a : default,
-      vestigingen = settings.Data.TryGetProperty("vestigingen", out var v) ? v : default,
-      medewerkers = settings.Data.TryGetProperty("medewerkers", out var m) ? m : default,
-      onderdelen = settings.Data.TryGetProperty("onderdelen", out var o) ? o : default,
-      sugg = settings.Data.TryGetProperty("sugg", out var s) ? s : default,
-      teksten = settings.Data.TryGetProperty("teksten", out var t) ? t : default,
-      standaard = settings.Data.TryGetProperty("standaard", out var st) ? st : default
+      artikelen = GetOrNull(settings.Data, "artikelen"),
+      vestigingen = GetOrNull(settings.Data, "vestigingen"),
+      medewerkers = GetOrNull(settings.Data, "medewerkers"),
+      onderdelen = GetOrNull(settings.Data, "onderdelen"),
+      sugg = GetOrNull(settings.Data, "sugg"),
+      teksten = GetOrNull(settings.Data, "teksten"),
+      standaard = GetOrNull(settings.Data, "standaard")
     });
   })
   .RequireAuthorization("employee");
@@ -575,13 +586,13 @@ app.MapPut("/api/instellingen/algemeen", async (HttpContext ctx, InstellingenRep
     {
       bijgewerkt = updated.UpdatedAt.ToString("o"),
       version = updated.Version,
-      artikelen = updated.Data.TryGetProperty("artikelen", out var a) ? a : default,
-      vestigingen = updated.Data.TryGetProperty("vestigingen", out var v) ? v : default,
-      medewerkers = updated.Data.TryGetProperty("medewerkers", out var m) ? m : default,
-      onderdelen = updated.Data.TryGetProperty("onderdelen", out var o) ? o : default,
-      sugg = updated.Data.TryGetProperty("sugg", out var s) ? s : default,
-      teksten = updated.Data.TryGetProperty("teksten", out var t) ? t : default,
-      standaard = updated.Data.TryGetProperty("standaard", out var st) ? st : default
+      artikelen = GetOrNull(updated.Data, "artikelen"),
+      vestigingen = GetOrNull(updated.Data, "vestigingen"),
+      medewerkers = GetOrNull(updated.Data, "medewerkers"),
+      onderdelen = GetOrNull(updated.Data, "onderdelen"),
+      sugg = GetOrNull(updated.Data, "sugg"),
+      teksten = GetOrNull(updated.Data, "teksten"),
+      standaard = GetOrNull(updated.Data, "standaard")
     });
   })
   .RequireAuthorization("manager");

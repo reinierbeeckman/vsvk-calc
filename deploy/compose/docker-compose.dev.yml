@@ -1,4 +1,4 @@
-services:
+﻿services:
   postgres:
     image: postgres:16-alpine
     environment:
@@ -20,9 +20,9 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__AppDb: Host=postgres;Port=5432;Database=${PGDATABASE:-vsvk_calc};Username=${PGUSER:-vsvk};Password=${PGPASSWORD:-vsvk}
-      Jwt__Authority: http://localhost:8081/realms/vsvk
-      Jwt__MetadataAddress: http://keycloak:8080/realms/vsvk/.well-known/openid-configuration
-      Jwt__Audience: vsvk-api
+      Jwt__Authority: ${JWT_AUTHORITY:-http://localhost:8081/realms/vsvk}
+      Jwt__MetadataAddress: ${JWT_METADATA_ADDRESS:-http://keycloak:8080/realms/vsvk/.well-known/openid-configuration}
+      Jwt__Audience: ${JWT_AUDIENCE:-vsvk-api}
     depends_on:
       postgres:
         condition: service_healthy
@@ -31,9 +31,9 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__AppDb: Host=postgres;Port=5432;Database=${PGDATABASE:-vsvk_calc};Username=${PGUSER:-vsvk};Password=${PGPASSWORD:-vsvk}
-      Jwt__Authority: http://localhost:8081/realms/vsvk
-      Jwt__MetadataAddress: http://keycloak:8080/realms/vsvk/.well-known/openid-configuration
-      Jwt__Audience: vsvk-api
+      Jwt__Authority: ${JWT_AUTHORITY:-http://localhost:8081/realms/vsvk}
+      Jwt__MetadataAddress: ${JWT_METADATA_ADDRESS:-http://keycloak:8080/realms/vsvk/.well-known/openid-configuration}
+      Jwt__Audience: ${JWT_AUDIENCE:-vsvk-api}
     depends_on:
       postgres:
         condition: service_healthy
@@ -41,18 +41,18 @@ services:
   bff:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      Oidc__Authority: http://localhost:8081/realms/vsvk
-      Oidc__MetadataAddress: http://keycloak:8080/realms/vsvk/.well-known/openid-configuration
-      Oidc__ClientId: vsvk-bff
-      Oidc__ClientSecret: dev-secret
-      Oidc__CallbackPath: /signin-oidc
+      Oidc__Authority: ${OIDC_AUTHORITY:-http://localhost:8081/realms/vsvk}
+      Oidc__MetadataAddress: ${OIDC_METADATA_ADDRESS:-http://keycloak:8080/realms/vsvk/.well-known/openid-configuration}
+      Oidc__ClientId: ${OIDC_CLIENT_ID:-vsvk-bff}
+      Oidc__ClientSecret: ${OIDC_CLIENT_SECRET:-dev-secret}
+      Oidc__CallbackPath: ${OIDC_CALLBACK_PATH:-/signin-oidc}
 
   keycloak:
     command: ["start", "--http-port=8080", "--import-realm"]
     volumes:
       - ../keycloak/import:/opt/keycloak/data/import:ro
     environment:
-      KC_HOSTNAME: http://localhost:8081
+      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME:-http://localhost:8081}
 
 volumes:
   pgdata:

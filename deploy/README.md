@@ -1,125 +1,105 @@
-# Deploy (Docker Compose)
+ï»¿# Deploy (Docker Compose)
 
-Deze repository deployt nu volgens het **BFF (Backend-for-Frontend)** patroon:
+Deze repository draait volgens het **BFF-pattern**:
 
-- Browser/SPA praat **alleen** met de **YARP BFF** (`bff`)
-- `bff` doet OIDC (confidential client) richting **Keycloak** en bewaart tokens server-side in een encrypted cookie-ticket
-- `bff` proxyt `/api/*` naar de downstream **.NET REST API** (`api`) en injecteert `Authorization: Bearer <access_token>`
-- `api` valideert JWT’s van Keycloak (issuer + audience + signature + expiry) en enforce’t autorisatie (`employee`, `manager`)
-- PostgreSQL en de API zijn niet publiek bereikbaar (geen host-ports), alleen via het interne compose netwerk
+- Browser/SPA praat alleen met de **YARP BFF** (`bff`)
+- `bff` doet OIDC richting Keycloak en proxyt `/api/*` naar de .NET API
+- `api` valideert JWT en forceert autorisatie
+- PostgreSQL en API zijn intern op het compose-netwerk
 
-## Lokaal draaien (Windows / Docker Desktop)
+## Environment-best-practice
+
+Gebruik altijd **exact Ã©Ã©n runtime env-file** per deployment en geef die expliciet mee met `--env-file`.
+
+- Dev template: `deploy/env/.env.dev.example`
+- Staging template: `deploy/env/.env.staging.example`
+- Prod template: `deploy/env/.env.prod.example`
+
+Kopieer op de target host het juiste template naar `deploy/env/.env` en vul secrets in.
+
+> Gebruik geen impliciete root `.env` voor compose; forceer altijd `--env-file deploy/env/.env`.
+
+## Lokaal draaien (dev)
 
 Vanuit repo-root:
 
-```bash
-docker compose -f deploy/compose/docker-compose.yml -f deploy/compose/docker-compose.dev.yml up -d --build
-docker compose -f deploy/compose/docker-compose.yml -f deploy/compose/docker-compose.dev.yml --profile migrate run --rm migrate
-```
+```powershell
+# 1) Start/rebuild services met expliciete env-file
+& "C:\Users\<you>\AppData\Local\Programs\DockerDesktop\resources\bin\docker.exe" compose `
+  --env-file deploy/env/.env `
+  -f deploy/compose/docker-compose.yml `
+  -f deploy/compose/docker-compose.dev.yml `
+  up -d --build --force-recreate
 
-> Windows tip: als PowerShell `docker` niet herkent, herstart je terminal of roep `docker.exe` direct aan (check eventueel eerst `where.exe docker`). Voorbeeld:
->
-> ```powershell
-> & "C:\Users\<you>\AppData\Local\Programs\DockerDesktop\resources\bin\docker.exe" compose -f deploy/compose/docker-compose.yml -f deploy/compose/docker-compose.dev.yml up -d --build
-> ```
+# 2) Run migrations
+& "C:\Users\<you>\AppData\Local\Programs\DockerDesktop\resources\bin\docker.exe" compose `
+  --env-file deploy/env/.env `
+  -f deploy/compose/docker-compose.yml `
+  -f deploy/compose/docker-compose.dev.yml `
+  --profile migrate run --rm migrate
+```
 
 Open daarna:
 
 - App/BFF: http://localhost:8080
-- BFF health: http://localhost:8080/health
-- API health (via BFF): http://localhost:8080/api/health
+- Login start: http://localhost:8080/bff/login
 - Keycloak: http://localhost:8081
 
-### Test-users (dev)
+## Staging/Prod draaien
 
-Keycloak realm: `vsvk` (realm-import via `deploy/keycloak/import/vsvk-realm.json` in **dev**; voor staging/prod richt je realm/clients/roles/users in zonder dev/test secrets)
+Gebruik dezelfde base compose met de juiste overlay en env-file.
 
-- `employee1` / `password`  (role: `employee`)
-- `manager1` / `password`   (role: `manager`)
+```bash
+# Staging
 
-Login start:
+docker compose --env-file deploy/env/.env \
+  -f deploy/compose/docker-compose.yml \
+  -f deploy/compose/docker-compose.staging.yml up -d --build
 
-- http://localhost:8080/bff/login
+# Prod
 
-### Keycloak inrichting (staging/prod)
+docker compose --env-file deploy/env/.env \
+  -f deploy/compose/docker-compose.yml \
+  -f deploy/compose/docker-compose.prod.yml up -d --build
+```
 
-In staging/prod wil je meestal **geen** dev realm-import met test-users en een vaste client secret.
-Richt daarom Keycloak in met eigen credentials en bewaar secrets alleen in je `.env` op de VM.
-
-Minimale inrichting voor deze stack:
-
-- Realm: `vsvk`
-- Realm roles: `employee`, `manager`
-- Client (BFF) `vsvk-bff`:
-  - Type: confidential client
-  - Flow: Authorization Code + PKCE
-  - Redirect URI: `https://<bff-host>/signin-oidc`
-  - (Optioneel) `offline_access` toestaan als je refresh tokens wil gebruiken
-  - Client secret in `.env` als `OIDC_CLIENT_SECRET`
-- Audience: zorg dat access tokens een `aud` bevatten die matcht met `JWT_AUDIENCE` (bijv. `vsvk-api`)
-  - Dit kan met een Audience mapper / client scope mapper
-- Users: koppel gebruikers aan realm roles `employee`/`manager`
-## Environments (dev / staging / prod)
-
-Compose files:
-
-- Base: `deploy/compose/docker-compose.yml`
-- Dev: `deploy/compose/docker-compose.dev.yml`
-- Staging: `deploy/compose/docker-compose.staging.yml`
-- Prod: `deploy/compose/docker-compose.prod.yml`
-
-Op staging/prod zet je op de VM in `DEPLOY_DIR` een `.env` met o.a.:
+## Vereiste variabelen
 
 ### App database
-
 - `PGDATABASE`, `PGUSER`, `PGPASSWORD`
 
 ### OIDC (BFF)
-
-- `OIDC_AUTHORITY` (moet matchen met Keycloak issuer in tokens)
-- `OIDC_METADATA_ADDRESS` (mag intern zijn, bv. `http://keycloak:8080/realms/vsvk/.well-known/openid-configuration`)
+- `OIDC_AUTHORITY`
+- `OIDC_METADATA_ADDRESS`
 - `OIDC_CLIENT_ID`
 - `OIDC_CLIENT_SECRET`
+- `OIDC_CALLBACK_PATH`
 
 ### JWT (API)
-
-- `JWT_AUTHORITY` (issuer)
+- `JWT_AUTHORITY`
 - `JWT_METADATA_ADDRESS`
-- `JWT_AUDIENCE` (bijv. `vsvk-api`)
+- `JWT_AUDIENCE`
 
-### Keycloak database (gescheiden van app db)
-
-- `KEYCLOAK_DB` (default: `keycloak`)
-- `KEYCLOAK_DB_USER` (default: `keycloak`)
-- `KEYCLOAK_DB_PASSWORD` (default: `keycloak`)
+### Keycloak database (gescheiden van app-db)
+- `KEYCLOAK_DB`, `KEYCLOAK_DB_USER`, `KEYCLOAK_DB_PASSWORD`
 
 ### Keycloak runtime
+- `KEYCLOAK_HOSTNAME`
+- `KEYCLOAK_ADMIN_USERNAME`, `KEYCLOAK_ADMIN_PASSWORD`
 
-- `KEYCLOAK_HOSTNAME` (bepaalt issuer; moet matchen met `OIDC_AUTHORITY`/`JWT_AUTHORITY`)
-- `KEYCLOAK_ADMIN_USERNAME` / `KEYCLOAK_ADMIN_PASSWORD`
+## Belangrijke security-regels
 
-### Deploy
+- Geen secrets in git; alleen in `deploy/env/.env` op de target host.
+- `KEYCLOAK_HOSTNAME` moet matchen met issuer in `OIDC_AUTHORITY` en `JWT_AUTHORITY`.
+- Keycloak DB credentials moeten verschillen van applicatie-DB credentials.
 
-- `IMAGE_TAG` (optioneel; wordt door GitHub Actions gezet)
-- `GITHUB_REPOSITORY_OWNER` (wordt door GitHub Actions gezet)
-
-Voorbeeld: `deploy/env/.env.example`
-
-## CI/CD met GHCR (GitHub Container Registry)
+## CI/CD (GHCR)
 
 Workflow: `.github/workflows/build-and-deploy.yml`
 
-Benodigd per GitHub Environment (`dev`, `test`, `acc`, `prod`) secrets:
+Benodigde GitHub Environment secrets:
+- `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY`, `DEPLOY_DIR`
 
-- `SSH_HOST` (host/ip van de VM)
-- `SSH_USER`
-- `SSH_PRIVATE_KEY` (deploy key)
-- `DEPLOY_DIR` (bijv. `/opt/vsvk-calc/dev`)
-
-De workflow pusht images naar:
-
+Images:
 - `ghcr.io/<owner>/vsvk-calc-bff:<tag>`
 - `ghcr.io/<owner>/vsvk-calc-api:<tag>`
-
-
-

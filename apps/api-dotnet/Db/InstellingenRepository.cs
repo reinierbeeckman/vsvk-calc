@@ -67,11 +67,11 @@ returning data::text, version, updated_at;
     await using var cmd = _dataSource.CreateCommand(expectedVersion is null ? sqlNoCheck : sqlWithCheck);
 
     var json = JsonSerializer.Serialize(data);
-    cmd.Parameters.AddWithValue(json, NpgsqlDbType.Jsonb);
-    cmd.Parameters.AddWithValue((object?)updatedBySub ?? DBNull.Value);
+    cmd.Parameters.AddWithValue(NpgsqlDbType.Jsonb, json);
+    cmd.Parameters.AddWithValue(NpgsqlDbType.Text, (object?)updatedBySub ?? DBNull.Value);
     if (expectedVersion is not null)
     {
-      cmd.Parameters.AddWithValue(expectedVersion.Value);
+      cmd.Parameters.AddWithValue(NpgsqlDbType.Bigint, expectedVersion.Value);
     }
 
     await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);

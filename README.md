@@ -1,86 +1,60 @@
-# VSVK Calculatie & Offerte
+﻿# VSVK Calculatie & Offerte
 
-Baseline van de calculatie- en offerte-app, als eerste applicatie op weg naar een
-gedeelde enterprise datalaag (entiteiten + API gateway).
+Calculatie- en offerte-app op een BFF-architectuur:
 
-> Status: **in ontwikkeling**. `apps/calculatie/` is aangepast om via de BFF `/api/*`
-> te praten met de .NET API en data in Postgres op te slaan.
+- SPA in browser
+- .NET YARP BFF
+- .NET API
+- Keycloak
+- PostgreSQL
 
-## Lokaal draaien
+## Lokaal draaien (aanbevolen)
 
-Er zijn nu 2 manieren om lokaal te draaien:
-
-1. **Volledige stack (aanrader)** via Docker Compose: SPA + YARP BFF + .NET API + Keycloak + PostgreSQL.
-2. **Alleen de SPA** (snelle frontend iteratie) via Node of een static server.
-
-### Optie 1: Volledige stack (Docker Compose)
-
-Vereist Docker Desktop (met Docker Compose v2).
-
-Vanuit repo-root:
-
-```bash
-docker compose -f deploy/compose/docker-compose.yml -f deploy/compose/docker-compose.dev.yml up -d --build
-docker compose -f deploy/compose/docker-compose.yml -f deploy/compose/docker-compose.dev.yml --profile migrate run --rm migrate
-```
-
-Als PowerShell meldt dat `docker` niet herkend wordt, herstart je terminal (of voeg Docker toe aan je PATH). Als workaround kun je ook het pad naar `docker.exe` direct aanroepen, bijvoorbeeld:
+1. Kopieer [deploy/env/.env.dev.example](deploy/env/.env.dev.example) naar `deploy/env/.env` en pas waarden aan.
+2. Start stack met expliciete env-file:
 
 ```powershell
-& "C:\Users\<you>\AppData\Local\Programs\DockerDesktop\resources\bin\docker.exe" compose -f deploy/compose/docker-compose.yml -f deploy/compose/docker-compose.dev.yml up -d --build
+& "C:\Users\<you>\AppData\Local\Programs\DockerDesktop\resources\bin\docker.exe" compose `
+  --env-file deploy/env/.env `
+  -f deploy/compose/docker-compose.yml `
+  -f deploy/compose/docker-compose.dev.yml `
+  up -d --build --force-recreate
+
+& "C:\Users\<you>\AppData\Local\Programs\DockerDesktop\resources\bin\docker.exe" compose `
+  --env-file deploy/env/.env `
+  -f deploy/compose/docker-compose.yml `
+  -f deploy/compose/docker-compose.dev.yml `
+  --profile migrate run --rm migrate
 ```
 
 Open daarna:
 
 - App/BFF: http://localhost:8080
-- Login start: http://localhost:8080/bff/login
+- Login: http://localhost:8080/bff/login
 - Keycloak: http://localhost:8081
 
-Meer details staan in `deploy/README.md`.
+## Environments
 
-### Optie 2: Alleen de SPA (zonder backend)
+Environment templates:
 
-Vereist Node.js 20 of nieuwer.
+- `deploy/env/.env.dev.example`
+- `deploy/env/.env.staging.example`
+- `deploy/env/.env.prod.example`
 
-```bash
-npm install
-npm run dev
-# open http://localhost:8080
-```
-
-Alternatief zonder Node: `python3 -m http.server 8080 --directory apps/calculatie`.
-
-Open de app **niet** via `file://`: de pdf-export haalt fonts op met `fetch("fonts/...")`
-en dat werkt alleen via http.
-
-## Wat werkt lokaal en wat niet
-
-| Onderdeel | Lokaal gedrag |
-|---|---|
-| Calculaties, offertes, planning | Werkt. In de volledige stack opgeslagen in Postgres; zonder backend in `localStorage`. |
-| Cloud-opslag (`window.claude.use("db")`) | Niet meer gebruikt; de app praat via `/api/*` met de backend. |
-| Back-up downloaden | Werkt (normale browser-download). |
-| PDF-export | Werkt als `cdnjs.cloudflare.com` bereikbaar is |
-| Google Fonts | Optioneel, valt terug op Arial |
+Gebruik per omgeving exact één runtime env-file: `deploy/env/.env`.
 
 ## Structuur
 
-```
-apps/calculatie/     de app (index.html + fonts/)
-docs/storage-seam.md waar de opslag in de code zit en hoe die vervangen wordt
-```
+- `apps/calculatie/` — SPA
+- `apps/bff/` — YARP BFF
+- `apps/api-dotnet/` — REST API
+- `deploy/compose/` — compose files per environment
+- `deploy/env/` — environment templates
 
-## Roadmap richting datalaag
+## Security-afspraken
 
-1. Baseline vastleggen (deze commit)
-2. Opslag achter een `DataStore`-interface (zie `docs/storage-seam.md`)
-3. `GatewayStore` die via HTTP met de API gateway praat
-4. Cloud-db-code verwijderen
-5. Architectuurprincipes, security (authenticatie, MFA, autorisatie), beheer en CI/CD
+- Geen secrets in code of git.
+- Gebruik altijd `--env-file deploy/env/.env` bij compose.
+- Scheid app-database en Keycloak-database credentials.
 
-## Werkafspraken (voorstel)
-
-- `main` is beschermd: wijzigen via pull request met review
-- Geen klantdata of back-ups in de repository
-- Geen secrets in de code, gebruik `.env` (zie `.gitignore`)
-
+Meer deployment-details: `deploy/README.md`.

@@ -17,7 +17,7 @@ public sealed class DatabaseMigrator
 
   public async Task MigrateAsync(CancellationToken cancellationToken = default)
   {
-    const string sql = @"
+    const string sql = """
 create table if not exists stamdata (
   code text primary key,
   name text not null
@@ -97,9 +97,31 @@ create table if not exists instellingen_algemeen (
   updated_by_sub text null
 );
 
-insert into instellingen_algemeen(id, data) values (1, '{}'::jsonb)
+insert into instellingen_algemeen(id, data) values (1, '{"vestigingen":[]}'::jsonb)
 on conflict (id) do nothing;
-";
+
+update instellingen_algemeen
+set
+  data = jsonb_set(
+    coalesce(data, '{}'::jsonb),
+    '{vestigingen}',
+    '[
+      {"naam":"VSVK Pijnacker BV","adres":"Schouwweg 4","pc":"2642 AK","plaats":"Pijnacker","tel":"085-0491729","email":"administratie@pijnacker.vsvk.nl","kvk":"55442579","btw":"NL851714365B01","iban":"NL86 INGB 0006 8116 55"},
+      {"naam":"VSVK Rilland BV","adres":"Poort 69","pc":"4411 PB","plaats":"Rilland","tel":"085-0491729","email":"administratie@rilland.vsvk.nl","kvk":"20127088","btw":"NL822170425B01","iban":"NL03 INGB 0008 0954 89"},
+      {"naam":"VSVK Wamel BV","adres":"Sterkeburg 1","pc":"6659 AM","plaats":"Wamel","tel":"085-0491729","email":"administratie@wamel.vsvk.nl","kvk":"52611930","btw":"NL850520836B01","iban":"NL08 INGB 0793 9988 08"}
+    ]'::jsonb,
+    true
+  ),
+  version = version + 1,
+  updated_at = now()
+where
+  id = 1
+  and (
+    not (coalesce(data, '{}'::jsonb) ? 'vestigingen')
+    or jsonb_typeof(coalesce(data, '{}'::jsonb)->'vestigingen') <> 'array'
+    or jsonb_array_length(coalesce(data, '{}'::jsonb)->'vestigingen') = 0
+  );
+""";
 
     await using var cmd = _dataSource.CreateCommand(sql);
     await cmd.ExecuteNonQueryAsync(cancellationToken);
