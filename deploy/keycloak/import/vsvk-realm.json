@@ -1,0 +1,74 @@
+﻿{
+  "realm": "vsvk",
+  "enabled": true,
+  "displayName": "VSVK",
+  "roles": {
+    "realm": [
+      { "name": "employee" },
+      { "name": "manager" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "vsvk-api",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "bearerOnly": true
+    },
+    {
+      "clientId": "vsvk-bff",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8080/signin-oidc"
+      ],
+      "webOrigins": [
+        "http://localhost:8080"
+      ],
+      "secret": "dev-secret",
+      "protocolMappers": [
+        {
+          "name": "audience-vsvk-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "vsvk-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "employee1",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Erik",
+      "lastName": "Employee",
+      "email": "employee1@example.test",
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ],
+      "realmRoles": ["employee"]
+    },
+    {
+      "username": "manager1",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Mara",
+      "lastName": "Manager",
+      "email": "manager1@example.test",
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ],
+      "realmRoles": ["manager"]
+    }
+  ]
+}

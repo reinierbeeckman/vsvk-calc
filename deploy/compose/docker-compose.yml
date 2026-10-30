@@ -1,0 +1,93 @@
+name: vsvk-calc
+
+services:
+  bff:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-local}/vsvk-calc-bff:${IMAGE_TAG:-local}
+    build:
+      context: ../..
+      dockerfile: apps/bff/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_URLS: "http://+:8080"
+      # OIDC settings (Authority must match Keycloak's issuer)
+      Oidc__Authority: ${OIDC_AUTHORITY:-http://localhost:8081/realms/vsvk}
+      Oidc__MetadataAddress: ${OIDC_METADATA_ADDRESS:-http://keycloak:8080/realms/vsvk/.well-known/openid-configuration}
+      Oidc__ClientId: ${OIDC_CLIENT_ID:-vsvk-bff}
+      Oidc__ClientSecret: ${OIDC_CLIENT_SECRET:-dev-secret}
+      Oidc__CallbackPath: ${OIDC_CALLBACK_PATH:-/signin-oidc}
+      DataProtection__KeysPath: "/var/lib/vsvk-bff/keys"
+    volumes:
+      - bff_keys:/var/lib/vsvk-bff/keys
+    depends_on:
+      - api
+      - keycloak
+    restart: unless-stopped
+
+  api:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-local}/vsvk-calc-api:${IMAGE_TAG:-local}
+    build:
+      context: ../..
+      dockerfile: apps/api-dotnet/Dockerfile
+    environment:
+      ASPNETCORE_URLS: "http://+:8090"
+      ConnectionStrings__AppDb: ${APPDB_CONNECTIONSTRING:-Host=postgres;Port=5432;Database=vsvk_calc;Username=vsvk;Password=vsvk}
+      Jwt__Authority: ${JWT_AUTHORITY:-http://localhost:8081/realms/vsvk}
+      Jwt__MetadataAddress: ${JWT_METADATA_ADDRESS:-http://keycloak:8080/realms/vsvk/.well-known/openid-configuration}
+      Jwt__Audience: ${JWT_AUDIENCE:-vsvk-api}
+    restart: unless-stopped
+
+  migrate:
+    profiles:
+      - migrate
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-local}/vsvk-calc-api:${IMAGE_TAG:-local}
+    build:
+      context: ../..
+      dockerfile: apps/api-dotnet/Dockerfile
+    command: ["--migrate"]
+    environment:
+      ConnectionStrings__AppDb: ${APPDB_CONNECTIONSTRING:-Host=postgres;Port=5432;Database=vsvk_calc;Username=vsvk;Password=vsvk}
+      Jwt__Authority: ${JWT_AUTHORITY:-http://localhost:8081/realms/vsvk}
+      Jwt__MetadataAddress: ${JWT_METADATA_ADDRESS:-http://keycloak:8080/realms/vsvk/.well-known/openid-configuration}
+      Jwt__Audience: ${JWT_AUDIENCE:-vsvk-api}
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.0
+    command: ["start", "--http-port=8080"]
+    environment:
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: "xforwarded"
+      KC_HOSTNAME_STRICT: "false"
+
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/${KEYCLOAK_DB:-keycloak}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-keycloak}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
+
+      # Ensures issuer in tokens is stable (must match OIDC_AUTHORITY/JWT_AUTHORITY)
+      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME:-http://localhost:8081}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+    ports:
+      - "8081:8080"
+    depends_on:
+      - keycloak-db
+    restart: unless-stopped
+
+  keycloak-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${KEYCLOAK_DB:-keycloak}
+      POSTGRES_USER: ${KEYCLOAK_DB_USER:-keycloak}
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
+    volumes:
+      - keycloak_pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  bff_keys:
+  keycloak_pgdata:
+
+

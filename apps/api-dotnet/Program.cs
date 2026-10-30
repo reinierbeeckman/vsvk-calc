@@ -1,0 +1,407 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.IdentityModel.Tokens;
+using Npgsql;
+using Vsvk.Api.Auth;
+using Vsvk.Api.Db;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSingleton(sp =>
+{
+  var cs = builder.Configuration.GetConnectionString("AppDb")
+    ?? builder.Configuration["ConnectionStrings:AppDb"]
+    ?? throw new InvalidOperationException("Missing ConnectionStrings:AppDb");
+
+  return NpgsqlDataSource.Create(cs);
+});
+
+builder.Services.AddSingleton<StamdataRepository>();
+builder.Services.AddSingleton<CalculatieRepository>();
+builder.Services.AddSingleton<InstellingenRepository>();
+builder.Services.AddSingleton<DatabaseMigrator>();
+
+builder.Services.AddTransient<IClaimsTransformation, KeycloakRealmRoleClaimsTransformation>();
+
+var jwtSection = builder.Configuration.GetSection("Jwt");
+var jwtAuthority = jwtSection["Authority"];
+var jwtMetadataAddress = jwtSection["MetadataAddress"];
+var jwtAudience = jwtSection["Audience"];
+
+builder.Services
+  .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+  .AddJwtBearer(options =>
+  {
+    options.Authority = jwtAuthority;
+    options.MetadataAddress = jwtMetadataAddress;
+    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+      ValidateIssuer = true,
+      ValidIssuer = jwtAuthority,
+      ValidateAudience = true,
+      ValidAudience = jwtAudience,
+      ValidateLifetime = true,
+      ValidateIssuerSigningKey = true,
+      NameClaimType = ClaimTypes.Name,
+      RoleClaimType = ClaimTypes.Role
+    };
+  });
+
+builder.Services.AddAuthorization(options =>
+{
+  options.AddPolicy("employee", policy => policy.RequireRole("employee", "manager"));
+  options.AddPolicy("manager", policy => policy.RequireRole("manager"));
+});
+
+var app = builder.Build();
+
+if (args.Contains("--migrate"))
+{
+  var migrator = app.Services.GetRequiredService<DatabaseMigrator>();
+  await migrator.MigrateAsync(app.Lifetime.ApplicationStopping);
+  return;
+}
+
+static string? GetUserSub(ClaimsPrincipal user)
+  => user.FindFirstValue("sub") ?? user.FindFirstValue(ClaimTypes.NameIdentifier);
+
+static string? GetUserVestiging(ClaimsPrincipal user)
+  => user.FindFirstValue("vestiging")
+     ?? user.FindFirstValue("vsvk_vestiging")
+     ?? user.FindFirstValue("branch")
+     ?? user.FindFirstValue("branch_id");
+
+static long? ParseIfMatch(HttpRequest request)
+{
+  if (!request.Headers.TryGetValue("If-Match", out var values))
+  {
+    return null;
+  }
+
+  var raw = values.ToString().Trim();
+  if (raw.StartsWith("W/\"", StringComparison.OrdinalIgnoreCase) && raw.EndsWith("\"", StringComparison.Ordinal))
+  {
+    raw = raw[3..^1];
+  }
+  else if (raw.StartsWith('"') && raw.EndsWith('"'))
+  {
+    raw = raw[1..^1];
+  }
+
+  return long.TryParse(raw, out var v) ? v : null;
+}
+
+static void SetEtag(HttpResponse response, long version)
+  => response.Headers.ETag = $"W/\"{version}\"";
+
+app.MapGet("/health", () => Results.Ok(new { ok = true }))
+  .AllowAnonymous();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Example endpoint (stays for now)
+app.MapGet("/api/stamdata", async (StamdataRepository repo) =>
+  {
+    var rows = await repo.ListAsync();
+    return Results.Ok(rows);
+  })
+  .RequireAuthorization("employee");
+
+// === Calculaties ===
+
+app.MapPost("/api/calculaties", async (HttpContext ctx, CalculatieRepository repo, CancellationToken ct) =>
+  {
+    var vestiging = GetUserVestiging(ctx.User);
+    var createdBySub = GetUserSub(ctx.User);
+
+    var created = await repo.CreateAsync(vestiging, createdBySub, ct);
+
+    ctx.Response.StatusCode = StatusCodes.Status201Created;
+    SetEtag(ctx.Response, created.Version);
+
+    return Results.Json(new { nummer = created.Nummer, version = created.Version });
+  })
+  .RequireAuthorization("employee");
+
+app.MapGet("/api/calculaties", async (HttpContext ctx, CalculatieRepository repo, CancellationToken ct) =>
+  {
+    // Vestiging-scope: afdwingen als de claim bestaat. Als hij ontbreekt (dev), toon alles.
+    var vestigingFilter = ctx.User.IsInRole("manager") ? null : GetUserVestiging(ctx.User);
+
+    var list = await repo.ListAsync(vestigingFilter, ct);
+
+    // Return in SPA-compat format (data als JSON-string)
+    var result = list.Select(r => new
+    {
+      nummer = r.Nummer,
+      projectnaam = r.Projectnaam,
+      klant = r.Klant,
+      datum = r.Datum?.ToString("yyyy-MM-dd") ?? "",
+      door = r.Door,
+      vestiging = r.Vestiging,
+      status = r.Status,
+      bedrag = r.Bedrag,
+      bijgewerkt = r.Bijgewerkt.ToString("o"),
+      data = r.DataJson,
+      version = r.Version
+    });
+
+    return Results.Json(result);
+  })
+  .RequireAuthorization("employee");
+
+app.MapGet("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, CalculatieRepository repo, CancellationToken ct) =>
+  {
+    var vestigingFilter = ctx.User.IsInRole("manager") ? null : GetUserVestiging(ctx.User);
+
+    var record = await repo.GetAsync(nummer, vestigingFilter, ct);
+    if (record is null)
+    {
+      return Results.NotFound();
+    }
+
+    SetEtag(ctx.Response, record.Version);
+
+    return Results.Json(new
+    {
+      nummer = record.Nummer,
+      projectnaam = record.Projectnaam,
+      klant = record.Klant,
+      datum = record.Datum?.ToString("yyyy-MM-dd") ?? "",
+      door = record.Door,
+      vestiging = record.Vestiging,
+      status = record.Status,
+      bedrag = record.Bedrag,
+      bijgewerkt = record.Bijgewerkt.ToString("o"),
+      data = record.DataJson,
+      version = record.Version
+    });
+  })
+  .RequireAuthorization("employee");
+
+app.MapPut("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, CalculatieRepository repo, CancellationToken ct) =>
+  {
+    using var reader = new StreamReader(ctx.Request.Body);
+    var body = await reader.ReadToEndAsync(ct);
+
+    // We keep this loose (SPA sends record with data as string). We only extract what we need.
+    using var doc = System.Text.Json.JsonDocument.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
+    var root = doc.RootElement;
+
+    string GetStr(string name)
+      => root.TryGetProperty(name, out var p) && p.ValueKind == System.Text.Json.JsonValueKind.String ? (p.GetString() ?? "") : "";
+
+    decimal GetDec(string name)
+      => root.TryGetProperty(name, out var p) && p.ValueKind == System.Text.Json.JsonValueKind.Number ? p.GetDecimal() : 0m;
+
+    var expectedVersion = ParseIfMatch(ctx.Request);
+
+    var vestigingFilter = ctx.User.IsInRole("manager") ? null : GetUserVestiging(ctx.User);
+
+    // Vestiging is stored on the record; if claim exists and user is not manager, enforce it.
+    var vestiging = GetStr("vestiging");
+    if (!ctx.User.IsInRole("manager"))
+    {
+      var userVest = GetUserVestiging(ctx.User);
+      if (!string.IsNullOrWhiteSpace(userVest))
+      {
+        vestiging = userVest;
+      }
+    }
+
+    var datumStr = GetStr("datum");
+    DateOnly? datum = DateOnly.TryParse(datumStr, out var d) ? d : null;
+
+    var dataJson = GetStr("data");
+    if (string.IsNullOrWhiteSpace(dataJson))
+    {
+      dataJson = "{}";
+    }
+
+    var requestedStatus = GetStr("status");
+    if (string.IsNullOrWhiteSpace(requestedStatus))
+    {
+      requestedStatus = "Concept";
+    }
+
+    var status = requestedStatus;
+    if (!ctx.User.IsInRole("manager"))
+    {
+      var existing = await repo.GetAsync(nummer, vestigingFilter, ct);
+      status = existing?.Status ?? "Concept";
+    }
+
+    var rec = new CalculatieRecord(
+      Nummer: nummer,
+      Projectnaam: GetStr("projectnaam"),
+      Klant: GetStr("klant"),
+      Datum: datum,
+      Door: GetStr("door"),
+      Vestiging: vestiging,
+      Status: status,
+      Bedrag: GetDec("bedrag"),
+      DataJson: dataJson,
+      Version: 0,
+      Bijgewerkt: DateTimeOffset.UtcNow
+    );
+
+    var updated = await repo.UpsertAsync(rec, expectedVersion, vestigingFilter, GetUserSub(ctx.User), ct);
+    if (updated is null)
+    {
+      // Either not found / forbidden by vestiging / or version mismatch
+      if (expectedVersion is not null)
+      {
+        return Results.StatusCode(StatusCodes.Status409Conflict);
+      }
+
+      return Results.NotFound();
+    }
+
+    SetEtag(ctx.Response, updated.Version);
+
+    return Results.Json(new
+    {
+      nummer = updated.Nummer,
+      projectnaam = updated.Projectnaam,
+      klant = updated.Klant,
+      datum = updated.Datum?.ToString("yyyy-MM-dd") ?? "",
+      door = updated.Door,
+      vestiging = updated.Vestiging,
+      status = updated.Status,
+      bedrag = updated.Bedrag,
+      bijgewerkt = updated.Bijgewerkt.ToString("o"),
+      data = updated.DataJson,
+      version = updated.Version
+    });
+  })
+  .RequireAuthorization("employee");
+
+app.MapPatch("/api/calculaties/{nummer}/status", async (HttpContext ctx, string nummer, CalculatieRepository repo, CancellationToken ct) =>
+  {
+    using var reader = new StreamReader(ctx.Request.Body);
+    var body = await reader.ReadToEndAsync(ct);
+    using var doc = System.Text.Json.JsonDocument.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
+
+    var status = doc.RootElement.TryGetProperty("status", out var s) && s.ValueKind == System.Text.Json.JsonValueKind.String
+      ? (s.GetString() ?? "")
+      : "";
+
+    if (string.IsNullOrWhiteSpace(status))
+    {
+      return Results.BadRequest(new { error = "Missing status" });
+    }
+
+    var expectedVersion = ParseIfMatch(ctx.Request);
+    var vestigingFilter = ctx.User.IsInRole("manager") ? null : GetUserVestiging(ctx.User);
+
+    var updated = await repo.SetStatusAsync(nummer, status, expectedVersion, vestigingFilter, GetUserSub(ctx.User), ct);
+    if (updated is null)
+    {
+      if (expectedVersion is not null)
+      {
+        return Results.StatusCode(StatusCodes.Status409Conflict);
+      }
+
+      return Results.NotFound();
+    }
+
+    SetEtag(ctx.Response, updated.Version);
+
+    return Results.Json(new
+    {
+      nummer = updated.Nummer,
+      projectnaam = updated.Projectnaam,
+      klant = updated.Klant,
+      datum = updated.Datum?.ToString("yyyy-MM-dd") ?? "",
+      door = updated.Door,
+      vestiging = updated.Vestiging,
+      status = updated.Status,
+      bedrag = updated.Bedrag,
+      bijgewerkt = updated.Bijgewerkt.ToString("o"),
+      data = updated.DataJson,
+      version = updated.Version
+    });
+  })
+  .RequireAuthorization("manager");
+
+app.MapDelete("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, CalculatieRepository repo, CancellationToken ct) =>
+  {
+    var vestigingFilter = ctx.User.IsInRole("manager") ? null : GetUserVestiging(ctx.User);
+
+    var ok = await repo.SoftDeleteAsync(nummer, vestigingFilter, GetUserSub(ctx.User), ct);
+    return ok ? Results.NoContent() : Results.NotFound();
+  })
+  .RequireAuthorization("manager");
+
+// === Instellingen (algemeen) ===
+
+app.MapGet("/api/instellingen/algemeen", async (HttpContext ctx, InstellingenRepository repo, CancellationToken ct) =>
+  {
+    var settings = await repo.GetAsync(ct);
+    if (settings is null)
+    {
+      return Results.NotFound();
+    }
+
+    SetEtag(ctx.Response, settings.Version);
+    return Results.Json(new
+    {
+      bijgewerkt = settings.UpdatedAt.ToString("o"),
+      version = settings.Version,
+      // Payload as-is
+      artikelen = settings.Data.TryGetProperty("artikelen", out var a) ? a : default,
+      vestigingen = settings.Data.TryGetProperty("vestigingen", out var v) ? v : default,
+      medewerkers = settings.Data.TryGetProperty("medewerkers", out var m) ? m : default,
+      onderdelen = settings.Data.TryGetProperty("onderdelen", out var o) ? o : default,
+      sugg = settings.Data.TryGetProperty("sugg", out var s) ? s : default,
+      teksten = settings.Data.TryGetProperty("teksten", out var t) ? t : default,
+      standaard = settings.Data.TryGetProperty("standaard", out var st) ? st : default
+    });
+  })
+  .RequireAuthorization("employee");
+
+app.MapPut("/api/instellingen/algemeen", async (HttpContext ctx, InstellingenRepository repo, CancellationToken ct) =>
+  {
+    var expectedVersion = ParseIfMatch(ctx.Request);
+
+    using var reader = new StreamReader(ctx.Request.Body);
+    var body = await reader.ReadToEndAsync(ct);
+
+    using var doc = System.Text.Json.JsonDocument.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
+
+    var updated = await repo.PutAsync(doc.RootElement, expectedVersion, GetUserSub(ctx.User), ct);
+    if (updated is null)
+    {
+      if (expectedVersion is not null)
+      {
+        return Results.StatusCode(StatusCodes.Status409Conflict);
+      }
+
+      return Results.NotFound();
+    }
+
+    SetEtag(ctx.Response, updated.Version);
+
+    return Results.Json(new
+    {
+      bijgewerkt = updated.UpdatedAt.ToString("o"),
+      version = updated.Version,
+      artikelen = updated.Data.TryGetProperty("artikelen", out var a) ? a : default,
+      vestigingen = updated.Data.TryGetProperty("vestigingen", out var v) ? v : default,
+      medewerkers = updated.Data.TryGetProperty("medewerkers", out var m) ? m : default,
+      onderdelen = updated.Data.TryGetProperty("onderdelen", out var o) ? o : default,
+      sugg = updated.Data.TryGetProperty("sugg", out var s) ? s : default,
+      teksten = updated.Data.TryGetProperty("teksten", out var t) ? t : default,
+      standaard = updated.Data.TryGetProperty("standaard", out var st) ? st : default
+    });
+  })
+  .RequireAuthorization("manager");
+
+app.MapGet("/api/management/secret", () => Results.Ok(new { ok = true, secret = "manager-only" }))
+  .RequireAuthorization("manager");
+
+app.Run();

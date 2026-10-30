@@ -1,0 +1,118 @@
+﻿name: Build & Deploy (Docker Compose)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - test
+          - acc
+          - prod
+      image_tag:
+        description: "Image tag override (default: git sha)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  API_IMAGE: ghcr.io/${{ github.repository_owner }}/vsvk-calc-api
+  BFF_IMAGE: ghcr.io/${{ github.repository_owner }}/vsvk-calc-bff
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image tag
+        id: meta
+        run: |
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            echo "tag=${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api-dotnet/Dockerfile
+          push: true
+          tags: |
+            ${{ env.API_IMAGE }}:${{ steps.meta.outputs.tag }}
+
+      - name: Build & push BFF image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/bff/Dockerfile
+          push: true
+          tags: |
+            ${{ env.BFF_IMAGE }}:${{ steps.meta.outputs.tag }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH + docker compose
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          DEPLOY_DIR: ${{ secrets.DEPLOY_DIR }}
+          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+          REPO_OWNER: ${{ github.repository_owner }}
+        run: |
+          if [ -z "$SSH_HOST" ] || [ -z "$SSH_USER" ] || [ -z "$SSH_KEY" ] || [ -z "$DEPLOY_DIR" ]; then
+            echo "Missing SSH_HOST/SSH_USER/SSH_PRIVATE_KEY/DEPLOY_DIR secrets for environment '${{ inputs.environment }}'";
+            exit 1;
+          fi
+
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+          # Copy base compose file
+          rsync -avz \
+            deploy/compose/docker-compose.yml \
+            "$SSH_USER@$SSH_HOST:$DEPLOY_DIR/docker-compose.yml"
+
+          # Copy environment overlay as docker-compose.env.yml
+          if [ "${{ inputs.environment }}" = "dev" ] || [ "${{ inputs.environment }}" = "test" ]; then
+            rsync -avz deploy/compose/docker-compose.dev.yml "$SSH_USER@$SSH_HOST:$DEPLOY_DIR/docker-compose.env.yml"
+          elif [ "${{ inputs.environment }}" = "acc" ]; then
+            rsync -avz deploy/compose/docker-compose.staging.yml "$SSH_USER@$SSH_HOST:$DEPLOY_DIR/docker-compose.env.yml"
+          else
+            rsync -avz deploy/compose/docker-compose.prod.yml "$SSH_USER@$SSH_HOST:$DEPLOY_DIR/docker-compose.env.yml"
+          fi
+
+          ssh "$SSH_USER@$SSH_HOST" \
+            "cd '$DEPLOY_DIR' && \
+             export IMAGE_TAG='$IMAGE_TAG' && \
+             export GITHUB_REPOSITORY_OWNER='$REPO_OWNER' && \
+             docker compose -f docker-compose.yml -f docker-compose.env.yml pull && \
+             docker compose -f docker-compose.yml -f docker-compose.env.yml --profile migrate run --rm migrate && \
+             docker compose -f docker-compose.yml -f docker-compose.env.yml up -d"
+

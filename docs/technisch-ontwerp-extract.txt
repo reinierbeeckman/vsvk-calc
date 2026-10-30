@@ -1,0 +1,864 @@
+VSVK  |  Technisch ontwerp 1.0  |  29 oktober 2026
+1
+VSVK ENTERPRISE / TECHNISCH ONTWERP / 01
+Technisch ontwerp voor het VSVK
+applicatieplatform
+Ontwerpversie 1.0 · 29 oktober 2026
+Voor IT architectuur, softwareontwikkeling, gegevensbeheer en proceseigenaren.
+Bouw een lokaal beheerd platform waarop medewerkers kleine bedrijfsapps kunnen maken via vaste
+API-contracten. De backend bewaakt tarieven, berekeningen en toegangsrechten. De centrale datalaag biedt één
+afgesproken waarheid per gegeven, met herkomst en historie.
+Dit ontwerp vertaalt de vier lagen uit de enterprisevisie naar een uitvoerbare inrichting. De eerste toepassing is
+calculatie en offerte, gevoed door artikelen, debiteuren en beperkte personeelsgegevens. Voorraad, financiële
+standen en personeelsdossiers worden afzonderlijk behandeld.
+Kernbesluiten in het ontwerp
+Onderwerp
+Voorgestelde invulling
+Architectuur
+Vier lagen met lokale hosting, centrale toegang en door IT beheerde domeinlogica.
+Implementatie
+Eerst een modulaire backend in .NET met PostgreSQL. Scheid modules en contracten zonder direct
+microservices te vereisen.
+Bronhouderschap
+Tijdens de overgang blijven bestaande systemen leidend voor hun stamgegevens. Nieuwe calculaties en
+offertes krijgen het platform als eigenaar.
+AI
+Alle AI die bedrijfsgegevens verwerkt draait lokaal. Externe codegeneratie mag uitsluitend met vrijgegeven
+specificaties en fictieve voorbeelden.
+Pilot
+Eén vestiging, gevalideerde tariefset en een volledige calculatie-offertestroom, inclusief autorisatie en
+herstelproef.
+Leesroute
+2 Aansluiting op de visie · 3 Brongegevens · 4 Architectuur · 5 Infrastructuur · 6 Relaties · 7 Tabellen · 8
+Artikelmapping · 9 Personeel en debiteuren · 10 Tariefregels · 11 API’s · 12 Contractvoorbeeld · 13 Beveiliging · 14
+Import · 15 AI en appontwikkeling · 16 Beheer · 17 Pilot en acceptatie · 18 Besluiten en bronnen.
+Status: technisch ontwerp ter beoordeling. Productkeuzes en grenswaarden zijn ontwerpvoorstellen. De voorbeeldset vormt geen
+complete beschrijving van de huidige productieomgeving. Persoonsnamen, BSN en banknummers zijn niet opgenomen in dit ontwerp.
+
+
+VSVK  |  Technisch ontwerp 1.0  |  29 oktober 2026
+2
+VSVK ENTERPRISE / TECHNISCH ONTWERP / 02
+Van visie naar technische eisen
+Herkomst: visiedocument pagina 1 tot en met 11. Paginanummers verwijzen naar de PDF-volgorde.
+Visie en vindplaats
+Technische vertaling
+Bewijs bij acceptatie
+Vier onafhankelijke lagen (p. 3-4)
+Geen databaseverbinding vanuit een app. Alle
+toegang via gateway en domein-API.
+Netwerkproef en toegangsproef
+omzeilen gateway zonder succes.
+Data blijft on-premise (p. 1, 4, 7)
+Database, documenten, logs, back-ups,
+embeddings en AI-inferentie lokaal. Uitgaand
+verkeer standaard dicht.
+Controle van netwerkverkeer en
+opslaglocaties.
+Geen geheimen in browser (p. 1, 3-4)
+BFF beheert authenticatietokens serverzijdig;
+browser heeft alleen een beveiligde sessiecookie.
+Inspectie van bundels, browseropslag
+en sessiegedrag.
+AD rollen en vestigingsscheiding (p.
+2-3, 7, 9)
+Rechten op actie, object en veld; bedrijf en
+vestiging worden door de backend gecontroleerd.
+Negatieve tests over vestigingen en
+rollen.
+OpenAPI als grens (p. 2, 5-6, 9, 11)
+Versiebeheerde contracten, invoervalidatie,
+expliciete antwoordmodellen en contracttests.
+Een niet beschreven veld of ongeldige
+aanvraag wordt geweigerd.
+Centrale rekenregels en tarieven (p.
+4)
+Tariefselectie en calculatie vinden serverzijdig
+plaats; offertes bewaren een vastgezette versie.
+Historische offerte reproduceerbaar na
+tariefwijziging.
+Audit en bescherming tegen
+overbelasting (p. 3-4, 9)
+Audit per actie plus limieten op gebruiker, app,
+responsgrootte en gelijktijdige aanvragen.
+Auditspoor en beheerst 429-antwoord
+onder belasting.
+Apps door de business en uniform
+ontwerp (p. 5-6, 9-10)
+Lokaal appregister, UI-componenten, fictieve
+testdata en publicatieprocedure.
+Pilotapp slaagt voor contract-,
+beveiligings- en gebruikerstests.
+Modulair en open (p. 1, 7)
+REST/JSON, OpenAPI, losse adapters en
+exporteerbare gegevens.
+Contracttests blijven werken bij
+vervanging van een adapter.
+Een OpenAPI-document dwingt op zichzelf geen veilige app af. De technische grens bestaat uit validatie,
+autorisatie, netwerkregels en publicatiecontroles. De snelheid uit de visie is een doel voor apps op bestaande API’s;
+nieuwe gegevensdomeinen en rekenregels vragen afzonderlijke ontwikkeling.
+
+
+VSVK  |  Technisch ontwerp 1.0  |  29 oktober 2026
+3
+VSVK ENTERPRISE / TECHNISCH ONTWERP / 03
+Wat de voorbeeldtabellen aantonen
+Bron: Test-set stambestanden.xlsx. Alle vier tabbladen zijn op gevulde cellen, gegevenstypen en formules onderzocht.
+Tabblad
+Gegevensrijen
+Kolommen
+Kolommen met waarden
+Artikelen
+17
+127
+40
+Werknemers
+8
+228
+119
+Materieel
+17
+127
+40
+Debiteuren
+12
+95
+63
+De set bevat geen Excel-formules. Waarden die op berekeningen lijken zijn daardoor snapshots uit de bron; hun
+definitie kan niet uit een formule worden afgeleid. De aantallen beschrijven uitsluitend deze voorbeeldexport.
+Gevolgen voor het model
+Artikelen en Materieel zijn identiek. Alle gevulde cellen en hun waarden komen overeen. Laad ze als één
+broncatalogus en leg de dubbele herkomst vast. Een complete zelfstandige tabel met materieelobjecten is niet
+aangeleverd. De codes in kolom U zijn verwijzingen, geen volledige objectdossiers.
+Een artikel is ook een dienst of tariefdrager. De set bevat materiaal, loon en materieel bij Kostensoort. Daarom
+omvat de catalogus meer dan fysieke producten. Kostensoort en het bronveld Soort blijven verschillende begrippen;
+een definitieve classificatiemapping vraagt bevestiging.
+Prijzen hebben verschillende betekenissen. Bij AHW3000KG-UUR is Verkoopprijs1 11 en Verkoopprijs 5 (Artikelen
+F4 en DM4). Eén algemeen prijsveld zou informatie verliezen. Kolom S noemt afspraken en data, maar bevat geen
+complete bedragen per afspraak.
+Identificatie is onvolledig. Personeelsnr is bij vijf van acht rijen gevuld; ID-intern bij zeven; Werknemer_id BO
+nergens. Gebruik een gecontroleerd identiteitsregister. Identificeer medewerkers niet automatisch met naam, BSN
+of het Excel-rijnummer.
+Vestigingsscope is niet rechtstreeks beschikbaar voor alle domeinen. Werknemers bevat Bedrijf en Afdeling, maar
+de artikelkolom Bedrijven is leeg. Debiteuren mist een expliciete eigen vestiging. Vul deze scope uit een
+goedgekeurde bron aan vóór productiegebruik.
+Bronsemantiek vraagt verificatie. FTE bevat 1,05 (HR2 en HR3). Eigendom bevat negatieve decimale waarden,
+bijvoorbeeld -250,5 (Artikelen BC5). Ze worden als bronwaarden behouden en niet automatisch als fout of
+booleaanse waarde behandeld.
+
+
+VSVK  |  Technisch ontwerp 1.0  |  29 oktober 2026
+4
+VSVK ENTERPRISE / TECHNISCH ONTWERP / 04
+Vier lagen met duidelijke grenzen
+Ontwerpkeuze op basis van de visie, pagina 3 tot en met 4.
+1  PRESENTATIE
+Browserapps voor calculatie, offerte en planning
+2  TOEGANG EN GOVERNANCE
+Gateway, sessieafhandeling, SSO, limieten en audit
+3  DOMEINLOGICA
+Catalogus, tarieven, calculatie, offerte en bronadapters
+4  CENTRALE DATA
+PostgreSQL, documenten en optionele lokale zoekindex
+Presentatie
+Lokaal gehoste SPA’s gebruiken hetzelfde VSVK UI-pakket. De browser mag invoer controleren voor
+gebruiksgemak, maar tarieven, marges en autorisatie worden altijd opnieuw door de backend bepaald. JavaScript,
+lettertypen en andere assets worden lokaal geleverd.
+Toegang en governance
+Een gateway vormt het enige toegangspunt. Een Backend for Frontend (BFF) handelt aanmelding en sessies af
+binnen deze laag. Browser en BFF gebruiken dezelfde origin. Alleen geregistreerde apps zijn bereikbaar.
+Gatewayregels worden aangevuld met controles binnen iedere domeinfunctie.
+Backend en data
+Start met één modulaire backend met afzonderlijke catalogus-, relatie-, resource-, tarief-, calculatie- en
+offertemodules. Een aparte worker verzorgt imports, exports en documentgeneratie. Modules communiceren via
+vastgelegde interfaces; directe ongecontroleerde tabelwijzigingen buiten de eigenaar zijn verboden.
+Een logisch centrale PostgreSQL-database bevat gescheiden schema’s en accounts. Documenten staan in lokale
+bestands- of objectopslag. Een lokale vectorindex is optioneel en afgeleid. Elke wijziging van een bedrijfsobject en
+zijn uitgaand integratiebericht wordt atomair vastgelegd via een outbox.
+
+
+VSVK  |  Technisch ontwerp 1.0  |  29 oktober 2026
+5
+VSVK ENTERPRISE / TECHNISCH ONTWERP / 05
+Hosting en netwerkstromen
+ Zone
+Componenten
+Toegestane verbindingen
+Gebruikerszone
+Beheerde werkplekken; browser
+HTTPS naar de gateway; aanmelding bij lokale
+identityprovider.
+Applicatietoegang
+Lokaal gehoste gateway, webapps en BFF
+Gateway naar BFF/API. Alleen noodzakelijke
+authenticatiestromen naar identiteitssysteem.
+Applicatiezone
+Domein-API en achtergrondworkers
+Database, documentopslag, bronsysteemadapter en
+lokale auditvoorziening.
+Datazone
+PostgreSQL en documentopslag
+Alleen benoemde serviceaccounts en beheer via een
+afgeschermde beheerroute.
+Beheerzone
+Buildstraat, monitoring, sleutelbeheer en
+back-up
+Gecontroleerde beheerverbindingen. Geen toegang
+vanuit een eindgebruikersapp.
+Voorgestelde technische basis
+Gebruik .NET voor BFF, API en workers; PostgreSQL voor relationele gegevens; Traefik als ingang en routering;
+een lokale OIDC identityprovider gekoppeld aan Active Directory. De BFF en backend verzorgen sessies en
+beleidscontroles. Deze functies worden niet verondersteld automatisch door de router te worden geleverd.
+Draai componenten op lokaal beheerde Linux-VM’s met containers. Begin zonder Kubernetes tenzij VSVK hiervoor
+al beheerkennis en een platform heeft. Leg deploymentconfiguratie, databasewijzigingen en gatewayregels in lokaal
+versiebeheer vast. Kies ondersteunde productversies tijdens de realisatie en valideer compatibiliteit in de
+proefomgeving.
+Identiteit en lokale verwerking
+De visie noemt zowel AD als Entra ID. Dit ontwerp kiest bij de strikte lokale eis voor een lokale identityprovider met
+lokale MFA. Als VSVK Entra ID wil gebruiken, moet de overdracht van identiteitsgegevens als expliciete afwijking
+worden besloten. Zakelijke inhoud wordt in geen van beide gevallen naar een externe AI gestuurd.
+Beschikbaarheid
+Ontwikkeling, test, acceptatie en productie zijn gescheiden. Productie krijgt twee gateway/API-instanties op
+verschillende hosts en een database met herstel- of failovervoorziening op een andere host. Replicatie levert
+beschikbaarheid; onafhankelijke back-ups leveren herstel. Eén database blijft de logische schrijfbron.
+De voorbeelden zijn te klein voor hardwaredimensionering. Meet aantallen gebruikers, gelijktijdigheid, bronvolumes,
+documentgroei en eventuele lokale AI-belasting. Reserveer GPU-capaciteit alleen wanneer een lokale AI-proef de
+noodzaak aantoont.
+
+
+VSVK  |  Technisch ontwerp 1.0  |  29 oktober 2026
+6
+VSVK ENTERPRISE / TECHNISCH ONTWERP / 06
+Domeinmodel en relaties
+Bedrijf 1 --- n Vestiging
+Vestiging n --- m Artikel      via ArtikelVestiging
+Artikel 1 --- n Tariefregel n --- 1 Prijslijst
+Debiteur n --- 1 Organisatie
+Debiteur n --- m Vestiging     via DebiteurVestiging
+Medewerker 1 --- n Dienstverband n --- 1 Vestiging
+Medewerker n --- m Kwalificatie
+Materieelobject n --- m Artikel via MaterieelArtikel
+Debiteur 1 --- n Calculatie 1 --- n Calculatieversie
+Calculatieversie 1 --- n Calculatieregel
+Calculatieversie 1 --- n Offerteversie
+Organisatie is niet hetzelfde als debiteurrekening
+Dezelfde organisatie kan meerdere debiteurcodes hebben voor onderdelen, facturatie of administraties. De
+BAM-rijen delen bijvoorbeeld een BTW-nummer. Houd organisatie, debiteurrekening en adres apart; voeg
+rekeningen nooit automatisch samen op BTW-nummer, naam of bankrekening.
+Catalogus is niet hetzelfde als fysiek materieel
+Een artikel beschrijft wat wordt begroot, ingekocht of verkocht. Een materieelobject is een individueel voertuig of
+werktuig. Eén object kan meerdere tariefartikelen hebben, bijvoorbeeld voor dag- en nachtinzet. Eén tariefartikel kan
+meerdere objecten vertegenwoordigen. Daarom is MaterieelArtikel een koppeltabel.
+Persoon is niet hetzelfde als dienstverband
+Medewerker bevat de stabiele identiteit. Dienstverband bevat bedrijf, vestiging, afdeling, functie, type Eigen/Inlener
+en geldigheidsperiode. Kwalificaties hebben aparte koppelingen met een geldigheidsperiode en bewijsverwijzing.
+Een tekstlijst bewijst niet dat een certificaat op de plandatum geldig is.
+Scope wordt expliciet gemodelleerd
+Bedrijf betekent de juridische of administratieve eenheid; vestiging betekent de operationele locatie. De
+voorbeeldwaarden zoals 11. PIJNAC en 31. WAMEL worden eerst via een beheerde vertaaltabel gekoppeld. De
+bronkolom Bedrijf wordt niet zonder verificatie gelijkgesteld aan een vestiging.
+Gedeelde catalogusgegevens kunnen centraal bestaan. Gebruik per artikel en debiteur expliciete
+vestigingskoppelingen. Ontbrekende scope betekent geen toegang. Bedrijfsoverschrijdend lezen vereist een
+afzonderlijk verleend recht. Iedere calculatie en offerte heeft één bedrijf en één vestiging.
+
+
+VSVK  |  Technisch ontwerp 1.0  |  29 oktober 2026
+7
+VSVK ENTERPRISE / TECHNISCH ONTWERP / 07
+Logisch fysieke tabelspecificatie
+Voorstel: UUID voor interne sleutels; broncodes als Unicode-tekst; geldbedragen als numeric(19,4); hoeveelheden
+als numeric(19,6); valuta als drielettercode. Gebruik date voor tariefdata en timestamptz in UTC voor
+gebeurtenissen. API-bedragen worden als decimale tekenreeksen uitgewisseld.
+Schema en tabel
+Belangrijkste velden en sleutels
+core.bedrijf / vestiging
+id PK, code uniek; vestiging.bedrijf_id FK. Uniek (bedrijf_id, code).
+core.bronidentiteit
+id PK, bron, entiteittype, bronscope, broncode, doel_id. Uniek op bron + type + scope +
+broncode; typevaste koppeling en controle op doelrecord.
+catalogus.artikel
+id PK, artikelnummer tekst, omschrijving, kostensoort_id FK, gebruikseenheid_id FK,
+grootheid_id FK, selecteerbaar, versie. Bronuniekheid via bronidentiteit.
+catalogus.artikel_vestiging
+artikel_id FK, vestiging_id FK, actief. Composiete PK.
+resource.materieelobject
+id PK, objectcode, omschrijving, eigenaar_id, status. Materieel_artikel bevat object_id +
+artikel_id + geldigheid.
+relatie.organisatie / debiteur
+Organisatie: id, naam, registraties. Debiteur: id, organisatie_id FK, broncode, prijssoort_id,
+betaaltermijn. Debiteur_vestiging bepaalt scope.
+resource.medewerker / dienstverband
+Medewerker: id, weergavenaam. Dienstverband: id, medewerker_id FK, vestiging_id FK,
+functie_id, type, begin, einde, fte. Privégegevens apart in hr_private.
+prijs.prijslijst / tariefregel
+Tariefregel: id, prijslijst_id FK, artikel_id FK, bedrijf_id, vestiging_id, debiteur_id optioneel,
+tarieftype, eenheid_id, hoeveelheid_basis, bedrag, valuta, geldig_van/tot, status, versie.
+sales.calculatie / versie / regel
+Calculatie: id, bedrijf_id, vestiging_id, debiteur_id, status. Versie: id, nummer,
+rekenregelversie. Regel: artikel_id, hoeveelheid, eenheid, tariefregel_id en tariefsnapshot.
+sales.offerte / offerteversie
+id, calculatieversie_id FK, offertenummer, versienummer, status, totalen, document_id, hash.
+Offertenummer via atomaire reeks per bedrijf en jaar.
+integratie.import_batch / outbox
+Batch: bron, bestandshash, mappingversie, status, controles. Outbox: event_id, object_id,
+type, versie, payload, afleverstatus.
+audit.gebeurtenis
+id, tijdstip, actor_id, app_id, actie, object_id, scope, resultaat, trace_id; beschermde
+wijzigingsdetails waar nodig.
+Alle mutabele tabellen krijgen created_at, updated_at, version en herkomst waar van toepassing. Foreign keys, unieke indexen en checks
+bewaken geldige verwijzingen, perioden en bedragen. Indexeer scope + veelgebruikte zoekvelden en artikel + tarieftype + geldigheid.
+
+
+VSVK  |  Technisch ontwerp 1.0  |  29 oktober 2026
+8
+VSVK ENTERPRISE / TECHNISCH ONTWERP / 08
+Mapping van artikelen en materieel
+Bronverwijzingen gelden voor Artikelen en het identieke tabblad Materieel.
+Bronvelden
+Doel en transformatie
+A Artikelnummer
+artikel.artikelnummer als tekst; behoud tekens zoals ≤, / en koppelteken.
+Interne UUID als API-sleutel.
+B Omschrijving; C Korte omschrijving; CB Naam; DS
+Volledige omschrijving
+Aparte doelvelden waar betekenis verschilt. CB alleen als alias gebruiken
+na bevestiging; verschil nooit stil overschrijven.
+L Kostensoort; BU Kostensoort Code; CT Soort
+Beheerde referentietabellen. Code en label afzonderlijk opslaan; geen
+automatische gelijkstelling van Soort aan kostensoort.
+Q Gebruikseenheid; CU StdEhd; CV St.Eh; BK Grootheid
+Genormaliseerde eenheden en grootheden. Synoniemen behouden als
+bronalias; eenheidsverschillen blokkeren prijsberekening totdat conversie
+bekend is.
+F Verkoopprijs1; G Verkoopprijs2; R Bruto verkoopprijs;
+DM Verkoopprijs
+Afzonderlijke bronprijstypen in staging. Publiceer pas tariefregels na
+vaststelling van betekenis, valuta, periode en prioriteit.
+J Verrekenprijs; N Inkoopprijs; AL Bruto inkoopprijs; CO
+Prijs/Prijseh.
+Aparte typen voor verrekening en inkoop. Geen fallback op verkoopprijs.
+Bronwaarde en interpretatie blijven traceerbaar.
+S Prijsafspraken; W Actuele prijsafspraak; BF Geldig
+vanaf inkoop
+S naar verwijzingen ter verrijking, niet naar verzonnen historische
+bedragen. W Vervallen vereist brononderzoek; BF bepaalt niet de
+verkoopgeldigheid.
+U Materieelstukken
+Splits objectcodes naar kandidaatkoppelingen. Verifieer elke code met een
+zelfstandig materieelregister. Geen verzonnen eigendom, locatie of
+keuringsdatum.
+O Niet-kiesbaar; DG Uit assort.; DI Uniek; DW Voorraad
+Expliciete mappings per boolean of status. Ja/Nee en leeg zijn
+verschillende bronwaarden; null is geen Nee.
+Y Afrondingsfactor; CN Prijshoeveelheid; P Prijseenheid
+Vastleggen in prijs-/eenhedenmodel na uitleg. Y=1 bewijst niet of op euro’s
+of een ander niveau afgerond moet worden.
+BC Eigendom; D Techn.voorraad; BB Econ.voorraad; DK
+Verhuurd
+Semantiek of actuele stand. BC als onbekend numeriek bronveld bewaren;
+standen niet als vaste artikelkenmerken modelleren.
+AA Artikelgroep Code en groepsvelden; overige lege
+velden
+Referenties voor groep/subgroep waar beschikbaar. Onbekende en lege
+kolommen blijven in de bronzone; alleen goedgekeurde velden in de
+operationele API.
+Loonartikelen blijven generieke tariefdragers. Voor calculatie is doorgaans een functie- of tariefartikel voldoende;
+individuele salarisgegevens worden niet ontsloten. Voorraadbewegingen, bezetting en geleverde aantallen horen
+later in aparte transactiedomeinen.
+
+
+VSVK  |  Technisch ontwerp 1.0  |  29 oktober 2026
+9
+VSVK ENTERPRISE / TECHNISCH ONTWERP / 09
+Mapping van werknemers en debiteuren
+ Bron en bereik
+Doel en verwerkingsregel
+Werknemers CF, GF en GU
+ID-intern, Werknemer_id BO en Personeelsnr zijn kandidaat-bronsleutels.
+Bouw een door HR gecontroleerde koppeltabel; ontbrekende of
+conflicterende identiteit in quarantaine.
+Werknemers DP, DQ, G/H, ET, GA/GB
+Operationele weergavenaam en gestructureerde naamdelen. Kies één
+bronveld per begrip; samengestelde labels worden afgeleid.
+Werknemers GV, GW, GX, HC, HR
+Bedrijf/afdeling/functie naar referenties en dienstverband. Type Eigen/Inlener
+als referentie. FTE als decimal; 1,05 vereist bevestiging, geen automatische
+aftopping.
+Werknemers HP, BO, BQ; Q en R
+Kwalificaties normaliseren naar koppeltabellen. Artikelverwijzingen uit de
+bron verrijken; labels zoals (+5 opties) zijn onvolledig en geen vijf bekende
+records.
+Werknemers AB, T, BH, N, GO, FV en loonvelden
+Privégegeven of gevoelig domein. BSN, bank, geboortedatum, gezondheid
+en loon niet opnemen in de algemene resource-API of RAG. Alleen
+noodzakelijke velden in een apart goedgekeurd HR-proces.
+Werknemers DG, jubileumvelden, uren en laatste inzet
+Afgeleide weergaven of transactiestanden. Alleen berekenen met
+afgesproken peildatum en betrouwbare bron; niet onafhankelijk
+onderhoudbaar maken.
+Debiteuren A, Z, AA, B, C, AG
+Debiteurcodes en BO-ID via bronidentiteit; naam, BTW en handelsregister
+naar organisatie. Geen samenvoeging op één registratieveld.
+Debiteuren D/E/H/AO en BF/BG/BH
+Bezoekadres en factuuradres afzonderlijk. Postcode, huisnummer en
+registratienummers als tekst om voorloopnullen te behouden.
+Debiteuren I, U, X, BZ, AN
+Prijssoort, betaaltermijn, blokkade, valuta en kredietlimiet naar zakelijke
+instellingen. Leeg betekent onbekend; standaardvaluta alleen na expliciete
+bevestiging.
+Debiteuren R/S/AF; F/BW; AJ/AP
+Bankgegevens apart afgeschermd; contactgegevens doelgebonden. Interne
+opmerkingen en contactinhoud standaard uitgesloten van algemene zoek- en
+AI-antwoorden.
+Debiteuren omzet, saldo, aantallen en ouderdom
+Afzonderlijke financiële readmodellen met peildatum, bronscope en definitie.
+Geen bewerkbare stamvelden; niet alle ouderdomkolommen optellen.
+De waarden voor (alle) en (huidig) zijn niet zonder meer gelijk aan bedrijfs- of vestigingstotalen. Hun bronscope
+moet worden verklaard. Meerdere ouderdomkolommen bevatten dezelfde waarde; dat bewijst geen afzonderlijke
+vorderingen. Financiële totalen komen bij voorkeur uit factuur- en betalingsregels met controle op het grootboek.
+
+
+VSVK  |  Technisch ontwerp 1.0  |  29 oktober 2026
+10
+VSVK ENTERPRISE / TECHNISCH ONTWERP / 10
+Tariefselectie en rekenregels
+Geldige en eenduidige prijzen
+Elke gepubliceerde tariefregel heeft een artikel, tarieftype, valuta, eenheid, positieve basishoeveelheid,
+toepassingsscope en geldigheid. Hanteer een inclusieve begindatum en exclusieve einddatum: geldig_van ≤
+peildatum < geldig_tot. Een lege einddatum betekent onbegrensd. Overlap voor dezelfde selectiesleutel en prioriteit
+is verboden.
+Voorgestelde prioriteit: 1 klantafspraak binnen bedrijf/vestiging, 2 klantafspraak binnen bedrijf, 3 vestigingsprijslijst, 4
+bedrijfsprijslijst. Controleer daarnaast de aan de debiteur toegekende prijssoort. De proceseigenaar moet deze
+volgorde bevestigen. Meer dan één kandidaat op hetzelfde niveau geeft TARIFF_AMBIGUOUS; geen kandidaat
+geeft TARIFF_NOT_FOUND. Nooit stil terugvallen op nul of een willekeurige bronprijs.
+Deterministische berekening
+prijs_aantal = gebruikshoeveelheid x conversiefactor / basishoeveelheid
+regel_bruto  = prijs_aantal x tarief
+regel_netto  = regel_bruto x product(1 - korting_i / 100)
+regel_bedrag = rond_af(regel_netto, vastgelegde afrondingsregel)
+subtotaal    = som(regel_bedrag)
+marge_pct    = (verkoop - kostprijs) / verkoop x 100
+De productformule voor opeenvolgende kortingen is een voorstel; bevestig of de bron opeenvolgend, additief of
+netto rekent. Gebruik decimale berekeningen. Leg vast op welk niveau wordt afgerond; voorgestelde
+factuurafronding is twee decimalen per regel met commercieel afronden. Bij verkoop nul is marge onbekend, niet nul
+procent. Een uur is niet zonder afspraak een achtste dag.
+Vastleggen en fiatteren
+Een calculatieversie bewaart invoer, eenheidsconversies, gekozen tariefregel en versie, basisbedragen, kortingen,
+peildatum en rekenregelversie. Een offerteversie bewaart ook klant- en adresgegevens zoals gebruikt, totalen en
+het document met hash. Een nieuw tarief verandert een bestaande offerte niet. Hernieuwde berekening maakt een
+nieuwe calculatieversie.
+Statussen: concept → berekend → ter beoordeling → goedgekeurd → aangeboden; daarna geaccepteerd,
+afgewezen of verlopen. Materiële wijzigingen na goedkeuring vereisen een nieuwe versie en beoordeling. Alleen de
+backend mag overgangen uitvoeren. Een afwijkend tarief of marge onder een ingestelde grens vereist een
+bevoegde fiatteur; de grens is nog door VSVK vast te stellen.
+BTW-regels, toeslagen, kostprijsopbouw en minimumtarieven zijn niet volledig uit de set af te leiden. De pilot gebruikt alleen expliciet
+goedgekeurde regels; ontbrekende essentiële regels blokkeren aanbieding.
+
+
+VSVK  |  Technisch ontwerp 1.0  |  29 oktober 2026
+11
+VSVK ENTERPRISE / TECHNISCH ONTWERP / 11
+API catalogus en contractregels
+ Methode en route onder /api/v1
+Doel en bescherming
+GET /me
+Eigen identiteit, toegekende acties en toegestane vestigingen.
+GET /artikelen en /artikelen/{id}
+Zoeken en lezen binnen scope. Geen inkoopprijs of marge in het
+gewone catalogusantwoord.
+GET /debiteuren en /debiteuren/{id}
+Operationele klantinformatie; aparte modellen voor financiële
+gegevens.
+GET /resources/medewerkers
+Alleen planninggegevens binnen scope; geen algemene HR-export.
+GET /materieelobjecten
+Alleen geverifieerde objecten; beschikbaar na aansluiting van het
+objectregister.
+POST /tariefselecties
+Server kiest tarief op artikel, debiteur, peildatum, eenheid en vestiging.
+Specifiek recht vereist voor kostprijs.
+POST /calculaties; GET /calculaties/{id}
+Maken en lezen. Aanmaken verifieert alle kruisverwijzingen en scope.
+PATCH /calculaties/{id}
+Wijzig alleen conceptvelden met If-Match. Geen rechtstreeks
+instelbare berekende totalen.
+POST /calculaties/{id}/berekeningen
+Nieuwe berekende versie; server bepaalt alle prijzen en totalen.
+POST /calculaties/{id}/beoordelingen
+Fiattering of afwijzing met toelichting en bevoegdheidscontrole.
+POST /offertes; POST /offertes/{id}/aanbiedingen
+Maak en markeer aanbieding vanuit een goedgekeurde
+calculatieversie. Documentgeneratie lokaal; verzending buiten deze
+ontwerpopdracht.
+POST /beheer/imports; GET /beheer/imports/{id}
+Beheerde import en foutenoverzicht; uitsluitend importbeheerder.
+OpenAPI beschrijft routes, typen, verplichte velden, grenzen, foutcodes, scopes en fictieve voorbeelden.
+Versiebeheer gebruikt een hoofdversie in het pad. Contractwijzigingen worden vóór publicatie gecontroleerd op
+compatibiliteit; onbekende schrijfvelden worden geweigerd. Een app mag geen willekeurige SQL, tabelnaam,
+filterexpressie of doel-URL aanleveren.
+Lijstaanvragen gebruiken een cursor, stabiele sortering en standaard 50, maximaal 200 records. Zoek- en
+sorteeropties staan op een allowlist. Verzoeken hebben deadlines en maximumgroottes. Exports zijn afzonderlijke,
+geautoriseerde jobs. Antwoorden tonen bronpeildatum en actualiteitsstatus wanneer data uit een synchronisatie
+komt.
+Fouten volgen één problem+json-model met code, uitleg, traceId en veldfouten: 400 ongeldige invoer, 401 geen
+sessie, 403 geen actierecht, 404 onbekend of niet zichtbaar object, 409 domeinconflict, 412 verouderde versie, 422
+niet berekenbaar en 429 limiet bereikt.
+
+
+VSVK  |  Technisch ontwerp 1.0  |  29 oktober 2026
+12
+VSVK ENTERPRISE / TECHNISCH ONTWERP / 12
+Voorbeeld van een calculatiecontract
+Onderstaand voorbeeld is fictief. Identificatoren en bedragen dienen alleen om het contract te verduidelijken. Het
+voorbeeld is geen complete OpenAPI-specificatie.
+POST /api/v1/calculaties
+Idempotency-Key: <unieke aanvraagsleutel>
+Content-Type: application/json
+{
+  "vestigingId": "11111111-1111-4111-8111-111111111111",
+  "debiteurId": "22222222-2222-4222-8222-222222222222",
+  "peildatum": "2026-10-29",
+  "regels": [{
+    "artikelId": "33333333-3333-4333-8333-333333333333",
+    "hoeveelheid": "8.000000",
+    "eenheid": "uur"
+  }]
+}
+De backend controleert of gebruiker, debiteur en artikel binnen de opgegeven vestiging mogen worden
+gecombineerd. Bedrijf wordt uit de vestiging afgeleid. Tarieven, kostprijzen, goedkeuring en totalen zijn geen door
+de client overschrijfbare velden.
+201 Created
+Location: /api/v1/calculaties/<id>
+ETag: "1"
+{ "id": "<id>", "status": "concept", "version": 1 }
+POST /api/v1/calculaties/<id>/berekeningen
+If-Match: "1"
+Idempotency-Key: <nieuwe unieke aanvraagsleutel>
+200 OK
+{
+  "calculatieversie": 1, "status": "berekend",
+  "valuta": "EUR", "subtotaal": "480.00",
+  "rekenregelversie": "pilot-1",
+  "regels": [{ "hoeveelheid": "8.000000",
+    "eenheidsprijs": "60.0000", "bedrag": "480.00",
+    "tariefregelId": "<id>", "tariefversie": 3 }]
+}
+Dezelfde idempotentiesleutel binnen dezelfde gebruiker, app en actie levert bij gelijke inhoud hetzelfde resultaat op.
+Afwijkende inhoud bij dezelfde sleutel geeft 409. Een stale If-Match geeft 412. Leg sleutel, aanvraaghash en
+resultaat in dezelfde transactie vast; voorgestelde bewaartermijn is 24 uur. Bewaar offertenummers permanent
+uniek in de database.
+
+
+VSVK  |  Technisch ontwerp 1.0  |  29 oktober 2026
+13
+VSVK ENTERPRISE / TECHNISCH ONTWERP / 13
+Autorisatie en bescherming van gegevens
+ Rol
+Mogelijkheden
+Expliciete grens
+Planner
+Resources, operationele klantgegevens en planning
+lezen binnen eigen vestigingen.
+Geen loon, BSN, bank of calculatiemarges.
+Calculator
+Catalogus en bevoegde tarieven lezen; eigen scope
+calculeren.
+Geen HR-dossier; kostprijs alleen met apart
+recht.
+Vestigingsmanager
+Calculaties en offertes beoordelen binnen
+toegekende vestigingen.
+Geen automatisch recht op andere vestigingen of
+HR.
+Stamdatabeheerder
+Mappings en aangewezen masterdata beheren.
+Geen automatische financiële fiattering.
+Financieel beheer
+Financiële instellingen en readmodellen binnen
+toegekende bedrijven.
+Bankwijzigingen via aparte beoordeling; geen
+HR-toegang.
+HR beheer
+Doelgebonden HR-functies in afgeschermd domein.
+Geen algemene verspreiding via resource-API of
+AI.
+Platformbeheerder
+Hosting, monitoring, deployments en herstel.
+Geen standaard zakelijke leesrechten;
+noodtoegang tijdelijk en gelogd.
+Rechten zijn acties zoals catalogus.lezen, tarief.kostprijs.lezen en offerte.fiatteren, gekoppeld aan AD-groepen en
+expliciete bedrijf-/vestigingstoekenningen. Rollen zijn geen vervanging voor objectcontrole. De backend controleert
+elke sleutel en relatie, ook bij exports, achtergrondtaken en AI-zoekvragen.
+Sessie en serviceverkeer
+Gebruik lokale SSO met OIDC authorization code flow. De BFF bewaart tokens serverzijdig. De browser krijgt een
+Secure, HttpOnly, SameSite-cookie; mutaties vereisen CSRF-bescherming en origincontrole. Log uit bij ingetrokken
+toegang en begrens sessieduur. Hanteer korte tokenlevensduur en periodieke hercontrole van rechten; voorstel
+maximaal vijf minuten vertraging na intrekking.
+API’s vertrouwen alleen identiteit van een gevalideerde interne sessie of ondertekend servicetoken met
+gecontroleerde issuer, audience en geldigheid. Door de client ingestuurde rol- en vestigingsheaders worden
+verwijderd. Gebruik versleutelde verbindingen en wederzijdse serviceauthenticatie. Alleen noodzakelijke
+serviceaccounts krijgen databaseprivileges.
+Bescherming in de datalaag
+Beperk ook queries op scope. Overweeg PostgreSQL row level security voor gevoelige tabellen als extra grens.
+Gebruik een niet-eigenaarrol en transactiegebonden scopecontext; reset die context bij pooled verbindingen. Test
+ontbrekende context en foutieve scopes. Privé-HR staat in een afgescheiden schema met een afzonderlijk
+serviceaccount en versleutelde gevoelige velden.
+
+
+VSVK  |  Technisch ontwerp 1.0  |  29 oktober 2026
+14
+VSVK ENTERPRISE / TECHNISCH ONTWERP / 14
+Import en overgang naar centrale gegevens
+Eén eigenaar per gegeven
+Inventariseer eerst de echte bronsystemen en hun ondersteunde koppelvlakken. De export noemt BO, ADP en
+SCAB in veldnamen; dat bewijst niet welke applicatie vandaag leidend is. Leg per domein vast: bronhouder, sleutel,
+scope, wijzigingskanaal, synchronisatiefrequentie en uitvalgedrag. In fase één zijn aangeleverde stamgegevens
+alleen-lezen op het platform.
+Stap
+Uitwerking
+1 Ontvangen
+Bewaar origineel lokaal in een beschermde bronzone. Registreer hash, bron, ontvangsttijd, peildatum,
+mappingversie en import-ID.
+2 Staging
+Lees waarden en typen zonder zakelijke aannames. Bewaar lege waarde, nul en bronstatus afzonderlijk.
+Negeer instructietekst als uitvoeropdracht.
+3 Valideren
+Controleer schema, verplichte sleutel, duplicaten, eenheden, referenties, scope en perioden. Behoud
+voorloopnullen en Unicode. Geen automatische identificatie via persoonsgegevens.
+4 Ontdubbelen
+Herken Artikelen/Materieel in deze set als dezelfde catalogus. Vergelijk ook de volledige inhoud;
+verschillende waarden bij dezelfde sleutel zijn een conflict.
+5 Beoordelen
+Geef een verschilrapport met toevoegingen, wijzigingen en blokkades. Eigenaar keurt mappings en
+uitzonderingen goed. Onbekende referenties gaan in quarantaine.
+6 Publiceren
+Schrijf een gevalideerde batch transactioneel naar de doeltabellen. Geen half zichtbare tariefset. Herhaalde
+verwerking van dezelfde batch maakt geen extra records.
+7 Reconciliëren
+Vergelijk bron/doel op sleutels, aantallen en relevante bedragen. Leg resultaat en goedkeuring vast. Toon
+actualiteit in API en beheerportaal.
+Een ontbrekende rij in een export is geen verwijdering, tenzij de bron expliciet een volledige snapshot met
+verwijdersemantiek levert. Archiveer stamrecords met geldigheid; behoud verwijzingen vanuit historische offertes.
+Publiceer een nieuwe versie als brondata verandert.
+Een importfout laat de laatst goedgekeurde versie actief. De API meldt de ouderdom. Bij overschrijding van een
+afgesproken grens blokkeert het aanbieden van nieuwe offertes. Voorgestelde pilotgrens voor tarieven is 24 uur;
+bepaal dit met de proceseigenaar.
+Pas na gecontroleerde overdracht wordt het platform eigenaar van een stamgegeven. Dan sluit het oude
+wijzigingskanaal. Vermijd tweerichtingssynchronisatie zonder expliciet conflictprotocol. Wanneer transacties naar
+een ERP moeten, gebruikt de outbox unieke bericht-ID’s, versiecontrole, retries en een herstelwachtrij.
+
+
+VSVK  |  Technisch ontwerp 1.0  |  29 oktober 2026
+15
+VSVK ENTERPRISE / TECHNISCH ONTWERP / 15
+AI en apps door medewerkers
+Twee gescheiden vormen van AI gebruik
+Apps genereren. Medewerkers beschrijven de gewenste gebruikersfunctie. De AI krijgt goedgekeurde contracten,
+het UI-pakket en fictieve testdata. Externe AI mag alleen worden gebruikt na vrijgave van deze inhoud;
+bedrijfsnamen, interne hostnamen, echte gegevens, sleutels en vertrouwelijke regels gaan niet mee. Als zelfs
+contractspecificaties intern moeten blijven, gebeurt ook codegeneratie lokaal.
+Bedrijfskennis raadplegen. Alle documentextractie, embeddings, vectoropslag, inferentie en gespreksopslag draaien
+lokaal. Een RAG-service geeft uitsluitend passages terug waarvoor de gebruiker op dat moment recht heeft.
+Filtering op bedrijf, vestiging en documenttoegang vindt plaats vóór passage-inhoud de modelcontext bereikt en
+wordt op de resultaten herhaald.
+Beperkte AI bevoegdheid
+Documenten zijn gegevens, geen instructies voor het platform. Behandel aanwijzingen in documenten als
+onbetrouwbare inhoud. Een model krijgt geen vrije SQL, netwerktoegang of algemene schrijfrechten. Eventuele
+tools zijn specifiek en door de backend geautoriseerd. Een AI-antwoord mag tarieven toelichten, maar de
+bereken-API bepaalt bedragen. Wijzigingen vragen een expliciete gebruikersactie en doorlopen dezelfde
+domeincontroles.
+Vectoren en tekstpassages verwijzen naar documentversie, bron en toegangslabel. Bij intrekking of verwijdering
+moet toegang direct stoppen en volgt opschoning van de afgeleide index. HR-privégegevens, bankgegevens en
+interne notities zijn standaard uitgesloten van RAG. Cache-antwoorden mogen geen informatie tussen gebruikers of
+vestigingen delen.
+Van gegenereerde app naar lokaal gebruik
+Fase
+Vereiste uitkomst
+Aanvraag
+Benoemde eigenaar, gebruikers, doel, API’s en toegangsrechten.
+Generatie en test
+Fictieve data, contracttests en herbruikbare UI-componenten. Geen productiecredentials.
+Controle
+Review van afhankelijkheden en code, controle op geheimen, XSS, ongewenst netwerkverkeer en
+onveilige opslag.
+Acceptatie
+Gebruikerstest, negatieve autorisatietests en vastgestelde beheerder.
+Publicatie
+Versie in lokaal appregister, reproduceerbare build, vaste origin en terugval naar vorige versie.
+OpenAPI voorkomt geen onveilige browsercode. Beperk content en verbindingen met een strikte Content Security
+Policy, verbied externe scripts en laad afhankelijkheden uit een gecontroleerd lokaal register. Een uitgefaseerde app
+verliest toegang; contracten blijven beheersbaar voor bestaande gebruikers.
+
+
+VSVK  |  Technisch ontwerp 1.0  |  29 oktober 2026
+16
+VSVK ENTERPRISE / TECHNISCH ONTWERP / 16
+Beheer herstel en niet functionele eisen
+ Onderwerp
+Voorgestelde pilotnorm
+Meting of maatregel
+Respons
+95% van reguliere leesaanvragen binnen 500 ms;
+berekening van 100 regels binnen 2 s.
+Meten vanaf gateway, exclusief aanmelding; testen
+met 50 gelijktijdige gebruikers.
+Beschikbaarheid
+99,5% per maand binnen afgesproken
+bedrijfsvenster.
+Healthchecks en synthetische controles; venster en
+onderhoudsbeleid nog vaststellen.
+Herstel
+RPO maximaal 15 minuten; RTO maximaal 4 uur.
+Databaseherstel naar tijdstip plus herstel van
+documenten en configuratie in een geïsoleerde
+omgeving.
+Back-up
+Dagelijks volledig herstelpunt plus continue
+databasewijzigingslog.
+Versleutelde kopie op apart lokaal opslagdomein en
+offline of onveranderbare kopie; sleutels apart.
+Audit
+Alle toegangsbesluiten, raadplegingen, exports en
+mutaties traceerbaar.
+Actor, app, actie, object/scope, tijd, resultaat en
+trace-ID. Geen tokens, BSN of volledige antwoorden
+loggen.
+Actualiteit
+Tarief- en bronouderdom zichtbaar; aanbieden
+geblokkeerd boven afgesproken grens.
+Meet synchronisatievertraging en alarmeer eigenaar.
+Beveiliging
+Geen kritieke open bevinding bij vrijgave.
+Afhankelijkheden-, code- en toegangscontrole;
+kwetsbaarheidsproces en verantwoordelijke.
+Datakwaliteit
+Geen ongeautoriseerde scope, onopgeloste
+tariefambiguïteit of sleutelconflict in actieve pilotdata.
+Publicatiepoort plus verschillenrapport.
+Dit zijn ontwerpdoelen, geen gemeten eigenschappen van de bestaande infrastructuur. Schaal de belastingproef na
+inventarisatie. Stel bewaartermijnen per soort log en gegeven vast; houd toegangslogs korter dan noodzakelijke
+zakelijke historie wanneer dat volstaat.
+Dagelijkse werking
+Monitor fouten, responstijd, sessies, rate limits, synchronisatie, mislukte jobs, opslaggroei en back-upleeftijd.
+Alarmen hebben een eigenaar en een herstelprocedure. Audit wordt lokaal apart opgeslagen met beperkte
+wijzigrechten. Als de auditvoorziening tijdelijk uitvalt, gebruikt de API een duurzame lokale wachtrij; gevoelige
+mutaties en exports stoppen wanneer betrouwbare vastlegging niet meer mogelijk is.
+Gebruik een lokaal geheimenbeheer met rotatie en gescheiden accounts per omgeving. Databasewijzigingen zijn
+versieerbaar en passen bij de vorige en nieuwe applicatieversie tijdens uitrol. Test terugrollen; voor destructieve
+datamigraties zijn herstel en herinvoer expliciet uitgewerkt.
+De eis dat alles binnen één pand blijft kent een beperking: brand of verlies van die locatie kan zowel productie als
+back-ups treffen. Een tweede eigen locatie vraagt een expliciete beleidskeuze. Tot die keuze is gemaakt wordt geen
+locatiebrede herstelgarantie beloofd.
+
+
+VSVK  |  Technisch ontwerp 1.0  |  29 oktober 2026
+17
+VSVK ENTERPRISE / TECHNISCH ONTWERP / 17
+Pilot en acceptatie
+Realisatievolgorde met concrete resultaten
+Fase
+Resultaat en doorgangsvoorwaarde
+1 Bronafspraken
+Eigenaren, sleutels, bedrijf/vestiging, tariefbetekenissen, prijsprioriteit en bewaarbeleid vastgesteld.
+2 Platformbasis
+Lokale aanmelding, gateway/BFF, API-skelet, database, logging, buildstraat en geteste back-up.
+3 Catalogus en tarieven
+Eén catalogus, gecontroleerde debiteurset en gevalideerde prijsregels; herhaalbare import met
+reconciliatie.
+4 Calculatie en offerte
+Versiebeheer, serverberekening, fiattering, nummerreeks en lokaal gegenereerd offertedocument.
+5 Eerste businessapp
+App met UI-pakket en contracten; getest binnen één gekozen vestiging met aangewezen gebruikers.
+6 Uitbreiding
+Na acceptatie andere vestigingen, materieelregister, planning en eventueel lokale RAG toevoegen.
+Minimale acceptatieset
+Proef
+Verwacht resultaat
+Dubbele broncatalogus
+De 17 identieke artikelrijen uit twee tabbladen leveren 17 artikelen op; herimport levert
+geen extra artikelen op.
+Verschillende prijsvelden
+Artikelen F4=11 en DM4=5 blijven onderscheiden; zonder goedgekeurde mapping geen
+productieprijs.
+Tariefgrens en conflict
+Begindatum geldig, einddatum uitgesloten; twee gelijke kandidaten blokkeren
+berekening. Ontbrekende prijs wordt nooit nul.
+Herberekenen en offertehistorie
+Een nieuwe prijs wijzigt een bestaande aangeboden offerte niet; een nieuwe
+calculatieversie gebruikt de geldige nieuwe prijs.
+Vestiging en velden
+Gebruiker uit vestiging A kan geen object van B lezen, wijzigen, exporteren of via AI
+vinden. Planner krijgt geen HR-privévelden.
+Gelijktijdige mutaties
+Oude ETag wordt geweigerd; herhaalde aanvraag met dezelfde sleutel maakt geen
+tweede offerte of nummer aan.
+Importuitval en ouderdom
+Halve import is onzichtbaar. Laatst geldige set blijft leesbaar; verouderde tarieven
+blokkeren nieuwe aanbieding volgens beleid.
+Herstel en lokale verwerking
+Herstel binnen afgesproken RTO/RPO aangetoond; geen bedrijfsinhoud naar externe
+diensten of telemetrie.
+Test ook Unicode-artikelcodes, lege waarden versus nul, ontbrekende werknemerssleutels, FTE 1,05, verkeerde eenheid en ontbrekende
+certificaatgeldigheid. Technische controles vervangen de goedkeuring van tarief- en rekenregels door de business niet.
+
+
+VSVK  |  Technisch ontwerp 1.0  |  29 oktober 2026
+18
+VSVK ENTERPRISE / TECHNISCH ONTWERP / 18
+Open besluiten en bronverantwoording
+ Besluit vóór productie
+Voorgesteld uitgangspunt
+Eigenaar
+Bronnen en write ownership
+Bestaande bron beheert stamdata; platform beheert nieuwe
+calculaties en offertes.
+IT en domeineigenaren
+Bedrijf en vestiging
+Expliciete referentietabellen en scopekoppelingen; onbekend
+krijgt geen toegang.
+Directie en functioneel
+beheer
+Prijsbetekenis en historie
+Volledige tariefregels uit bron ophalen; niet reconstrueren uit
+kolom S.
+Calculatie en finance
+Rekenen en fiattering
+Eenheden, afronding, kortingen, BTW, toeslagen en
+margegrens expliciet vastleggen.
+Calculatie en finance
+Identiteit en AI
+Lokale SSO/MFA en AI voor bedrijfsinhoud; externe
+codegeneratie alleen met vrijgegeven materiaal.
+IT en
+informatiebeveiliging
+HR gegevens
+Minimale operationele gegevens, afzonderlijk HR-domein,
+noodzakelijkheid en toegang per veld.
+HR en privacyverantwo
+ordelijke
+Herstel bij locatieverlies
+Lokale back-ups volgens visie; keuze over een tweede eigen
+locatie vastleggen.
+Directie en IT beheer
+Pilotvestiging en capaciteit
+Eén vestiging kiezen; productvolumes en gebruikersbelasting
+meten.
+Opdrachtgever en IT
+Gebruikte documenten
+[V] VSVK-Enterprise visie.pdf · 13 PDF-pagina’s. Architectuur en lokale data: p. 1-4. Appontwikkeling en contracten:
+p. 5-6. Sovereine verwerking, rollen en modulariteit: p. 7-8. IT-beheer en UI: p. 9-10. Voorgestelde gateway,
+OpenAPI en calculatiepilot: p. 11. De laatste twee pagina’s bevatten geen aanvullende inhoud.
+[X] Test-set stambestanden.xlsx · Artikelen A1:DW18; Materieel A1:DW18; Werknemers A1:HT9; Debiteuren
+A1:CQ13. Rij 1 bevat de kolomkoppen. De tellingen en voorbeelden in dit ontwerp zijn aan deze cellen getoetst.
+Herkomst van ontwerpkeuzes
+De vierlagenstructuur, lokale opslag, API-contracten, AD-rollen, audit en calculatiepilot komen uit [V]. Duplicatie,
+ontbrekende sleutels, prijsverschillen en afgeleide standen zijn waarnemingen uit [X]. De concrete tabellen, BFF,
+implementatiestack, tariefprioriteit, contractpatronen en prestatienormen zijn in dit ontwerp voorgesteld; ze worden
+niet als bestaande VSVK-inrichting gepresenteerd.
+De voorbeeldset bevat geen complete tariefhistorie, zelfstandig materieelregister, project- of offertetabellen en geen
+technische beschrijving van bronsysteemkoppelingen. Het ontwerp beschrijft deze onderdelen voor de beoogde
+oplossing. Voor bouwstart worden de ontbrekende gegevens en bedrijfsregels via de genoemde eigenaren
+aangevuld.
+Technische documentatie geraadpleegd op 29 oktober 2026: Microsoft over OIDC en BFF; PostgreSQL over beveiligingsbeleid per rij;
+Traefik over routering. Deze bronnen ondersteunen technische patronen, niet de voorgestelde VSVK-grenswaarden of
+productversiekeuze.

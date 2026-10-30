@@ -1,0 +1,46 @@
+﻿services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${PGDATABASE}
+      POSTGRES_USER: ${PGUSER}
+      POSTGRES_PASSWORD: ${PGPASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER} -d ${PGDATABASE}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  api:
+    environment:
+      ConnectionStrings__AppDb: Host=postgres;Port=5432;Database=${PGDATABASE};Username=${PGUSER};Password=${PGPASSWORD}
+      Jwt__Authority: ${JWT_AUTHORITY}
+      Jwt__MetadataAddress: ${JWT_METADATA_ADDRESS}
+      Jwt__Audience: ${JWT_AUDIENCE}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  migrate:
+    environment:
+      ConnectionStrings__AppDb: Host=postgres;Port=5432;Database=${PGDATABASE};Username=${PGUSER};Password=${PGPASSWORD}
+      Jwt__Authority: ${JWT_AUTHORITY}
+      Jwt__MetadataAddress: ${JWT_METADATA_ADDRESS}
+      Jwt__Audience: ${JWT_AUDIENCE}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  bff:
+    environment:
+      Oidc__Authority: ${OIDC_AUTHORITY}
+      Oidc__MetadataAddress: ${OIDC_METADATA_ADDRESS}
+      Oidc__ClientId: ${OIDC_CLIENT_ID}
+      Oidc__ClientSecret: ${OIDC_CLIENT_SECRET}
+      Oidc__CallbackPath: ${OIDC_CALLBACK_PATH:-/signin-oidc}
+
+volumes:
+  pgdata:
