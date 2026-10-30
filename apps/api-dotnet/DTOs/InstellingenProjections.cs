@@ -8,7 +8,7 @@ public static class InstellingenProjections
 {
   public static Expression<Func<InstellingenAlgemeen, InstellingenAlgemeenDto>> GetProjectionForUser(ClaimsPrincipal user)
   {
-    if (user.IsInRole("manager"))
+    if (user.IsInRole("manager") || user.IsInRole("accountant"))
     {
       return instellingen => new InstellingenAlgemeenDto(
         instellingen.Id,
@@ -16,7 +16,7 @@ public static class InstellingenProjections
         instellingen.Version,
         instellingen.Vestigingen
           .OrderBy(vestiging => vestiging.Naam)
-          .Select(vestiging => (VestigingDto)new ManagerVestigingDto(
+          .Select(vestiging => new VestigingDto(
             vestiging.Id,
             vestiging.Naam,
             vestiging.Adres,
@@ -36,7 +36,7 @@ public static class InstellingenProjections
       instellingen.Version,
       instellingen.Vestigingen
         .OrderBy(vestiging => vestiging.Naam)
-        .Select(vestiging => (VestigingDto)new VestigingDto(
+        .Select(vestiging => new VestigingDto(
           vestiging.Id,
           vestiging.Naam,
           vestiging.Adres,
@@ -44,7 +44,9 @@ public static class InstellingenProjections
           vestiging.Plaats,
           vestiging.Telefoon,
           vestiging.Email,
-          vestiging.KvkNummer))
+          vestiging.KvkNummer,
+          null,
+          null))
         .ToList());
   }
 }

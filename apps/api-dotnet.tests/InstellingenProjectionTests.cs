@@ -30,8 +30,10 @@ public sealed class InstellingenProjectionTests
     return new ClaimsPrincipal(new ClaimsIdentity(claims, "test"));
   }
 
-  [Fact]
-  public void ManagerProjection_IncludesSensitiveVestigingFields()
+  [Theory]
+  [InlineData("manager")]
+  [InlineData("accountant")]
+  public void AuthorizedProjection_IncludesSensitiveVestigingFields(string role)
   {
     var entity = new InstellingenAlgemeen
     {
@@ -41,18 +43,21 @@ public sealed class InstellingenProjectionTests
       Vestigingen = [CreateVestiging()]
     };
 
-    var result = InstellingenProjections.GetProjectionForUser(CreateUser("manager")).Compile()(entity);
+    var result = InstellingenProjections.GetProjectionForUser(CreateUser(role)).Compile()(entity);
 
-    var vestiging = Assert.IsType<ManagerVestigingDto>(Assert.Single(result.Vestigingen));
+    var vestiging = Assert.IsType<VestigingDto>(Assert.Single(result.Vestigingen));
     Assert.Equal("NL851714365B01", vestiging.BtwNummer);
     Assert.Equal("NL86 INGB 0006 8116 55", vestiging.Iban);
     Assert.Equal(4, result.Version);
+    var json = JsonSerializer.Serialize(result);
+    Assert.Contains("\"btw\":\"NL851714365B01\"", json);
+    Assert.Contains("\"iban\":\"NL86 INGB 0006 8116 55\"", json);
   }
 
   [Theory]
   [InlineData("employee")]
   [InlineData("unknown")]
-  public void NonManagerProjection_ExcludesSensitiveVestigingFields(string role)
+  public void RestrictedProjection_ExcludesSensitiveVestigingFields(string role)
   {
     var entity = new InstellingenAlgemeen
     {
@@ -64,8 +69,11 @@ public sealed class InstellingenProjectionTests
     var result = InstellingenProjections.GetProjectionForUser(CreateUser(role)).Compile()(entity);
     var vestiging = Assert.IsType<VestigingDto>(Assert.Single(result.Vestigingen));
 
-    Assert.IsNotType<ManagerVestigingDto>(vestiging);
+    Assert.Null(vestiging.BtwNummer);
+    Assert.Null(vestiging.Iban);
     var json = JsonSerializer.Serialize(result);
+    Assert.DoesNotContain("\"btw\"", json);
+    Assert.DoesNotContain("\"iban\"", json);
     Assert.DoesNotContain("NL851714365B01", json);
     Assert.DoesNotContain("NL86 INGB 0006 8116 55", json);
   }

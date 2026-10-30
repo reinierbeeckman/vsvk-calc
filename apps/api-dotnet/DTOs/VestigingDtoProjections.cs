@@ -1,6 +1,6 @@
 using System.Linq.Expressions;
 using System.Security.Claims;
-using Vsvk.Api.Db; // Bevat de 'Vestiging' database entiteit
+using Vsvk.Api.Db;
 
 namespace Vsvk.Api.DTOs;
 
@@ -8,23 +8,36 @@ public static class VestigingDtoProjections
 {
     public static Expression<Func<Vestiging, VestigingDto>> GetProjectionForUser(ClaimsPrincipal user)
     {
-        // 1. Toekomstige rol: bijvoorbeeld Auditor (ziet alles behalve bankgegevens)
-        if (user.IsInRole("auditor"))
-        {
-            // return auditor specifieke expressie...
-        }
+        bool isManager = user.IsInRole("manager");
+        bool isAccountant = user.IsInRole("accountant");
 
-        // 2. Rol: Manager (Volledige financiële data)
-        if (user.IsInRole("manager"))
+        // Evaluatie vindt plaats in C#, EF vertaalt alleen de gekozen expressie naar SQL
+        /*
+        if (isAccountant)
         {
-            return v => new ManagerVestigingDto(
-                v.Id, v.Naam, v.Adres, v.Postcode, v.Plaats, v.Telefoon, v.Email, v.KvkNummer, v.BtwNummer, v.Iban
+            return vestiging => new VestigingDto(
+                vestiging.Id, vestiging.Naam, vestiging.Adres, vestiging.Postcode, vestiging.Plaats, vestiging.Telefoon, vestiging.Email, vestiging.KvkNummer,
+                vestiging.BtwNummer,
+                vestiging.Iban,
+                vestiging.AccountantCode // Specifiek veld voor accountant
+            );
+        }
+        */
+
+        if (isManager)
+        {
+            return vestiging => new VestigingDto(
+                vestiging.Id, vestiging.Naam, vestiging.Adres, vestiging.Postcode, vestiging.Plaats, vestiging.Telefoon, vestiging.Email, vestiging.KvkNummer,
+                vestiging.BtwNummer,
+                vestiging.Iban
             );
         }
 
-        // 3. Default Fallback: Reguliere medewerker / Onbekende rol (Meest restrictief)
-        return v => new VestigingDto(
-            v.Id, v.Naam, v.Adres, v.Postcode, v.Plaats, v.Telefoon, v.Email, v.KvkNummer
+        // Default: Gewone medewerker / basis permissies
+        return vestiging => new VestigingDto(
+            vestiging.Id, vestiging.Naam, vestiging.Adres, vestiging.Postcode, vestiging.Plaats, vestiging.Telefoon, vestiging.Email, vestiging.KvkNummer,
+            null,
+            null
         );
     }
 }

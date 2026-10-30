@@ -7,28 +7,6 @@ namespace Vsvk.Api.Tests;
 public class VestigingDtoTests
 {
   [Fact]
-  public void ManagerVestigingDto_InheritsBaseFields()
-  {
-    var dto = new ManagerVestigingDto(
-      Guid.Parse("11111111-1111-1111-1111-111111111111"),
-      "VSVK Pijnacker BV",
-      "Schouwweg 4",
-      "2642 AK",
-      "Pijnacker",
-      "085-0491729",
-      "administratie@pijnacker.vsvk.nl",
-      "55442579",
-      "NL851714365B01",
-      "NL86 INGB 0006 8116 55");
-
-    VestigingDto asBase = dto;
-
-    Assert.Equal(dto.Id, asBase.Id);
-    Assert.Equal(dto.Naam, asBase.Naam);
-    Assert.Equal(dto.KvkNummer, asBase.KvkNummer);
-  }
-
-  [Fact]
   public void VestigingDto_SerializesWithLegacyFieldNames_AndNoSensitiveFields()
   {
     var dto = new VestigingDto(
@@ -56,9 +34,9 @@ public class VestigingDtoTests
   }
 
   [Fact]
-  public void ManagerVestigingDto_SerializesWithSensitiveFields()
+  public void VestigingDto_SerializesSensitiveFieldsWhenProvided()
   {
-    var dto = new ManagerVestigingDto(
+    var dto = new VestigingDto(
       Guid.Parse("33333333-3333-3333-3333-333333333333"),
       "VSVK Wamel BV",
       "Sterkeburg 1",

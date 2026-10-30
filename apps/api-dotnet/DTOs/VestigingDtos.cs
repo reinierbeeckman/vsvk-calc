@@ -2,7 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace Vsvk.Api.DTOs;
 
-[JsonDerivedType(typeof(ManagerVestigingDto))]
 public record VestigingDto(
     [property: JsonPropertyName("id")] Guid Id,
     [property: JsonPropertyName("naam")] string Naam,
@@ -11,18 +10,7 @@ public record VestigingDto(
     [property: JsonPropertyName("plaats")] string Plaats,
     [property: JsonPropertyName("tel")] string Telefoon,
     [property: JsonPropertyName("email")] string Email,
-    [property: JsonPropertyName("kvk")] string KvkNummer
+    [property: JsonPropertyName("kvk")] string KvkNummer,
+    [property: JsonPropertyName("btw"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? BtwNummer = null,
+    [property: JsonPropertyName("iban"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Iban = null
 );
-
-public record ManagerVestigingDto(
-    Guid Id,
-    string Naam,
-    string Adres,
-    string Postcode,
-    string Plaats,
-    string Telefoon,
-    string Email,
-    string KvkNummer,
-    [property: JsonPropertyName("btw")] string BtwNummer,
-    [property: JsonPropertyName("iban")] string Iban
-) : VestigingDto(Id, Naam, Adres, Postcode, Plaats, Telefoon, Email, KvkNummer);
