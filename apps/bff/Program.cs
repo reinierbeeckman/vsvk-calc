@@ -129,11 +129,33 @@ app.UseForwardedHeaders();
 app.MapGet("/health", () => Results.Ok(new { ok = true }));
 
 app.UseHttpsRedirection();
-app.UseDefaultFiles();
-app.UseStaticFiles();
 
 app.UseAuthentication();
+
+app.Use(async (ctx, next) =>
+{
+  static bool IsPublicPath(PathString path)
+    => path.StartsWithSegments("/health")
+       || path.StartsWithSegments("/bff/login")
+       || path.StartsWithSegments("/signin-oidc")
+       || path.StartsWithSegments("/signout-callback-oidc");
+
+  if (!IsPublicPath(ctx.Request.Path) && ctx.User.Identity?.IsAuthenticated != true)
+  {
+    var returnUrl = $"{ctx.Request.Path}{ctx.Request.QueryString}";
+    await ctx.ChallengeAsync(
+      OpenIdConnectDefaults.AuthenticationScheme,
+      new AuthenticationProperties { RedirectUri = returnUrl });
+    return;
+  }
+
+  await next();
+});
+
 app.UseAuthorization();
+
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 app.MapGet("/bff/login", (HttpContext ctx, string? returnUrl) =>
 {

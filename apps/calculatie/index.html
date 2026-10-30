@@ -262,10 +262,15 @@ function sampleData(){
   return d;
 }
 
+const FORCE_LOCAL = new URLSearchParams(location.search).get("offline")==="1";
 let S,tab="calculatie";
-try{const raw=localStorage.getItem(KEY);S=raw?JSON.parse(raw):null}catch(e){S=null}
-if(!S||!S.project)S=sampleData();
-try{const t=localStorage.getItem(KEY+"-tab");if(t&&TABS.some(x=>x[0]===t))tab=t}catch(e){}
+if(FORCE_LOCAL){
+  try{const raw=localStorage.getItem(KEY);S=raw?JSON.parse(raw):null}catch(e){S=null}
+  if(!S||!S.project)S=sampleData();
+  try{const t=localStorage.getItem(KEY+"-tab");if(t&&TABS.some(x=>x[0]===t))tab=t}catch(e){}
+}else{
+  S=baseData();
+}
 if(location.hash&&TABS.some(x=>x[0]===location.hash.slice(1)))tab=location.hash.slice(1);
 
 let saveT;function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}},250);scheduleCloud();scheduleSettings()}
@@ -552,7 +557,7 @@ function renderOpslaan(){
   <p class="hint">Bekijk de strategische directievisie: de toekomstbestendige on-premise applicatiearchitectuur via AI-driven development en 100% datasoevereiniteit.</p>
   <div class="row"><a class="btn primary" href="visie.html" target="_blank" style="text-decoration:none">IT- &amp; Applicatievisie openen &rarr;</a></div></section>
   <section class="panel"><h2>Waar staat je werk?</h2>
-  <p class="hint">${store.db?"Calculaties én instellingen (artikelen, tarieven, vestigingen, medewerkers, handtekeningen en offerteteksten) worden automatisch opgeslagen in de database van deze app. Ze blijven bewaard als je je browser leegmaakt en zijn op elke computer hetzelfde.":"Deze app kan nu geen verbinding maken met de database. Je werk wordt tijdelijk alleen in deze browser bewaard; maak daarom zeker een back-up."}</p>
+  <p class="hint">${store.db?"Calculaties én instellingen (artikelen, tarieven, vestigingen, medewerkers, handtekeningen en offerteteksten) worden automatisch opgeslagen in de database van deze app. Ze blijven bewaard als je je browser leegmaakt en zijn op elke computer hetzelfde.":"Deze app kan nu geen verbinding maken met de database. Log opnieuw in via /bff/login of controleer je netwerk. Alleen met ?offline=1 kun je lokaal blijven werken."}</p>
   <h3 style="margin-top:6px">Back-up</h3>
   <p class="hint">Download af en toe een back-up naar je eigen computer of netwerkmap. Het bestand bevat alle calculaties en instellingen. Een back-up terugzetten doe je met "Bestand openen…" hieronder.</p>
   <div class="row"><button class="btn primary" data-act="backup">Back-up downloaden</button><span class="hint" style="margin:0">${OV.length} calculaties in het overzicht</span></div>
@@ -586,14 +591,200 @@ function onOv(){if(tab==="overzicht")render()}
 const waitOv=async()=>{for(let i=0;i<60&&!ovReady;i++)await new Promise(r=>setTimeout(r,100))};
 function calcPart(){return{project:S.project,klant:S.klant,blocks:S.blocks,offerte:S.offerte,teksten:S.teksten,plan:S.plan||{},planning:S.planning||[],status:S.status||"Concept",...(S.afronding?{afronding:S.afronding}:{})}}
 function recordFrom(nr){const c=calc();const prev=OV.find(x=>x.nummer===nr);return{nummer:nr,projectnaam:S.project.naam||"",klant:S.klant.bedrijf||"",datum:S.project.datum||"",door:S.project.door||"",vestiging:S.project.vestiging||"",status:S.status||"Concept",bedrag:offerteModel().tot,bijgewerkt:new Date().toISOString(),data:JSON.stringify(calcPart()),version:prev&&prev.version!=null?prev.version:null}}
+const isAuthFailure = r => r && (r.status===401 || r.status===403);
+const redirectToLogin = () => {
+  const returnUrl = encodeURIComponent(location.pathname + location.search + location.hash);
+  location.href = `/bff/login?returnUrl=${returnUrl}`;
+};
+const ensureAuthenticated = async () => {
+  try{
+    const r = await fetch("/bff/user",{credentials:"include"});
+    return r.ok;
+  }catch(e){
+    return false;
+  }
+};
+
 const store={db:null,_poll:null,
-  async _json(url,opt){return await fetch(url,Object.assign({credentials:"include"},opt||{}))},
-  async _refreshOv(){const r=await this._json("/api/calculaties");if(!r.ok)throw new Error("ov");const list=await r.json();OV=(list||[]).filter(x=>x&&x.nummer);ovReady=true;onOv()},
-  async init(){try{const s=await this._json("/api/instellingen/algemeen");if(s.ok){const data=await s.json();applySettings({exists:true,data:()=>data,metadata:{hasPendingWrites:false}})}await this._refreshOv();this.db={kind:"http"};ovMode="cloud";if(this._poll)clearInterval(this._poll);this._poll=setInterval(()=>{this._refreshOv().catch(()=>{this.db=null;ovMode="local";loadLocalOv();if(this._poll)clearInterval(this._poll);this._poll=null;toast("Verbinding met de database verloren; tijdelijk lokaal opslaan.")})},10000)}catch(e){this.db=null;ovMode="local";if(this._poll)clearInterval(this._poll);this._poll=null;loadLocalOv()}},
-  async save(rec){if(this.db){try{const headers={"Content-Type":"application/json"};if(rec.version!=null)headers["If-Match"]=`W/"${rec.version}"`;const r=await this._json(`/api/calculaties/${encodeURIComponent(rec.nummer)}`,{method:"PUT",headers,body:JSON.stringify(rec)});if(r.status===409){toast("Deze calculatie is intussen gewijzigd. Herlaad en probeer opnieuw.");await this._refreshOv().catch(()=>{});return}if(!r.ok)throw new Error("save");const saved=await r.json();rec.version=saved&&saved.version!=null?saved.version:rec.version;const i=OV.findIndex(x=>x.nummer===rec.nummer);if(i>=0)OV[i]=saved;else OV.push(saved);ovReady=true;onOv();return}catch(e){toast("Opslaan in het overzicht lukte niet. Je werk staat nog wel in deze browser.");this.db=null;ovMode="local";if(this._poll)clearInterval(this._poll);this._poll=null}}const i=OV.findIndex(x=>x.nummer===rec.nummer);if(i>=0)OV[i]=rec;else OV.push(rec);saveLocalOv();onOv()},
-  async del(nr){if(this.db){try{const r=await this._json(`/api/calculaties/${encodeURIComponent(nr)}`,{method:"DELETE"});if(r.status===403){toast("Je hebt geen rechten om te verwijderen.");return}if(!r.ok)throw new Error("del");OV=OV.filter(x=>x.nummer!==nr);saveLocalOv();onOv();return}catch(e){toast("Verwijderen lukte niet. Probeer het opnieuw.")}}OV=OV.filter(x=>x.nummer!==nr);saveLocalOv();onOv()},
-  async setStatus(nr,st){if(this.db){const r0=OV.find(x=>x.nummer===nr);try{const headers={"Content-Type":"application/json"};if(r0&&r0.version!=null)headers["If-Match"]=`W/"${r0.version}"`;const r=await this._json(`/api/calculaties/${encodeURIComponent(nr)}/status`,{method:"PATCH",headers,body:JSON.stringify({status:st})});if(r.status===403){toast("Je hebt geen rechten om de status te wijzigen.");return}if(r.status===409){toast("Status wijzigen lukte niet: er is net een nieuwere versie opgeslagen.");await this._refreshOv().catch(()=>{});return}if(!r.ok)throw new Error("status");const saved=await r.json();const i=OV.findIndex(x=>x.nummer===nr);if(i>=0)OV[i]=saved;else OV.push(saved);if(S.nummer===nr){S.status=saved.status||st;save();render()}else onOv();return}catch(e){toast("Status wijzigen lukte niet.")}}if(S.nummer===nr){S.status=st;save();return}const r=OV.find(x=>x.nummer===nr);if(!r)return;let d={};try{d=JSON.parse(r.data||"{}")}catch(e){}d.status=st;const upd={status:st,data:JSON.stringify(d)};Object.assign(r,upd);saveLocalOv();onOv()},
-  async claim(){await waitOv();if(this.db){try{const r=await this._json("/api/calculaties",{method:"POST"});if(!r.ok)throw new Error("claim");const c=await r.json();const nr=c.nummer;const ver=c.version;const rec=recordFrom(nr);rec.version=ver;const i=OV.findIndex(x=>x.nummer===nr);if(i>=0)OV[i]=rec;else OV.push(rec);ovReady=true;onOv();return nr}catch(e){return null}}const y=String(Math.max(new Date().getFullYear(),...OV.map(x=>parseInt(String(x.nummer).slice(0,4),10)).filter(n=>n>2000&&n<2100)));let n=OV.filter(x=>String(x.nummer).startsWith(y+"-")).map(x=>parseInt(String(x.nummer).slice(y.length+1),10)||0).reduce((a,b)=>Math.max(a,b),0)+1;for(let k=0;k<40;k++,n++){const nr=y+"-"+String(n).padStart(3,"0");if(OV.some(x=>x.nummer===nr))continue;return nr}return null}
+  async _json(url,opt){
+    const r=await fetch(url,Object.assign({credentials:"include"},opt||{}));
+    const apiCall=typeof url==="string"&&url.startsWith("/api/");
+    const ct=(r.headers.get("content-type")||"").toLowerCase();
+    const redirectedToAuth=r.redirected&&/\/protocol\/openid-connect\/auth/i.test(r.url||"");
+    const htmlInsteadOfJson=apiCall&&r.ok&&ct.includes("text/html");
+    if(redirectedToAuth||htmlInsteadOfJson){redirectToLogin();throw new Error("auth")}
+    return r
+  },
+  async _refreshOv(){
+    const r=await this._json("/api/calculaties");
+    if(isAuthFailure(r)){redirectToLogin();throw new Error("auth")}
+    if(!r.ok)throw new Error("ov");
+    const list=await r.json();
+    OV=(list||[]).filter(x=>x&&x.nummer);
+    ovReady=true;
+    onOv();
+  },
+  async init(){
+    if(FORCE_LOCAL){
+      this.db=null;
+      ovMode="local";
+      loadLocalOv();
+      return;
+    }
+
+    try{
+      const s=await this._json("/api/instellingen/algemeen");
+      if(isAuthFailure(s)){redirectToLogin();return}
+      if(s.ok){
+        const data=await s.json();
+        applySettings({exists:true,data:()=>data,metadata:{hasPendingWrites:false}})
+      }
+
+      await this._refreshOv();
+      this.db={kind:"http"};
+      ovMode="cloud";
+      if(this._poll)clearInterval(this._poll);
+      this._poll=setInterval(()=>{
+        this._refreshOv().catch(()=>{
+          if(this._poll)clearInterval(this._poll);
+          this._poll=null;
+          this.db=null;
+          ovMode="cloud";
+          toast("Verbinding met de database verloren. Controleer je login of netwerk.");
+        })
+      },10000)
+    }catch(e){
+      if(await ensureAuthenticated()===false){redirectToLogin();return}
+      this.db=null;
+      ovMode="cloud";
+      ovReady=true;
+      onOv();
+      toast("Database niet bereikbaar. Herlaad of log opnieuw in.");
+    }
+  },
+  async save(rec){
+    if(this.db){
+      try{
+        const headers={"Content-Type":"application/json"};
+        if(rec.version!=null)headers["If-Match"]=`W/"${rec.version}"`;
+        const r=await this._json(`/api/calculaties/${encodeURIComponent(rec.nummer)}`,{method:"PUT",headers,body:JSON.stringify(rec)});
+        if(isAuthFailure(r)){redirectToLogin();return}
+        if(r.status===409){toast("Deze calculatie is intussen gewijzigd. Herlaad en probeer opnieuw.");await this._refreshOv().catch(()=>{});return}
+        if(!r.ok)throw new Error("save");
+        const saved=await r.json();
+        rec.version=saved&&saved.version!=null?saved.version:rec.version;
+        const i=OV.findIndex(x=>x.nummer===rec.nummer);
+        if(i>=0)OV[i]=saved;else OV.push(saved);
+        ovReady=true;
+        onOv();
+        return;
+      }catch(e){
+        toast("Opslaan in de database lukte niet. Probeer opnieuw.");
+        return;
+      }
+    }
+
+    if(!FORCE_LOCAL){
+      toast("Geen databaseverbinding. Log opnieuw in via /bff/login.");
+      return;
+    }
+
+    const i=OV.findIndex(x=>x.nummer===rec.nummer);
+    if(i>=0)OV[i]=rec;else OV.push(rec);
+    saveLocalOv();
+    onOv();
+  },
+  async del(nr){
+    if(this.db){
+      try{
+        const r=await this._json(`/api/calculaties/${encodeURIComponent(nr)}`,{method:"DELETE"});
+        if(isAuthFailure(r)){redirectToLogin();return}
+        if(r.status===403){toast("Je hebt geen rechten om te verwijderen.");return}
+        if(!r.ok)throw new Error("del");
+        OV=OV.filter(x=>x.nummer!==nr);
+        onOv();
+        return;
+      }catch(e){toast("Verwijderen uit de database lukte niet. Probeer het opnieuw.")}
+      return;
+    }
+
+    if(!FORCE_LOCAL){
+      toast("Geen databaseverbinding. Verwijderen is nu niet mogelijk.");
+      return;
+    }
+
+    OV=OV.filter(x=>x.nummer!==nr);
+    saveLocalOv();
+    onOv();
+  },
+  async setStatus(nr,st){
+    if(this.db){
+      const r0=OV.find(x=>x.nummer===nr);
+      try{
+        const headers={"Content-Type":"application/json"};
+        if(r0&&r0.version!=null)headers["If-Match"]=`W/"${r0.version}"`;
+        const r=await this._json(`/api/calculaties/${encodeURIComponent(nr)}/status`,{method:"PATCH",headers,body:JSON.stringify({status:st})});
+        if(isAuthFailure(r)){redirectToLogin();return}
+        if(r.status===403){toast("Je hebt geen rechten om de status te wijzigen.");return}
+        if(r.status===409){toast("Status wijzigen lukte niet: er is net een nieuwere versie opgeslagen.");await this._refreshOv().catch(()=>{});return}
+        if(!r.ok)throw new Error("status");
+        const saved=await r.json();
+        const i=OV.findIndex(x=>x.nummer===nr);
+        if(i>=0)OV[i]=saved;else OV.push(saved);
+        if(S.nummer===nr){S.status=saved.status||st;save();render()}else onOv();
+        return;
+      }catch(e){toast("Status wijzigen lukte niet.")}
+      return;
+    }
+
+    if(!FORCE_LOCAL){
+      toast("Geen databaseverbinding. Status wijzigen is nu niet mogelijk.");
+      return;
+    }
+
+    if(S.nummer===nr){S.status=st;save();return}
+    const r=OV.find(x=>x.nummer===nr);
+    if(!r)return;
+    let d={};
+    try{d=JSON.parse(r.data||"{}")}catch(e){}
+    d.status=st;
+    const upd={status:st,data:JSON.stringify(d)};
+    Object.assign(r,upd);
+    saveLocalOv();
+    onOv();
+  },
+  async claim(){
+    await waitOv();
+
+    if(this.db){
+      try{
+        const r=await this._json("/api/calculaties",{method:"POST"});
+        if(isAuthFailure(r)){redirectToLogin();return null}
+        if(!r.ok)throw new Error("claim");
+        const c=await r.json();
+        const nr=c.nummer;
+        const ver=c.version;
+        const rec=recordFrom(nr);
+        rec.version=ver;
+        const i=OV.findIndex(x=>x.nummer===nr);
+        if(i>=0)OV[i]=rec;else OV.push(rec);
+        ovReady=true;
+        onOv();
+        return nr;
+      }catch(e){return null}
+    }
+
+    if(!FORCE_LOCAL)return null;
+
+    const y=String(Math.max(new Date().getFullYear(),...OV.map(x=>parseInt(String(x.nummer).slice(0,4),10)).filter(n=>n>2000&&n<2100)));
+    let n=OV.filter(x=>String(x.nummer).startsWith(y+"-")).map(x=>parseInt(String(x.nummer).slice(y.length+1),10)||0).reduce((a,b)=>Math.max(a,b),0)+1;
+    for(let k=0;k<40;k++,n++){
+      const nr=y+"-"+String(n).padStart(3,"0");
+      if(OV.some(x=>x.nummer===nr))continue;
+      return nr
+    }
+    return null
+  }
 };
 let DEF_TEKSTEN=null,lastSet=null,setLoaded=false,setT,settingsVer=null;
 function settingsPart(){return{artikelen:S.artikelen,vestigingen:S.vestigingen,medewerkers:S.medewerkers,onderdelen:S.onderdelen,sugg:S.sugg,teksten:S.teksten,standaard:{btw:S.offerte.btw,website:S.offerte.website,geldig:S.offerte.geldig,betaal:S.offerte.betaal}}}

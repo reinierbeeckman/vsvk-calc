@@ -1,8 +1,26 @@
-﻿using System.Text.Json;
 using Npgsql;
 using NpgsqlTypes;
 
 namespace Vsvk.Api.Db;
+
+public sealed record CalculatieTotals(
+  decimal Subtotaal,
+  decimal BtwTarief,
+  decimal BtwBedrag,
+  decimal Totaal
+);
+
+public sealed record CalculationArticleSelection(
+  string? LineId,
+  string ArtikelNaam,
+  string? Categorie,
+  decimal? Aantal,
+  decimal? Dagen,
+  decimal? Uren,
+  decimal? Toeslag,
+  decimal? Eenheidsprijs,
+  decimal? RegelTotaal
+);
 
 public sealed record CalculatieRecord(
   string Nummer,
@@ -15,7 +33,8 @@ public sealed record CalculatieRecord(
   decimal Bedrag,
   string DataJson,
   long Version,
-  DateTimeOffset Bijgewerkt
+  DateTimeOffset Bijgewerkt,
+  CalculatieTotals Totals
 );
 
 public sealed record CalculatieCreateResult(string Nummer, long Version);
@@ -36,7 +55,6 @@ public sealed class CalculatieRepository
     await using var conn = await _dataSource.OpenConnectionAsync(cancellationToken);
     await using var tx = await conn.BeginTransactionAsync(cancellationToken);
 
-    // Ensure counter row exists
     await using (var ensure = new NpgsqlCommand("insert into calc_counters(jaar, last_seq) values ($1, 0) on conflict (jaar) do nothing", conn, tx))
     {
       ensure.Parameters.AddWithValue(jaar);
@@ -55,9 +73,13 @@ public sealed class CalculatieRepository
 
     const string insertSql = @"
 insert into calculaties(
-  nummer, jaar, seq, projectnaam, klant, datum, door, vestiging, status, bedrag_snapshot, data, created_by_sub, updated_by_sub
+  nummer, jaar, seq, projectnaam, klant, datum, door, vestiging, status, bedrag_snapshot,
+  subtotal_snapshot, btw_rate_snapshot, btw_amount_snapshot, total_snapshot,
+  data, created_by_sub, updated_by_sub
 ) values (
-  $1, $2, $3, '', '', null, '', $4, 'Concept', 0, '{}'::jsonb, $5, $5
+  $1, $2, $3, '', '', null, '', $4, 'Concept', 0,
+  0, 0, 0, 0,
+  '{}'::jsonb, $5, $5
 )
 returning version;
 ";
@@ -91,6 +113,10 @@ select
   vestiging,
   status,
   bedrag_snapshot,
+  subtotal_snapshot,
+  btw_rate_snapshot,
+  btw_amount_snapshot,
+  total_snapshot,
   data::text,
   version,
   updated_at
@@ -126,6 +152,10 @@ select
   vestiging,
   status,
   bedrag_snapshot,
+  subtotal_snapshot,
+  btw_rate_snapshot,
+  btw_amount_snapshot,
+  total_snapshot,
   data::text,
   version,
   updated_at
@@ -150,6 +180,8 @@ where nummer = $1
 
   public async Task<CalculatieRecord?> UpsertAsync(
     CalculatieRecord record,
+    CalculatieTotals totals,
+    IReadOnlyList<CalculationArticleSelection> selectedArticles,
     long? expectedVersion,
     string? vestigingFilter,
     string? updatedBySub,
@@ -165,14 +197,18 @@ set
   vestiging = $6,
   status = $7,
   bedrag_snapshot = $8,
-  data = $9,
+  subtotal_snapshot = $9,
+  btw_rate_snapshot = $10,
+  btw_amount_snapshot = $11,
+  total_snapshot = $12,
+  data = $13,
   version = version + 1,
   updated_at = now(),
-  updated_by_sub = $10
+  updated_by_sub = $14
 where nummer = $1
   and is_deleted = false
-  and ($11 is null or vestiging = $11)
-  and version = $12
+  and ($15 is null or vestiging = $15)
+  and version = $16
 returning
   nummer,
   projectnaam,
@@ -182,6 +218,10 @@ returning
   vestiging,
   status,
   bedrag_snapshot,
+  subtotal_snapshot,
+  btw_rate_snapshot,
+  btw_amount_snapshot,
+  total_snapshot,
   data::text,
   version,
   updated_at;
@@ -197,13 +237,17 @@ set
   vestiging = $6,
   status = $7,
   bedrag_snapshot = $8,
-  data = $9,
+  subtotal_snapshot = $9,
+  btw_rate_snapshot = $10,
+  btw_amount_snapshot = $11,
+  total_snapshot = $12,
+  data = $13,
   version = version + 1,
   updated_at = now(),
-  updated_by_sub = $10
+  updated_by_sub = $14
 where nummer = $1
   and is_deleted = false
-  and ($11 is null or vestiging = $11)
+  and ($15 is null or vestiging = $15)
 returning
   nummer,
   projectnaam,
@@ -213,40 +257,57 @@ returning
   vestiging,
   status,
   bedrag_snapshot,
+  subtotal_snapshot,
+  btw_rate_snapshot,
+  btw_amount_snapshot,
+  total_snapshot,
   data::text,
   version,
   updated_at;
 ";
 
-    await using var cmd = _dataSource.CreateCommand(expectedVersion is null ? sqlNoCheck : sqlWithCheck);
+    await using var conn = await _dataSource.OpenConnectionAsync(cancellationToken);
+    await using var tx = await conn.BeginTransactionAsync(cancellationToken);
 
-    cmd.Parameters.AddWithValue(record.Nummer);
-    cmd.Parameters.AddWithValue(record.Projectnaam ?? "");
-    cmd.Parameters.AddWithValue(record.Klant ?? "");
-    cmd.Parameters.AddWithValue((object?)record.Datum ?? DBNull.Value);
-    cmd.Parameters.AddWithValue(record.Door ?? "");
-    cmd.Parameters.AddWithValue(record.Vestiging ?? "");
-    cmd.Parameters.AddWithValue(record.Status ?? "Concept");
-    cmd.Parameters.AddWithValue(record.Bedrag);
+    CalculatieRecord? updated;
 
-    var dataParam = cmd.Parameters.AddWithValue(record.DataJson ?? "{}", NpgsqlDbType.Jsonb);
-    _ = dataParam;
-
-    cmd.Parameters.AddWithValue((object?)updatedBySub ?? DBNull.Value);
-    cmd.Parameters.AddWithValue((object?)vestigingFilter ?? DBNull.Value);
-
-    if (expectedVersion is not null)
+    await using (var cmd = new NpgsqlCommand(expectedVersion is null ? sqlNoCheck : sqlWithCheck, conn, tx))
     {
-      cmd.Parameters.AddWithValue(expectedVersion.Value);
+      cmd.Parameters.AddWithValue(record.Nummer);
+      cmd.Parameters.AddWithValue(record.Projectnaam ?? "");
+      cmd.Parameters.AddWithValue(record.Klant ?? "");
+      cmd.Parameters.AddWithValue((object?)record.Datum ?? DBNull.Value);
+      cmd.Parameters.AddWithValue(record.Door ?? "");
+      cmd.Parameters.AddWithValue(record.Vestiging ?? "");
+      cmd.Parameters.AddWithValue(record.Status ?? "Concept");
+      cmd.Parameters.AddWithValue(record.Bedrag);
+      cmd.Parameters.AddWithValue(totals.Subtotaal);
+      cmd.Parameters.AddWithValue(totals.BtwTarief);
+      cmd.Parameters.AddWithValue(totals.BtwBedrag);
+      cmd.Parameters.AddWithValue(totals.Totaal);
+      cmd.Parameters.AddWithValue(record.DataJson ?? "{}", NpgsqlDbType.Jsonb);
+      cmd.Parameters.AddWithValue((object?)updatedBySub ?? DBNull.Value);
+      cmd.Parameters.AddWithValue((object?)vestigingFilter ?? DBNull.Value);
+
+      if (expectedVersion is not null)
+      {
+        cmd.Parameters.AddWithValue(expectedVersion.Value);
+      }
+
+      await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+      if (!await reader.ReadAsync(cancellationToken))
+      {
+        await tx.RollbackAsync(cancellationToken);
+        return null;
+      }
+
+      updated = ReadRecord(reader);
     }
 
-    await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-    if (!await reader.ReadAsync(cancellationToken))
-    {
-      return null;
-    }
+    await ReplaceArticlesAsync(conn, tx, record.Nummer, selectedArticles, cancellationToken);
+    await tx.CommitAsync(cancellationToken);
 
-    return ReadRecord(reader);
+    return updated;
   }
 
   public async Task<CalculatieRecord?> SetStatusAsync(string nummer, string status, long? expectedVersion, string? vestigingFilter, string? updatedBySub, CancellationToken cancellationToken)
@@ -271,6 +332,10 @@ returning
   vestiging,
   status,
   bedrag_snapshot,
+  subtotal_snapshot,
+  btw_rate_snapshot,
+  btw_amount_snapshot,
+  total_snapshot,
   data::text,
   version,
   updated_at;
@@ -295,6 +360,10 @@ returning
   vestiging,
   status,
   bedrag_snapshot,
+  subtotal_snapshot,
+  btw_rate_snapshot,
+  btw_amount_snapshot,
+  total_snapshot,
   data::text,
   version,
   updated_at;
@@ -343,6 +412,108 @@ where nummer = $1
     return rows > 0;
   }
 
+  public async Task<IReadOnlyList<string>> AutocompleteArticlesAsync(string query, int limit, CancellationToken cancellationToken)
+  {
+    const string sql = @"
+with from_settings as (
+  select distinct nullif(trim(a->>'a'), '') as artikel_naam
+  from instellingen_algemeen ia,
+       jsonb_array_elements(coalesce(ia.data->'artikelen', '[]'::jsonb)) as a
+  where ia.id = 1
+),
+from_saved as (
+  select distinct nullif(trim(artikel_naam), '') as artikel_naam
+  from calculatie_artikelen
+)
+select artikel_naam
+from (
+  select artikel_naam from from_settings
+  union
+  select artikel_naam from from_saved
+) src
+where artikel_naam is not null
+  and (
+    $1 = ''
+    or artikel_naam ilike '%' || $1 || '%'
+  )
+order by
+  case when lower(artikel_naam) like lower($1) || '%' then 0 else 1 end,
+  artikel_naam
+limit $2;
+";
+
+    await using var cmd = _dataSource.CreateCommand(sql);
+    cmd.Parameters.AddWithValue(query ?? string.Empty);
+    cmd.Parameters.AddWithValue(Math.Clamp(limit, 1, 50));
+
+    await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+    var result = new List<string>();
+
+    while (await reader.ReadAsync(cancellationToken))
+    {
+      result.Add(reader.GetString(0));
+    }
+
+    return result;
+  }
+
+  private static async Task ReplaceArticlesAsync(
+    NpgsqlConnection conn,
+    NpgsqlTransaction tx,
+    string nummer,
+    IReadOnlyList<CalculationArticleSelection> selectedArticles,
+    CancellationToken cancellationToken)
+  {
+    await using (var del = new NpgsqlCommand("delete from calculatie_artikelen where calculatie_nummer = $1", conn, tx))
+    {
+      del.Parameters.AddWithValue(nummer);
+      await del.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    if (selectedArticles.Count == 0)
+    {
+      return;
+    }
+
+    const string insertSql = @"
+insert into calculatie_artikelen(
+  calculatie_nummer,
+  line_id,
+  artikel_naam,
+  categorie,
+  aantal,
+  dagen,
+  uren,
+  toeslag,
+  eenheidsprijs,
+  regel_totaal
+) values (
+  $1,$2,$3,$4,$5,$6,$7,$8,$9,$10
+);
+";
+
+    foreach (var article in selectedArticles)
+    {
+      if (string.IsNullOrWhiteSpace(article.ArtikelNaam))
+      {
+        continue;
+      }
+
+      await using var ins = new NpgsqlCommand(insertSql, conn, tx);
+      ins.Parameters.AddWithValue(nummer);
+      ins.Parameters.AddWithValue((object?)article.LineId ?? DBNull.Value);
+      ins.Parameters.AddWithValue(article.ArtikelNaam.Trim());
+      ins.Parameters.AddWithValue((object?)article.Categorie ?? DBNull.Value);
+      ins.Parameters.AddWithValue((object?)article.Aantal ?? DBNull.Value);
+      ins.Parameters.AddWithValue((object?)article.Dagen ?? DBNull.Value);
+      ins.Parameters.AddWithValue((object?)article.Uren ?? DBNull.Value);
+      ins.Parameters.AddWithValue((object?)article.Toeslag ?? DBNull.Value);
+      ins.Parameters.AddWithValue((object?)article.Eenheidsprijs ?? DBNull.Value);
+      ins.Parameters.AddWithValue((object?)article.RegelTotaal ?? DBNull.Value);
+      await ins.ExecuteNonQueryAsync(cancellationToken);
+    }
+  }
+
   private static CalculatieRecord ReadRecord(NpgsqlDataReader reader)
   {
     var nummer = reader.GetString(0);
@@ -353,9 +524,13 @@ where nummer = $1
     var vestiging = reader.GetString(5);
     var status = reader.GetString(6);
     var bedrag = reader.GetDecimal(7);
-    var dataJson = reader.GetString(8);
-    var version = reader.GetInt64(9);
-    var bijgewerkt = reader.GetFieldValue<DateTimeOffset>(10);
+    var subtotal = reader.GetDecimal(8);
+    var btwRate = reader.GetDecimal(9);
+    var btwAmount = reader.GetDecimal(10);
+    var total = reader.GetDecimal(11);
+    var dataJson = reader.GetString(12);
+    var version = reader.GetInt64(13);
+    var bijgewerkt = reader.GetFieldValue<DateTimeOffset>(14);
 
     return new CalculatieRecord(
       nummer,
@@ -368,7 +543,8 @@ where nummer = $1
       bedrag,
       dataJson,
       version,
-      bijgewerkt
+      bijgewerkt,
+      new CalculatieTotals(subtotal, btwRate, btwAmount, total)
     );
   }
 }

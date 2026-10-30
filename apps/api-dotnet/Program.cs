@@ -97,6 +97,170 @@ static long? ParseIfMatch(HttpRequest request)
 static void SetEtag(HttpResponse response, long version)
   => response.Headers.ETag = $"W/\"{version}\"";
 
+static decimal RoundCurrency(decimal value)
+  => decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+
+static decimal? ReadNullableDecimal(System.Text.Json.JsonElement value)
+{
+  if (value.ValueKind == System.Text.Json.JsonValueKind.Number)
+  {
+    return value.GetDecimal();
+  }
+
+  if (value.ValueKind == System.Text.Json.JsonValueKind.String && decimal.TryParse(value.GetString(), out var parsed))
+  {
+    return parsed;
+  }
+
+  return null;
+}
+
+static decimal? ReadDecimalProperty(System.Text.Json.JsonElement element, string propertyName)
+{
+  if (!element.TryGetProperty(propertyName, out var property))
+  {
+    return null;
+  }
+
+  return ReadNullableDecimal(property);
+}
+
+static CalculatieTotals ExtractTotals(System.Text.Json.JsonElement root, string dataJson, decimal fallbackBedrag)
+{
+  decimal? subtotalFromBody = ReadDecimalProperty(root, "subtotaal") ?? ReadDecimalProperty(root, "subtotal");
+  decimal? totalFromBody = ReadDecimalProperty(root, "totaal") ?? ReadDecimalProperty(root, "total") ?? ReadDecimalProperty(root, "bedrag");
+  decimal? vatRateFromBody = ReadDecimalProperty(root, "btwTarief") ?? ReadDecimalProperty(root, "btw") ?? ReadDecimalProperty(root, "vatRate");
+
+  decimal? subtotalFromData = null;
+  decimal? totalFromData = null;
+  decimal? vatRateFromData = null;
+
+  try
+  {
+    using var dataDoc = System.Text.Json.JsonDocument.Parse(string.IsNullOrWhiteSpace(dataJson) ? "{}" : dataJson);
+    var dataRoot = dataDoc.RootElement;
+
+    if (dataRoot.TryGetProperty("offerte", out var offerte))
+    {
+      vatRateFromData = ReadDecimalProperty(offerte, "btw") ?? ReadDecimalProperty(offerte, "btwTarief");
+    }
+
+    if (dataRoot.TryGetProperty("totalen", out var totals))
+    {
+      subtotalFromData = ReadDecimalProperty(totals, "subtotaal") ?? ReadDecimalProperty(totals, "subtotal");
+      totalFromData = ReadDecimalProperty(totals, "totaal") ?? ReadDecimalProperty(totals, "total");
+    }
+  }
+  catch
+  {
+    // Ignore malformed payload; we fall back to request-level numbers.
+  }
+
+  var subtotal = subtotalFromBody ?? subtotalFromData ?? totalFromBody ?? totalFromData ?? fallbackBedrag;
+  var vatRate = vatRateFromBody ?? vatRateFromData ?? 0.21m;
+  var total = totalFromBody ?? totalFromData ?? RoundCurrency(subtotal * (1m + vatRate));
+  var vatAmount = RoundCurrency(total - subtotal);
+
+  return new CalculatieTotals(
+    Subtotaal: RoundCurrency(subtotal),
+    BtwTarief: decimal.Round(vatRate, 4, MidpointRounding.AwayFromZero),
+    BtwBedrag: vatAmount,
+    Totaal: RoundCurrency(total)
+  );
+}
+
+static List<CalculationArticleSelection> ExtractSelectedArticles(string dataJson)
+{
+  var selected = new List<CalculationArticleSelection>();
+  if (string.IsNullOrWhiteSpace(dataJson))
+  {
+    return selected;
+  }
+
+  try
+  {
+    using var doc = System.Text.Json.JsonDocument.Parse(dataJson);
+    var root = doc.RootElement;
+
+    var articleDefinitions = new Dictionary<string, (string? category, decimal? unitPrice)>(StringComparer.OrdinalIgnoreCase);
+    if (root.TryGetProperty("artikelen", out var artikelen) && artikelen.ValueKind == System.Text.Json.JsonValueKind.Array)
+    {
+      foreach (var item in artikelen.EnumerateArray())
+      {
+        var artikelNaam = item.TryGetProperty("a", out var artikelEl) ? artikelEl.GetString() : null;
+        if (string.IsNullOrWhiteSpace(artikelNaam))
+        {
+          continue;
+        }
+
+        var category = item.TryGetProperty("c", out var catEl) ? catEl.GetString() : null;
+        var unitPrice = item.TryGetProperty("t", out var priceEl) ? ReadNullableDecimal(priceEl) : null;
+        articleDefinitions[artikelNaam] = (category, unitPrice);
+      }
+    }
+
+    if (!root.TryGetProperty("blocks", out var blocks) || blocks.ValueKind != System.Text.Json.JsonValueKind.Array)
+    {
+      return selected;
+    }
+
+    foreach (var block in blocks.EnumerateArray())
+    {
+      if (!block.TryGetProperty("lines", out var lines) || lines.ValueKind != System.Text.Json.JsonValueKind.Array)
+      {
+        continue;
+      }
+
+      foreach (var line in lines.EnumerateArray())
+      {
+        var articleName = line.TryGetProperty("artikel", out var artikelEl) ? artikelEl.GetString() : null;
+        if (string.IsNullOrWhiteSpace(articleName))
+        {
+          continue;
+        }
+
+        var lineId = line.TryGetProperty("id", out var idEl) ? idEl.GetString() : null;
+
+        decimal? aantal = line.TryGetProperty("aantal", out var aantalEl) ? ReadNullableDecimal(aantalEl) : null;
+        decimal? dagen = line.TryGetProperty("dagen", out var dagenEl) ? ReadNullableDecimal(dagenEl) : null;
+        decimal? uren = line.TryGetProperty("uren", out var urenEl) ? ReadNullableDecimal(urenEl) : null;
+        decimal? toeslag = line.TryGetProperty("toeslag", out var toeslagEl) ? ReadNullableDecimal(toeslagEl) : null;
+
+        articleDefinitions.TryGetValue(articleName, out var def);
+
+        var qty = aantal ?? 1m;
+        var dayFactor = dagen ?? 1m;
+        var hourFactor = uren ?? 1m;
+        var surcharge = toeslag ?? 1m;
+        decimal? lineTotal = null;
+
+        if (def.unitPrice is not null)
+        {
+          lineTotal = RoundCurrency(def.unitPrice.Value * qty * dayFactor * hourFactor * surcharge);
+        }
+
+        selected.Add(new CalculationArticleSelection(
+          LineId: lineId,
+          ArtikelNaam: articleName,
+          Categorie: def.category,
+          Aantal: aantal,
+          Dagen: dagen,
+          Uren: uren,
+          Toeslag: toeslag,
+          Eenheidsprijs: def.unitPrice,
+          RegelTotaal: lineTotal
+        ));
+      }
+    }
+  }
+  catch
+  {
+    return selected;
+  }
+
+  return selected;
+}
+
 app.MapGet("/health", () => Results.Ok(new { ok = true }))
   .AllowAnonymous();
 
@@ -147,6 +311,10 @@ app.MapGet("/api/calculaties", async (HttpContext ctx, CalculatieRepository repo
       bedrag = r.Bedrag,
       bijgewerkt = r.Bijgewerkt.ToString("o"),
       data = r.DataJson,
+      subtotaal = r.Totals.Subtotaal,
+      btwTarief = r.Totals.BtwTarief,
+      btwBedrag = r.Totals.BtwBedrag,
+      totaal = r.Totals.Totaal,
       version = r.Version
     });
 
@@ -178,6 +346,10 @@ app.MapGet("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, C
       bedrag = record.Bedrag,
       bijgewerkt = record.Bijgewerkt.ToString("o"),
       data = record.DataJson,
+      subtotaal = record.Totals.Subtotaal,
+      btwTarief = record.Totals.BtwTarief,
+      btwBedrag = record.Totals.BtwBedrag,
+      totaal = record.Totals.Totaal,
       version = record.Version
     });
   })
@@ -235,6 +407,10 @@ app.MapPut("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, C
       status = existing?.Status ?? "Concept";
     }
 
+    var bedrag = GetDec("bedrag");
+    var totals = ExtractTotals(root, dataJson, bedrag);
+    var selectedArticles = ExtractSelectedArticles(dataJson);
+
     var rec = new CalculatieRecord(
       Nummer: nummer,
       Projectnaam: GetStr("projectnaam"),
@@ -243,13 +419,14 @@ app.MapPut("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, C
       Door: GetStr("door"),
       Vestiging: vestiging,
       Status: status,
-      Bedrag: GetDec("bedrag"),
+      Bedrag: bedrag,
       DataJson: dataJson,
       Version: 0,
-      Bijgewerkt: DateTimeOffset.UtcNow
+      Bijgewerkt: DateTimeOffset.UtcNow,
+      Totals: totals
     );
 
-    var updated = await repo.UpsertAsync(rec, expectedVersion, vestigingFilter, GetUserSub(ctx.User), ct);
+    var updated = await repo.UpsertAsync(rec, totals, selectedArticles, expectedVersion, vestigingFilter, GetUserSub(ctx.User), ct);
     if (updated is null)
     {
       // Either not found / forbidden by vestiging / or version mismatch
@@ -275,6 +452,10 @@ app.MapPut("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, C
       bedrag = updated.Bedrag,
       bijgewerkt = updated.Bijgewerkt.ToString("o"),
       data = updated.DataJson,
+      subtotaal = updated.Totals.Subtotaal,
+      btwTarief = updated.Totals.BtwTarief,
+      btwBedrag = updated.Totals.BtwBedrag,
+      totaal = updated.Totals.Totaal,
       version = updated.Version
     });
   })
@@ -323,6 +504,10 @@ app.MapPatch("/api/calculaties/{nummer}/status", async (HttpContext ctx, string 
       bedrag = updated.Bedrag,
       bijgewerkt = updated.Bijgewerkt.ToString("o"),
       data = updated.DataJson,
+      subtotaal = updated.Totals.Subtotaal,
+      btwTarief = updated.Totals.BtwTarief,
+      btwBedrag = updated.Totals.BtwBedrag,
+      totaal = updated.Totals.Totaal,
       version = updated.Version
     });
   })
@@ -400,6 +585,61 @@ app.MapPut("/api/instellingen/algemeen", async (HttpContext ctx, InstellingenRep
     });
   })
   .RequireAuthorization("manager");
+
+
+
+app.MapGet("/api/calculations", async (HttpContext ctx, CalculatieRepository repo, CancellationToken ct) =>
+  {
+    var vestigingFilter = ctx.User.IsInRole("manager") ? null : GetUserVestiging(ctx.User);
+    var list = await repo.ListAsync(vestigingFilter, ct);
+
+    var result = list.Select(r => new
+    {
+      number = r.Nummer,
+      projectName = r.Projectnaam,
+      customer = r.Klant,
+      date = r.Datum?.ToString("yyyy-MM-dd") ?? "",
+      by = r.Door,
+      branch = r.Vestiging,
+      status = r.Status,
+      amount = r.Bedrag,
+      summary = new
+      {
+        subtotal = r.Totals.Subtotaal,
+        vatRate = r.Totals.BtwTarief,
+        vatAmount = r.Totals.BtwBedrag,
+        total = r.Totals.Totaal
+      },
+      updatedAt = r.Bijgewerkt.ToString("o"),
+      data = r.DataJson,
+      version = r.Version
+    });
+
+    return Results.Json(result);
+  })
+  .RequireAuthorization("employee");
+
+app.MapPost("/api/calculations", async (HttpContext ctx, CalculatieRepository repo, CancellationToken ct) =>
+  {
+    var vestiging = GetUserVestiging(ctx.User);
+    var createdBySub = GetUserSub(ctx.User);
+
+    var created = await repo.CreateAsync(vestiging, createdBySub, ct);
+
+    ctx.Response.StatusCode = StatusCodes.Status201Created;
+    SetEtag(ctx.Response, created.Version);
+
+    return Results.Json(new { number = created.Nummer, version = created.Version });
+  })
+  .RequireAuthorization("employee");
+
+app.MapGet("/api/articles/autocomplete", async (string? q, int? limit, CalculatieRepository repo, CancellationToken ct) =>
+  {
+    var query = (q ?? string.Empty).Trim();
+    var items = await repo.AutocompleteArticlesAsync(query, limit ?? 10, ct);
+    return Results.Json(items);
+  })
+  .RequireAuthorization("employee");
 
 app.MapGet("/api/management/secret", () => Results.Ok(new { ok = true, secret = "manager-only" }))
   .RequireAuthorization("manager");
