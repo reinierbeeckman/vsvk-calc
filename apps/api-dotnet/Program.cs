@@ -1,41 +1,48 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using Vsvk.Api.Auth;
 using Vsvk.Api.Db;
+using Vsvk.Api.DTOs;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton(sp =>
-{
-  var cs = builder.Configuration.GetConnectionString("AppDb")
-    ?? builder.Configuration["ConnectionStrings:AppDb"]
-    ?? throw new InvalidOperationException("Missing ConnectionStrings:AppDb");
+var connectionString = builder.Configuration.GetConnectionString("AppDb")
+  ?? builder.Configuration["ConnectionStrings:AppDb"]
+  ?? throw new InvalidOperationException("Missing ConnectionStrings:AppDb");
 
-  return NpgsqlDataSource.Create(cs);
-});
+builder.Services.AddDbContext<VsvkDbContext>(options =>
+  options.UseNpgsql(connectionString));
+
+builder.Services.AddSingleton(_ => NpgsqlDataSource.Create(connectionString));
 
 builder.Services.AddSingleton<StamdataRepository>();
 builder.Services.AddSingleton<CalculatieRepository>();
-builder.Services.AddSingleton<InstellingenRepository>();
+builder.Services.AddScoped<InstellingenRepository>();
+builder.Services.AddScoped<VestigingRepository>();
 builder.Services.AddSingleton<DatabaseMigrator>();
 
 builder.Services.AddTransient<IClaimsTransformation, KeycloakRealmRoleClaimsTransformation>();
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
-var jwtAuthority = jwtSection["Authority"];
+var jwtAuthority = jwtSection["Authority"] ?? throw new InvalidOperationException("Missing Jwt:Authority");
 var jwtMetadataAddress = jwtSection["MetadataAddress"];
-var jwtAudience = jwtSection["Audience"];
+var jwtAudience = jwtSection["Audience"] ?? throw new InvalidOperationException("Missing Jwt:Audience");
 
 builder.Services
   .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
   .AddJwtBearer(options =>
   {
     options.Authority = jwtAuthority;
-    options.MetadataAddress = jwtMetadataAddress;
+    if (!string.IsNullOrWhiteSpace(jwtMetadataAddress))
+    {
+      options.MetadataAddress = jwtMetadataAddress;
+    }
     options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
 
     options.TokenValidationParameters = new TokenValidationParameters
@@ -535,32 +542,24 @@ app.MapDelete("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer
 
 // === Instellingen (algemeen) ===
 
-app.MapGet("/api/instellingen/algemeen", async (HttpContext ctx, InstellingenRepository repo, CancellationToken ct) =>
+app.MapGet("/api/instellingen/algemeen", async Task<Results<Ok<InstellingenAlgemeenDto>, NotFound>> (HttpContext ctx, ClaimsPrincipal user, InstellingenRepository repo, CancellationToken ct) =>
   {
-    var settings = await repo.GetAsync(ct);
+    var settings = await repo.GetAlgemeenAsync(user, ct);
     if (settings is null)
     {
-      return Results.NotFound();
+      return TypedResults.NotFound();
     }
 
     SetEtag(ctx.Response, settings.Version);
-    return Results.Json(new
-    {
-      bijgewerkt = settings.UpdatedAt.ToString("o"),
-      version = settings.Version,
-      // Payload as-is
-      artikelen = GetOrNull(settings.Data, "artikelen"),
-      vestigingen = GetOrNull(settings.Data, "vestigingen"),
-      medewerkers = GetOrNull(settings.Data, "medewerkers"),
-      onderdelen = GetOrNull(settings.Data, "onderdelen"),
-      sugg = GetOrNull(settings.Data, "sugg"),
-      teksten = GetOrNull(settings.Data, "teksten"),
-      standaard = GetOrNull(settings.Data, "standaard")
-    });
+    return TypedResults.Ok(settings);
   })
+  .WithName("GetInstellingenAlgemeen")
+  .WithSummary("Haalt algemene instellingen inclusief rolgefilterde vestigingen op")
+  .Produces<InstellingenAlgemeenDto>(StatusCodes.Status200OK)
+  .Produces(StatusCodes.Status404NotFound)
   .RequireAuthorization("employee");
 
-app.MapPut("/api/instellingen/algemeen", async (HttpContext ctx, InstellingenRepository repo, CancellationToken ct) =>
+app.MapPut("/api/instellingen/algemeen", async (HttpContext ctx, InstellingenRepository repo, VestigingRepository vestigingRepo, CancellationToken ct) =>
   {
     var expectedVersion = ParseIfMatch(ctx.Request);
 
@@ -587,7 +586,7 @@ app.MapPut("/api/instellingen/algemeen", async (HttpContext ctx, InstellingenRep
       bijgewerkt = updated.UpdatedAt.ToString("o"),
       version = updated.Version,
       artikelen = GetOrNull(updated.Data, "artikelen"),
-      vestigingen = GetOrNull(updated.Data, "vestigingen"),
+      vestigingen = await vestigingRepo.ListAsync(ctx.User, ct),
       medewerkers = GetOrNull(updated.Data, "medewerkers"),
       onderdelen = GetOrNull(updated.Data, "onderdelen"),
       sugg = GetOrNull(updated.Data, "sugg"),

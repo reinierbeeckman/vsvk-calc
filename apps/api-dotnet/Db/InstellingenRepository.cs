@@ -1,45 +1,37 @@
 ﻿using System.Text.Json;
 using Npgsql;
 using NpgsqlTypes;
+using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
+using Vsvk.Api.DTOs;
 
 namespace Vsvk.Api.Db;
 
-public sealed record InstellingenAlgemeen(long Version, JsonElement Data, DateTimeOffset UpdatedAt);
+public sealed record InstellingenAlgemeenStorageRecord(long Version, JsonElement Data, DateTimeOffset UpdatedAt);
 
 public sealed class InstellingenRepository
 {
   private readonly NpgsqlDataSource _dataSource;
+  private readonly VsvkDbContext _context;
 
-  public InstellingenRepository(NpgsqlDataSource dataSource)
+  public InstellingenRepository(NpgsqlDataSource dataSource, VsvkDbContext context)
   {
     _dataSource = dataSource;
+    _context = context;
   }
 
-  public async Task<InstellingenAlgemeen?> GetAsync(CancellationToken cancellationToken)
+  public Task<InstellingenAlgemeenDto?> GetAlgemeenAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
   {
-    const string sql = @"
-select data::text, version, updated_at
-from instellingen_algemeen
-where id = 1;
-";
+    var projection = InstellingenProjections.GetProjectionForUser(user);
 
-    await using var cmd = _dataSource.CreateCommand(sql);
-    await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-
-    if (!await reader.ReadAsync(cancellationToken))
-    {
-      return null;
-    }
-
-    var json = reader.GetString(0);
-    var version = reader.GetInt64(1);
-    var updatedAt = reader.GetFieldValue<DateTimeOffset>(2);
-
-    using var doc = JsonDocument.Parse(json);
-    return new InstellingenAlgemeen(version, doc.RootElement.Clone(), updatedAt);
+    return _context.InstellingenAlgemeen
+      .AsNoTracking()
+      .Where(instellingen => instellingen.Id == 1)
+      .Select(projection)
+      .FirstOrDefaultAsync(cancellationToken);
   }
 
-  public async Task<InstellingenAlgemeen?> PutAsync(JsonElement data, long? expectedVersion, string? updatedBySub, CancellationToken cancellationToken)
+  public async Task<InstellingenAlgemeenStorageRecord?> PutAsync(JsonElement data, long? expectedVersion, string? updatedBySub, CancellationToken cancellationToken)
   {
     const string sqlWithCheck = @"
 update instellingen_algemeen
@@ -85,6 +77,6 @@ returning data::text, version, updated_at;
     var updatedAt = reader.GetFieldValue<DateTimeOffset>(2);
 
     using var doc = JsonDocument.Parse(newJson);
-    return new InstellingenAlgemeen(version, doc.RootElement.Clone(), updatedAt);
+    return new InstellingenAlgemeenStorageRecord(version, doc.RootElement.Clone(), updatedAt);
   }
 }

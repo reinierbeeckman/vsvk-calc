@@ -1,4 +1,4 @@
-﻿<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>VSVK Calculatie &amp; Offerte</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -529,12 +529,16 @@ function vestLockBar(){return vestLocked?(vestAsk?`<div class="confirm-del" role
     :`<div class="lockbar"><span><b>🔒 Vergrendeld.</b> Vestigingen, medewerkers en handtekeningen kunnen niet per ongeluk worden gewijzigd.</span><button class="btn" data-act="vestunlock">Wijzigen toestaan</button></div>`)
    :`<div class="lockbar open"><span><b>Bewerken staat aan.</b> Wijzigingen worden direct opgeslagen. Vergrendel weer als je klaar bent.</span><button class="btn primary" data-act="vestlock">Vergrendelen</button></div>`}
 function renderVest(){
-  const vcols=[["naam","Vestiging"],["adres","Adres"],["pc","Postcode"],["plaats","Plaats"],["tel","Telefoon"],["email","E-mail"],["kvk","KvK-nummer"],["btw","Btw-nummer"],["iban","IBAN"]];
+  const hasSensitiveFields=S.vestigingen.some(v=>Object.prototype.hasOwnProperty.call(v,"btw")||Object.prototype.hasOwnProperty.call(v,"iban"));
+  const showSensitive=AUTH.isManager||hasSensitiveFields;
+  const vcols=[["naam","Vestiging"],["adres","Adres"],["pc","Postcode"],["plaats","Plaats"],["tel","Telefoon"],["email","E-mail"],["kvk","KvK-nummer"]];
+  if(showSensitive){vcols.push(["btw","Btw-nummer"],["iban","IBAN"])}
   const vest=S.vestigingen.map(v=>v.naam).filter(Boolean);
   return `<section class="panel"><div class="row" style="justify-content:space-between"><h2>Vestigingen</h2>${vestLocked?"":`<button class="btn" data-act="addvest">+ Vestiging</button>`}</div>
   ${vestLockBar()}
   <p class="hint">Deze gegevens worden gebruikt in de keuzelijsten van de calculatie en onderaan de offerte.</p>
-  <div class="scroll"><table style="min-width:1300px"><thead><tr>${vcols.map(c=>`<th>${c[1]}</th>`).join("")}<th></th></tr></thead><tbody>
+  ${showSensitive?"":`<p class="hint">IBAN en btw-nummer zijn alleen zichtbaar voor gebruikers met de rol manager.</p>`}
+  <div class="scroll"><table style="min-width:${showSensitive?"1300":"1020"}px"><thead><tr>${vcols.map(c=>`<th>${c[1]}</th>`).join("")}<th></th></tr></thead><tbody>
   ${S.vestigingen.map((v,i)=>vLock(`<tr>${vcols.map(c=>`<td>${inp(`vestigingen.${i}.${c[0]}`,{aria:c[1]})}</td>`).join("")}<td><button class="btn ghost" data-act="delvest" data-i="${i}" aria-label="Verwijderen">✕</button></td></tr>`)).join("")}
   </tbody></table></div></section>
   <section class="panel"><div class="row" style="justify-content:space-between"><h2>Medewerkers</h2>${vestLocked?"":`<button class="btn" data-act="addmede">+ Medewerker</button>`}</div>
@@ -585,9 +589,22 @@ const redirectToLogin = () => {
   const returnUrl = encodeURIComponent(location.pathname + location.search + location.hash);
   location.href = `/bff/login?returnUrl=${returnUrl}`;
 };
+const AUTH={roles:[],isManager:false};
+function applyUserClaims(payload){
+  const claims=Array.isArray(payload&&payload.claims)?payload.claims:[];
+  const roles=claims
+    .map(c=>String(c&&c.value||"").toLowerCase().trim())
+    .filter(v=>v==="employee"||v==="manager");
+  AUTH.roles=[...new Set(roles)];
+  AUTH.isManager=AUTH.roles.includes("manager");
+}
 const ensureAuthenticated = async () => {
   try{
     const r = await fetch("/bff/user",{credentials:"include"});
+    if(r.ok){
+      const payload=await r.json();
+      applyUserClaims(payload);
+    }
     return r.ok;
   }catch(e){
     return false;
@@ -615,6 +632,7 @@ const store={db:null,_poll:null,
   },
   async init(){
     try{
+      await ensureAuthenticated();
       const s=await this._json("/api/instellingen/algemeen");
       if(isAuthFailure(s)){redirectToLogin();return}
       if(s.ok){

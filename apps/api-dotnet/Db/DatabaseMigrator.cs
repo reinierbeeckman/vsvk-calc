@@ -1,4 +1,4 @@
-﻿using Npgsql;
+using Npgsql;
 
 namespace Vsvk.Api.Db;
 
@@ -18,6 +18,8 @@ public sealed class DatabaseMigrator
   public async Task MigrateAsync(CancellationToken cancellationToken = default)
   {
     const string sql = """
+create extension if not exists pgcrypto;
+
 create table if not exists stamdata (
   code text primary key,
   name text not null
@@ -65,7 +67,6 @@ create index if not exists ix_calculaties_jaar_seq on calculaties(jaar, seq);
 create index if not exists ix_calculaties_updated_at on calculaties(updated_at);
 create index if not exists ix_calculaties_vestiging on calculaties(vestiging);
 
-
 alter table calculaties add column if not exists subtotal_snapshot numeric(14,2) not null default 0;
 alter table calculaties add column if not exists btw_rate_snapshot numeric(8,4) not null default 0;
 alter table calculaties add column if not exists btw_amount_snapshot numeric(14,2) not null default 0;
@@ -97,30 +98,146 @@ create table if not exists instellingen_algemeen (
   updated_by_sub text null
 );
 
-insert into instellingen_algemeen(id, data) values (1, '{"vestigingen":[]}'::jsonb)
+alter table instellingen_algemeen
+  add column if not exists systeem_naam text not null default '';
+
+insert into instellingen_algemeen(id, data) values (1, '{}'::jsonb)
+on conflict (id) do nothing;
+
+create table if not exists vestigingen (
+  id uuid primary key,
+  naam text not null,
+  adres text not null,
+  postcode text not null,
+  plaats text not null,
+  telefoon text not null,
+  email text not null,
+  kvk_nummer text not null,
+  btw_nummer text not null,
+  iban text not null
+);
+
+alter table vestigingen
+  add column if not exists instellingen_algemeen_id int not null default 1;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'fk_vestigingen_instellingen_algemeen'
+      and conrelid = 'vestigingen'::regclass
+  ) then
+    alter table vestigingen
+      add constraint fk_vestigingen_instellingen_algemeen
+      foreign key (instellingen_algemeen_id)
+      references instellingen_algemeen(id)
+      on delete cascade;
+  end if;
+end $$;
+
+create index if not exists ix_vestigingen_instellingen_algemeen_id
+  on vestigingen(instellingen_algemeen_id);
+
+insert into vestigingen (
+  id,
+  naam,
+  adres,
+  postcode,
+  plaats,
+  telefoon,
+  email,
+  kvk_nummer,
+  btw_nummer,
+  iban
+)
+select
+  coalesce(
+    nullif(v->>'id', '')::uuid,
+    (
+      substr(md5(coalesce(v->>'naam', '') || '|' || coalesce(v->>'adres', '') || '|' || coalesce(v->>'pc', '')), 1, 8)
+      || '-'
+      || substr(md5(coalesce(v->>'naam', '') || '|' || coalesce(v->>'adres', '') || '|' || coalesce(v->>'pc', '')), 9, 4)
+      || '-'
+      || substr(md5(coalesce(v->>'naam', '') || '|' || coalesce(v->>'adres', '') || '|' || coalesce(v->>'pc', '')), 13, 4)
+      || '-'
+      || substr(md5(coalesce(v->>'naam', '') || '|' || coalesce(v->>'adres', '') || '|' || coalesce(v->>'pc', '')), 17, 4)
+      || '-'
+      || substr(md5(coalesce(v->>'naam', '') || '|' || coalesce(v->>'adres', '') || '|' || coalesce(v->>'pc', '')), 21, 12)
+    )::uuid
+  ),
+  coalesce(v->>'naam', ''),
+  coalesce(v->>'adres', ''),
+  coalesce(v->>'pc', ''),
+  coalesce(v->>'plaats', ''),
+  coalesce(v->>'tel', ''),
+  coalesce(v->>'email', ''),
+  coalesce(v->>'kvk', ''),
+  coalesce(v->>'btw', ''),
+  coalesce(v->>'iban', '')
+from instellingen_algemeen i
+cross join lateral jsonb_array_elements(coalesce(i.data->'vestigingen', '[]'::jsonb)) as v
+where i.id = 1
+  and not exists (select 1 from vestigingen);
+
+with ranked_vestigingen as (
+  select
+    id,
+    row_number() over (
+      partition by
+        instellingen_algemeen_id,
+        naam,
+        adres,
+        postcode,
+        plaats,
+        telefoon,
+        email,
+        kvk_nummer,
+        btw_nummer,
+        iban
+      order by id
+    ) as duplicate_number
+  from vestigingen
+)
+delete from vestigingen v
+using ranked_vestigingen ranked
+where v.id = ranked.id
+  and ranked.duplicate_number > 1;
+
+insert into vestigingen (
+  id,
+  naam,
+  adres,
+  postcode,
+  plaats,
+  telefoon,
+  email,
+  kvk_nummer,
+  btw_nummer,
+  iban
+)
+select seed.id, seed.naam, seed.adres, seed.postcode, seed.plaats, seed.telefoon,
+       seed.email, seed.kvk_nummer, seed.btw_nummer, seed.iban
+from (values
+  ('10000000-0000-0000-0000-000000000001'::uuid, 'VSVK Pijnacker BV', 'Schouwweg 4', '2642 AK', 'Pijnacker', '085-0491729', 'administratie@pijnacker.vsvk.nl', '55442579', 'NL851714365B01', 'NL86 INGB 0006 8116 55'),
+  ('10000000-0000-0000-0000-000000000002'::uuid, 'VSVK Rilland BV', 'Poort 69', '4411 PB', 'Rilland', '085-0491729', 'administratie@rilland.vsvk.nl', '20127088', 'NL822170425B01', 'NL03 INGB 0008 0954 89'),
+  ('10000000-0000-0000-0000-000000000003'::uuid, 'VSVK Wamel BV', 'Sterkeburg 1', '6659 AM', 'Wamel', '085-0491729', 'administratie@wamel.vsvk.nl', '52611930', 'NL850520836B01', 'NL08 INGB 0793 9988 08')
+) as seed(id, naam, adres, postcode, plaats, telefoon, email, kvk_nummer, btw_nummer, iban)
+where not exists (
+  select 1
+  from vestigingen existing
+  where existing.instellingen_algemeen_id = 1
+    and lower(btrim(existing.kvk_nummer)) = lower(btrim(seed.kvk_nummer))
+)
 on conflict (id) do nothing;
 
 update instellingen_algemeen
 set
-  data = jsonb_set(
-    coalesce(data, '{}'::jsonb),
-    '{vestigingen}',
-    '[
-      {"naam":"VSVK Pijnacker BV","adres":"Schouwweg 4","pc":"2642 AK","plaats":"Pijnacker","tel":"085-0491729","email":"administratie@pijnacker.vsvk.nl","kvk":"55442579","btw":"NL851714365B01","iban":"NL86 INGB 0006 8116 55"},
-      {"naam":"VSVK Rilland BV","adres":"Poort 69","pc":"4411 PB","plaats":"Rilland","tel":"085-0491729","email":"administratie@rilland.vsvk.nl","kvk":"20127088","btw":"NL822170425B01","iban":"NL03 INGB 0008 0954 89"},
-      {"naam":"VSVK Wamel BV","adres":"Sterkeburg 1","pc":"6659 AM","plaats":"Wamel","tel":"085-0491729","email":"administratie@wamel.vsvk.nl","kvk":"52611930","btw":"NL850520836B01","iban":"NL08 INGB 0793 9988 08"}
-    ]'::jsonb,
-    true
-  ),
+  data = coalesce(data, '{}'::jsonb) - 'vestigingen',
   version = version + 1,
   updated_at = now()
-where
-  id = 1
-  and (
-    not (coalesce(data, '{}'::jsonb) ? 'vestigingen')
-    or jsonb_typeof(coalesce(data, '{}'::jsonb)->'vestigingen') <> 'array'
-    or jsonb_array_length(coalesce(data, '{}'::jsonb)->'vestigingen') = 0
-  );
+where id = 1
+  and coalesce(data, '{}'::jsonb) ? 'vestigingen';
 """;
 
     await using var cmd = _dataSource.CreateCommand(sql);
