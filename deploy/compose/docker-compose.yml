@@ -52,7 +52,10 @@ services:
       Jwt__Audience: ${JWT_AUDIENCE:-vsvk-api}
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.0.0
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-local}/vsvk-keycloak:${IMAGE_TAG:-local}
+    build:
+      context: ../keycloak
+      dockerfile: Dockerfile
     command: ["start", "--http-port=8080"]
     environment:
       KC_HTTP_ENABLED: "true"

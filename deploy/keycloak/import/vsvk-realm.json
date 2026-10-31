@@ -2,6 +2,7 @@
   "realm": "vsvk",
   "enabled": true,
   "displayName": "VSVK",
+  "loginTheme": "vsvk",
   "roles": {
     "realm": [
       { "name": "employee" },

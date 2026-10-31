@@ -1,0 +1,37 @@
+body#keycloak-bg {
+  min-height: 100vh;
+  background:
+    linear-gradient(120deg, rgba(14, 17, 21, 0.36), rgba(14, 17, 21, 0.18) 55%, rgba(14, 17, 21, 0.42)),
+    url("../img/vsvk-pand.jpeg") center / cover no-repeat fixed;
+}
+
+#kc-header-wrapper {
+  color: #f47b20 !important;
+  font-size: clamp(2.75rem, 5vw, 3.5rem);
+  font-weight: 800;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.75);
+}
+
+.pf-v5-c-login__main {
+  background-color: rgba(255, 255, 255, 0.96);
+  border-radius: 0;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+}
+
+#kc-login {
+  background-color: #f47b20;
+  border-color: #f47b20;
+  color: #fff;
+}
+
+#kc-login:hover,
+#kc-login:focus {
+  background-color: #d96812;
+  border-color: #d96812;
+}
+
+@media (max-width: 768px) {
+  body#keycloak-bg {
+    background-attachment: scroll;
+  }
+}

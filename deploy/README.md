@@ -45,6 +45,8 @@ Open daarna:
 - Login start: http://localhost:8080/bff/login
 - Keycloak: http://localhost:8081
 
+De Keycloak-image bevat het VSVK-login-thema. Een nieuwe realm krijgt dit thema via de realm-import. Voor een bestaande realm moet je het eenmalig activeren in Keycloak: **Realm settings → Themes → Login theme → `vsvk` → Save**. De keuze blijft opgeslagen in de Keycloak-database.
+
 ## Staging/Prod draaien
 
 Gebruik dezelfde base compose met de juiste overlay en env-file.
@@ -103,3 +105,4 @@ Benodigde GitHub Environment secrets:
 Images:
 - `ghcr.io/<owner>/vsvk-calc-bff:<tag>`
 - `ghcr.io/<owner>/vsvk-calc-api:<tag>`
+- `ghcr.io/<owner>/vsvk-keycloak:<tag>` (bevat het VSVK-login-thema)
