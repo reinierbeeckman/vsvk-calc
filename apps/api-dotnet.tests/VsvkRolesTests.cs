@@ -26,6 +26,28 @@ public sealed class VsvkRolesTests
     Assert.True(VsvkRoles.IsApplicationUser(CreateUser(VsvkRoles.Default)));
   }
 
+  [Fact]
+  public void DefaultRoleInKeycloakRealmAccessClaimGrantsApplicationAccess()
+  {
+    var user = new ClaimsPrincipal(new ClaimsIdentity(
+    [
+      new Claim("realm_access", "{\"roles\":[\"default-roles-vsvk\",\"development\"]}")
+    ], "test"));
+
+    Assert.True(VsvkRoles.IsApplicationUser(user));
+  }
+
+  [Fact]
+  public void KeycloakRealmAccessClaimWithoutDefaultRoleDoesNotGrantAccess()
+  {
+    var user = new ClaimsPrincipal(new ClaimsIdentity(
+    [
+      new Claim("realm_access", "{\"roles\":[\"development\"]}")
+    ], "test"));
+
+    Assert.False(VsvkRoles.IsApplicationUser(user));
+  }
+
   [Theory]
   [InlineData("development")]
   [InlineData("directie")]

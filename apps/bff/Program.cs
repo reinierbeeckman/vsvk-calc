@@ -137,6 +137,8 @@ app.Use(async (ctx, next) =>
   static bool IsPublicPath(PathString path)
     => path.StartsWithSegments("/health")
        || path.StartsWithSegments("/bff/login")
+       || path.StartsWithSegments("/bff/logout")
+       || path.StartsWithSegments("/bff/access-denied")
        || path.StartsWithSegments("/signin-oidc")
        || path.StartsWithSegments("/signout-callback-oidc");
 
@@ -147,6 +149,23 @@ app.Use(async (ctx, next) =>
       OpenIdConnectDefaults.AuthenticationScheme,
       new AuthenticationProperties { RedirectUri = returnUrl });
     return;
+  }
+
+  if (!IsPublicPath(ctx.Request.Path)
+      && !ctx.Request.Path.StartsWithSegments("/bff/user"))
+  {
+    var accessToken = await ctx.GetTokenAsync("access_token");
+    if (!KeycloakAccessTokenClaims.HasApplicationAccess(accessToken))
+    {
+      if (ctx.Request.Path.StartsWithSegments("/api"))
+      {
+        ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return;
+      }
+
+      ctx.Response.Redirect("/bff/access-denied");
+      return;
+    }
   }
 
   await next();
@@ -163,23 +182,43 @@ app.MapGet("/bff/login", (HttpContext ctx, string? returnUrl) =>
   return Results.Challenge(props, new[] { OpenIdConnectDefaults.AuthenticationScheme });
 }).AllowAnonymous();
 
-app.MapPost("/bff/logout", async (HttpContext ctx) =>
+app.MapPost("/bff/logout", () =>
 {
-  await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-  await ctx.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme);
-  return Results.Ok(new { ok = true });
+  var properties = new AuthenticationProperties { RedirectUri = "/bff/login" };
+  return Results.SignOut(
+    properties,
+    new[]
+    {
+      CookieAuthenticationDefaults.AuthenticationScheme,
+      OpenIdConnectDefaults.AuthenticationScheme
+    });
 });
 
-app.MapGet("/bff/user", (ClaimsPrincipal user) =>
+app.MapGet("/bff/access-denied", () => Results.Content(
+  "<!doctype html><html lang=\"nl\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Geen toegang</title><body style=\"font:16px Arial,sans-serif;max-width:38rem;margin:10vh auto;padding:1rem;color:#222\"><h1>Geen toegang</h1><p>Je Keycloak-account heeft niet de vereiste rol <code>default-roles-vsvk</code>.</p><form method=\"post\" action=\"/bff/logout\"><button type=\"submit\">Uitloggen</button></form></body></html>",
+  "text/html; charset=utf-8"))
+  .AllowAnonymous();
+
+app.MapGet("/bff/user", async (HttpContext context, ClaimsPrincipal user) =>
 {
   if (user.Identity?.IsAuthenticated != true)
   {
     return Results.Unauthorized();
   }
 
+  var accessToken = await context.GetTokenAsync("access_token");
+  var roles = KeycloakAccessTokenClaims.GetRealmRoles(accessToken);
+  if (!roles.Contains(KeycloakAccessTokenClaims.ApplicationAccessRole, StringComparer.Ordinal))
+  {
+    return Results.Forbid();
+  }
+
   return Results.Ok(new
   {
     name = user.Identity?.Name,
+    username = user.FindFirst("preferred_username")?.Value ?? user.Identity?.Name,
+    roles,
+    hasApplicationAccess = true,
     claims = user.Claims.Select(c => new { c.Type, c.Value })
   });
 });

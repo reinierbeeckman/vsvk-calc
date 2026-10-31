@@ -9,5 +9,7 @@ Thumbs.db
 !.vscode/extensions.json
 dist/
 coverage/
+**/bin/
+**/obj/
 # Back-ups van calculaties bevatten klantdata en horen niet in git
 VSVK back-up*.json

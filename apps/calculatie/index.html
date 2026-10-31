@@ -41,6 +41,12 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background
 .totals small{font:600 10.5px var(--f-body);text-transform:uppercase;letter-spacing:.08em;color:var(--head-muted)}
 .totals strong{font:700 17px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--head-ink)}
 .totals div:last-child strong{color:var(--brand-orange)}
+.account{display:flex;align-items:center;gap:12px;padding-left:14px;border-left:1px solid var(--line);min-width:0}
+.account-meta{display:grid;gap:1px;max-width:220px;min-width:0}
+.account-name{font-weight:700;overflow-wrap:anywhere}
+.account-roles{color:var(--head-muted);font-size:11px;line-height:1.2;overflow-wrap:anywhere}
+.account-logout-form{margin:0}
+.account-logout{font-size:11px;padding:5px 9px}
 nav.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 nav.tabs button{font:400 12.5px var(--f-display);letter-spacing:.04em;text-transform:uppercase;background:none;border:0;color:var(--head-muted);padding:10px 12px 11px;border-bottom:4px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap}
 nav.tabs button[aria-selected="true"]{color:var(--head-ink);border-bottom-color:var(--brand-orange)}
@@ -156,6 +162,7 @@ td.ro{color:var(--muted);font-size:13px;padding:3px 8px;white-space:nowrap}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:0;border-left:5px solid var(--brand-orange);font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20}
 .toast.show{opacity:1}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
+@media (max-width:640px){.account{order:3;flex-basis:100%;justify-content:flex-end;padding:10px 0 0;border-left:0;border-top:1px solid var(--line)}.account-meta{margin-right:auto}}
 @media (max-width:640px){.totals{margin-left:0}.pagehead{padding:24px 60px 22px 16px;clip-path:polygon(0 0,100% 0,calc(100% - 50px) 100%,0 100%)}.brand span{display:none}.paper .sign{grid-template-columns:1fr}}
 </style>
 
@@ -167,6 +174,15 @@ td.ro{color:var(--muted);font-size:13px;padding:3px 8px;white-space:nowrap}
         <div><small>Totaal excl. AK + W&amp;R</small><strong data-t="sub">€ 0,00</strong></div>
         <div><small>AK + W&amp;R</small><strong data-t="ak">€ 0,00</strong></div>
         <div><small>Totaal incl. AK + W&amp;R</small><strong data-t="tot">€ 0,00</strong></div>
+      </div>
+      <div class="account" id="account" hidden aria-label="Ingelogde gebruiker">
+        <div class="account-meta">
+          <span class="account-name" id="account-name"></span>
+          <span class="account-roles" id="account-roles"></span>
+        </div>
+        <form class="account-logout-form" action="/bff/logout" method="post">
+          <button class="btn account-logout" type="submit">Uitloggen</button>
+        </form>
       </div>
     </div>
     <nav class="tabs" role="tablist" id="tabs"></nav>
@@ -583,15 +599,18 @@ function onOv(){if(tab==="overzicht")render()}
 const waitOv=async()=>{for(let i=0;i<60&&!ovReady;i++)await new Promise(r=>setTimeout(r,100))};
 function calcPart(){return{project:S.project,klant:S.klant,blocks:S.blocks,offerte:S.offerte,teksten:S.teksten,plan:S.plan||{},planning:S.planning||[],status:S.status||"Concept",...(S.afronding?{afronding:S.afronding}:{})}}
 function recordFrom(nr){const prev=OV.find(x=>x.nummer===nr);return{nummer:nr,projectnaam:S.project.naam||"",klant:S.klant.bedrijf||"",datum:S.project.datum||"",door:S.project.door||"",vestiging:S.project.vestiging||"",status:S.status||"Concept",bedrag:offerteModel().tot,bijgewerkt:new Date().toISOString(),data:JSON.stringify(calcPart()),version:prev&&prev.version!=null?prev.version:null}}
-const isAuthFailure = r => r && (r.status===401 || r.status===403);
+const isAuthFailure = r => r && r.status===401;
+const isAccessDenied = r => r && r.status===403;
 const redirectToLogin = () => {
   const returnUrl = encodeURIComponent(location.pathname + location.search + location.hash);
   location.href = `/bff/login?returnUrl=${returnUrl}`;
 };
 const APPLICATION_ROLES=new Set(["default-roles-vsvk","development","directie","finance","operationeel","planning"]);
-const AUTH={roles:[],canViewSensitiveData:false,canManageSettings:false};
+const AUTH={roles:[],userName:"",canViewSensitiveData:false,canManageSettings:false};
 function applyUserClaims(payload){
   const claims=Array.isArray(payload&&payload.claims)?payload.claims:[];
+  const usernameClaim=claims.find(c=>["preferred_username","username"].includes(String(c&&c.type||"").toLowerCase()));
+  AUTH.userName=String((usernameClaim&&usernameClaim.value)||payload&&payload.username||payload&&payload.name||"Ingelogde gebruiker");
   const claimRoles=claims.flatMap(c=>{
     const values=[String(c&&c.value||"")];
     if(c&&c.type==="realm_access"){
@@ -599,12 +618,21 @@ function applyUserClaims(payload){
     }
     return values;
   });
-  const roles=claimRoles
+  const tokenRoles=Array.isArray(payload&&payload.roles)?payload.roles:[];
+  const roles=[...tokenRoles,...claimRoles]
     .map(v=>String(v).toLowerCase().trim())
     .filter(v=>APPLICATION_ROLES.has(v));
   AUTH.roles=[...new Set(roles)];
   AUTH.canViewSensitiveData=AUTH.roles.includes("directie")||AUTH.roles.includes("finance");
   AUTH.canManageSettings=AUTH.roles.includes("directie");
+  const account=document.getElementById("account");
+  const accountName=document.getElementById("account-name");
+  const accountRoles=document.getElementById("account-roles");
+  if(account&&accountName&&accountRoles){
+    accountName.textContent=AUTH.userName;
+    accountRoles.textContent=AUTH.roles.length?`Rollen: ${AUTH.roles.join(", ")}`:"Rollen: geen applicatierol gevonden";
+    account.hidden=false;
+  }
 }
 const ensureAuthenticated = async () => {
   try{
@@ -632,6 +660,7 @@ const store={db:null,_poll:null,
   async _refreshOv(){
     const r=await this._json("/api/calculaties");
     if(isAuthFailure(r)){redirectToLogin();throw new Error("auth")}
+    if(isAccessDenied(r))throw new Error("forbidden");
     if(!r.ok)throw new Error("ov");
     const list=await r.json();
     OV=(list||[]).filter(x=>x&&x.nummer);
@@ -640,9 +669,15 @@ const store={db:null,_poll:null,
   },
   async init(){
     try{
-      await ensureAuthenticated();
+      if(await ensureAuthenticated()===false){redirectToLogin();return}
       const s=await this._json("/api/instellingen/algemeen");
       if(isAuthFailure(s)){redirectToLogin();return}
+      if(isAccessDenied(s)){
+        this.db=null;
+        ovReady=true;
+        onOv();
+        return;
+      }
       if(s.ok){
         const data=await s.json();
         applySettings({exists:true,data:()=>data,metadata:{hasPendingWrites:false}})
@@ -652,7 +687,14 @@ const store={db:null,_poll:null,
       this.db={kind:"http"};
       if(this._poll)clearInterval(this._poll);
       this._poll=setInterval(()=>{
-        this._refreshOv().catch(async ()=>{
+        this._refreshOv().catch(async error=>{
+          if(error&&error.message==="forbidden"){
+            if(this._poll)clearInterval(this._poll);
+            this._poll=null;
+            this.db=null;
+            return;
+          }
+          if(!this.db)return;
           if(await ensureAuthenticated()===false){redirectToLogin();return}
           if(this._poll)clearInterval(this._poll);
           this._poll=null;
@@ -661,6 +703,12 @@ const store={db:null,_poll:null,
         })
       },10000)
     }catch(e){
+      if(e&&e.message==="forbidden"){
+        this.db=null;
+        ovReady=true;
+        onOv();
+        return;
+      }
       if(await ensureAuthenticated()===false){redirectToLogin();return}
       this.db=null;
       ovReady=true;
@@ -675,6 +723,7 @@ const store={db:null,_poll:null,
       if(rec.version!=null)headers["If-Match"]=`W/"${rec.version}"`;
       const r=await this._json(`/api/calculaties/${encodeURIComponent(rec.nummer)}`,{method:"PUT",headers,body:JSON.stringify(rec)});
       if(isAuthFailure(r)){redirectToLogin();return}
+      if(isAccessDenied(r))return;
       if(r.status===409){toast("Deze calculatie is intussen gewijzigd. Herlaad en probeer opnieuw.");await this._refreshOv().catch(()=>{});return}
       if(!r.ok)throw new Error("save");
       const saved=await r.json();
