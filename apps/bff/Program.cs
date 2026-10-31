@@ -138,6 +138,7 @@ app.Use(async (ctx, next) =>
     => path.StartsWithSegments("/health")
        || path.StartsWithSegments("/bff/login")
        || path.StartsWithSegments("/bff/logout")
+       || path.StartsWithSegments("/bff/signed-out")
        || path.StartsWithSegments("/bff/access-denied")
        || path.StartsWithSegments("/signin-oidc")
        || path.StartsWithSegments("/signout-callback-oidc");
@@ -184,7 +185,7 @@ app.MapGet("/bff/login", (HttpContext ctx, string? returnUrl) =>
 
 app.MapPost("/bff/logout", () =>
 {
-  var properties = new AuthenticationProperties { RedirectUri = "/bff/login" };
+  var properties = new AuthenticationProperties { RedirectUri = "/bff/signed-out" };
   return Results.SignOut(
     properties,
     new[]
@@ -193,6 +194,11 @@ app.MapPost("/bff/logout", () =>
       OpenIdConnectDefaults.AuthenticationScheme
     });
 });
+
+app.MapGet("/bff/signed-out", () => Results.Content(
+  "<!doctype html><html lang=\"nl\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Uitgelogd</title><body style=\"font:16px Arial,sans-serif;max-width:38rem;margin:10vh auto;padding:1rem;color:#222\"><h1>Je bent uitgelogd</h1><p>Je sessie is beëindigd.</p><a href=\"/bff/login\">Opnieuw inloggen</a></body></html>",
+  "text/html; charset=utf-8"))
+  .AllowAnonymous();
 
 app.MapGet("/bff/access-denied", () => Results.Content(
   "<!doctype html><html lang=\"nl\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Geen toegang</title><body style=\"font:16px Arial,sans-serif;max-width:38rem;margin:10vh auto;padding:1rem;color:#222\"><h1>Geen toegang</h1><p>Je Keycloak-account heeft niet de vereiste rol <code>default-roles-vsvk</code>.</p><form method=\"post\" action=\"/bff/logout\"><button type=\"submit\">Uitloggen</button></form></body></html>",

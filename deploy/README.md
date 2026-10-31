@@ -47,6 +47,8 @@ Open daarna:
 
 De Keycloak-image bevat het VSVK-login-thema. Een nieuwe realm krijgt dit thema via de realm-import. Voor een bestaande realm moet je het eenmalig activeren in Keycloak: **Realm settings → Themes → Login theme → `vsvk` → Save**. De keuze blijft opgeslagen in de Keycloak-database.
 
+Voor OIDC-logout moet de Keycloak-client `vsvk-bff` ook `http://localhost:8080/signout-callback-oidc` toestaan als **Valid post logout redirect URI**. De realm-import bevat deze callback voor nieuwe realms. Bij een al bestaande realm moet je deze URI handmatig toevoegen via **Clients → vsvk-bff → Settings → Logout settings**; een bestaande Keycloak-database wordt niet automatisch bijgewerkt door de import.
+
 ## Staging/Prod draaien
 
 Gebruik dezelfde base compose met de juiste overlay en env-file.

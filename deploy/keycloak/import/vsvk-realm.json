@@ -28,8 +28,12 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "redirectUris": [
-        "http://localhost:8080/signin-oidc"
+        "http://localhost:8080/signin-oidc",
+        "http://localhost:8080/signout-callback-oidc"
       ],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:8080/signout-callback-oidc"
+      },
       "webOrigins": [
         "http://localhost:8080"
       ],
