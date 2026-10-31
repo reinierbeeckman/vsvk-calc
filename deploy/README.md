@@ -95,6 +95,20 @@ docker compose --env-file deploy/env/.env \
 - `KEYCLOAK_HOSTNAME` moet matchen met issuer in `OIDC_AUTHORITY` en `JWT_AUTHORITY`.
 - Keycloak DB credentials moeten verschillen van applicatie-DB credentials.
 
+## Rollen en rechten
+
+De VSVK-realm gebruikt de rollen `development`, `directie`, `finance`, `operationeel` en `planning`. Laat alle vijf rollen `default-roles-vsvk` erven. De API controleert deze gemeenschappelijke rol voor applicatietoegang; de afzonderlijke rollen bepalen aanvullende rechten:
+
+| Recht | Rollen |
+| --- | --- |
+| Applicatietoegang en calculaties binnen de eigen vestiging | `default-roles-vsvk` (geërfd door alle vijf rollen) en een `vestiging`-claim |
+| Alle vestigingen en calculaties beheren; instellingen wijzigen; status wijzigen/verwijderen | `directie` |
+| IBAN- en btw-gegevens van vestigingen inzien | `directie`, `finance` |
+
+Ontbreekt bij een gebruiker buiten `directie` de vestigingsclaim, dan weigert de API de vestigingsgebonden calculatie-endpoints (`403`) in plaats van alle vestigingen te tonen. Ontbreekt `default-roles-vsvk` in het JWT, dan wordt applicatietoegang geweigerd. De API gebruikt de Keycloak-realmrol dus als expliciete gemeenschappelijke toegangspoort.
+
+De realm-import definieert rollen en voorbeeldgebruikers alleen bij het initialiseren van een nieuwe realm. Een al bestaande realm met persistente Keycloak-database wordt niet automatisch bijgewerkt: voeg de rollen toe via **Realm roles** en wijs ze via **Users → Role mapping** toe. De voorbeeldaccounts zijn `employee1` (`operationeel`) en `manager1` (`directie`); de accountnamen zijn alleen voorbeelden en bepalen zelf geen rechten.
+
 ## CI/CD (GHCR)
 
 Workflow: `.github/workflows/build-and-deploy.yml`

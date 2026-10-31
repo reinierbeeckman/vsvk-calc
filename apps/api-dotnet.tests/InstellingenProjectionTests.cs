@@ -31,8 +31,8 @@ public sealed class InstellingenProjectionTests
   }
 
   [Theory]
-  [InlineData("manager")]
-  [InlineData("accountant")]
+  [InlineData("directie")]
+  [InlineData("finance")]
   public void AuthorizedProjection_IncludesSensitiveVestigingFields(string role)
   {
     var entity = new InstellingenAlgemeen
@@ -55,7 +55,11 @@ public sealed class InstellingenProjectionTests
   }
 
   [Theory]
+  [InlineData("development")]
+  [InlineData("operationeel")]
+  [InlineData("planning")]
   [InlineData("employee")]
+  [InlineData("manager")]
   [InlineData("unknown")]
   public void RestrictedProjection_ExcludesSensitiveVestigingFields(string role)
   {

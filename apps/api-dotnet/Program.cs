@@ -60,8 +60,8 @@ builder.Services
 
 builder.Services.AddAuthorization(options =>
 {
-  options.AddPolicy("employee", policy => policy.RequireRole("employee", "manager"));
-  options.AddPolicy("manager", policy => policy.RequireRole("manager"));
+  options.AddPolicy(VsvkRoles.Default, policy => policy.RequireAssertion(context => VsvkRoles.IsApplicationUser(context.User)));
+  options.AddPolicy("directie", policy => policy.RequireRole(VsvkRoles.Directie));
 });
 
 var app = builder.Build();
@@ -77,10 +77,7 @@ static string? GetUserSub(ClaimsPrincipal user)
   => user.FindFirstValue("sub") ?? user.FindFirstValue(ClaimTypes.NameIdentifier);
 
 static string? GetUserVestiging(ClaimsPrincipal user)
-  => user.FindFirstValue("vestiging")
-     ?? user.FindFirstValue("vsvk_vestiging")
-     ?? user.FindFirstValue("branch")
-     ?? user.FindFirstValue("branch_id");
+  => VsvkRoles.GetVestiging(user);
 
 static long? ParseIfMatch(HttpRequest request)
 {
@@ -291,12 +288,17 @@ app.MapGet("/api/stamdata", async (StamdataRepository repo) =>
     var rows = await repo.ListAsync();
     return Results.Ok(rows);
   })
-  .RequireAuthorization("employee");
+  .RequireAuthorization(VsvkRoles.Default);
 
 // === Calculaties ===
 
 app.MapPost("/api/calculaties", async (HttpContext ctx, CalculatieRepository repo, CancellationToken ct) =>
   {
+    if (!VsvkRoles.HasRequiredVestigingScope(ctx.User))
+    {
+      return Results.Forbid();
+    }
+
     var vestiging = GetUserVestiging(ctx.User);
     var createdBySub = GetUserSub(ctx.User);
 
@@ -307,12 +309,16 @@ app.MapPost("/api/calculaties", async (HttpContext ctx, CalculatieRepository rep
 
     return Results.Json(new { nummer = created.Nummer, version = created.Version });
   })
-  .RequireAuthorization("employee");
+  .RequireAuthorization(VsvkRoles.Default);
 
 app.MapGet("/api/calculaties", async (HttpContext ctx, CalculatieRepository repo, CancellationToken ct) =>
   {
-    // Vestiging-scope: afdwingen als de claim bestaat. Als hij ontbreekt (dev), toon alles.
-    var vestigingFilter = ctx.User.IsInRole("manager") ? null : GetUserVestiging(ctx.User);
+    if (!VsvkRoles.HasRequiredVestigingScope(ctx.User))
+    {
+      return Results.Forbid();
+    }
+
+    var vestigingFilter = VsvkRoles.HasOrganizationWideAccess(ctx.User) ? null : GetUserVestiging(ctx.User);
 
     var list = await repo.ListAsync(vestigingFilter, ct);
 
@@ -338,11 +344,16 @@ app.MapGet("/api/calculaties", async (HttpContext ctx, CalculatieRepository repo
 
     return Results.Json(result);
   })
-  .RequireAuthorization("employee");
+  .RequireAuthorization(VsvkRoles.Default);
 
 app.MapGet("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, CalculatieRepository repo, CancellationToken ct) =>
   {
-    var vestigingFilter = ctx.User.IsInRole("manager") ? null : GetUserVestiging(ctx.User);
+    if (!VsvkRoles.HasRequiredVestigingScope(ctx.User))
+    {
+      return Results.Forbid();
+    }
+
+    var vestigingFilter = VsvkRoles.HasOrganizationWideAccess(ctx.User) ? null : GetUserVestiging(ctx.User);
 
     var record = await repo.GetAsync(nummer, vestigingFilter, ct);
     if (record is null)
@@ -371,10 +382,15 @@ app.MapGet("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, C
       version = record.Version
     });
   })
-  .RequireAuthorization("employee");
+  .RequireAuthorization(VsvkRoles.Default);
 
 app.MapPut("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, CalculatieRepository repo, CancellationToken ct) =>
   {
+    if (!VsvkRoles.HasRequiredVestigingScope(ctx.User))
+    {
+      return Results.Forbid();
+    }
+
     using var reader = new StreamReader(ctx.Request.Body);
     var body = await reader.ReadToEndAsync(ct);
 
@@ -390,11 +406,11 @@ app.MapPut("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, C
 
     var expectedVersion = ParseIfMatch(ctx.Request);
 
-    var vestigingFilter = ctx.User.IsInRole("manager") ? null : GetUserVestiging(ctx.User);
+    var vestigingFilter = VsvkRoles.HasOrganizationWideAccess(ctx.User) ? null : GetUserVestiging(ctx.User);
 
-    // Vestiging is stored on the record; if claim exists and user is not manager, enforce it.
+    // Vestiging is stored on the record; if claim exists and the user lacks organization-wide access, enforce it.
     var vestiging = GetStr("vestiging");
-    if (!ctx.User.IsInRole("manager"))
+    if (!VsvkRoles.HasOrganizationWideAccess(ctx.User))
     {
       var userVest = GetUserVestiging(ctx.User);
       if (!string.IsNullOrWhiteSpace(userVest))
@@ -419,7 +435,7 @@ app.MapPut("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, C
     }
 
     var status = requestedStatus;
-    if (!ctx.User.IsInRole("manager"))
+    if (!VsvkRoles.HasOrganizationWideAccess(ctx.User))
     {
       var existing = await repo.GetAsync(nummer, vestigingFilter, ct);
       status = existing?.Status ?? "Concept";
@@ -477,7 +493,7 @@ app.MapPut("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, C
       version = updated.Version
     });
   })
-  .RequireAuthorization("employee");
+  .RequireAuthorization(VsvkRoles.Default);
 
 app.MapPatch("/api/calculaties/{nummer}/status", async (HttpContext ctx, string nummer, CalculatieRepository repo, CancellationToken ct) =>
   {
@@ -495,7 +511,7 @@ app.MapPatch("/api/calculaties/{nummer}/status", async (HttpContext ctx, string 
     }
 
     var expectedVersion = ParseIfMatch(ctx.Request);
-    var vestigingFilter = ctx.User.IsInRole("manager") ? null : GetUserVestiging(ctx.User);
+    var vestigingFilter = VsvkRoles.HasOrganizationWideAccess(ctx.User) ? null : GetUserVestiging(ctx.User);
 
     var updated = await repo.SetStatusAsync(nummer, status, expectedVersion, vestigingFilter, GetUserSub(ctx.User), ct);
     if (updated is null)
@@ -529,16 +545,16 @@ app.MapPatch("/api/calculaties/{nummer}/status", async (HttpContext ctx, string 
       version = updated.Version
     });
   })
-  .RequireAuthorization("manager");
+  .RequireAuthorization("directie");
 
 app.MapDelete("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, CalculatieRepository repo, CancellationToken ct) =>
   {
-    var vestigingFilter = ctx.User.IsInRole("manager") ? null : GetUserVestiging(ctx.User);
+    var vestigingFilter = VsvkRoles.HasOrganizationWideAccess(ctx.User) ? null : GetUserVestiging(ctx.User);
 
     var ok = await repo.SoftDeleteAsync(nummer, vestigingFilter, GetUserSub(ctx.User), ct);
     return ok ? Results.NoContent() : Results.NotFound();
   })
-  .RequireAuthorization("manager");
+  .RequireAuthorization("directie");
 
 // === Instellingen (algemeen) ===
 
@@ -557,7 +573,7 @@ app.MapGet("/api/instellingen/algemeen", async Task<Results<Ok<InstellingenAlgem
   .WithSummary("Haalt algemene instellingen inclusief rolgefilterde vestigingen op")
   .Produces<InstellingenAlgemeenDto>(StatusCodes.Status200OK)
   .Produces(StatusCodes.Status404NotFound)
-  .RequireAuthorization("employee");
+  .RequireAuthorization(VsvkRoles.Default);
 
 app.MapPut("/api/instellingen/algemeen", async (HttpContext ctx, InstellingenRepository repo, VestigingRepository vestigingRepo, CancellationToken ct) =>
   {
@@ -594,13 +610,18 @@ app.MapPut("/api/instellingen/algemeen", async (HttpContext ctx, InstellingenRep
       standaard = GetOrNull(updated.Data, "standaard")
     });
   })
-  .RequireAuthorization("manager");
+  .RequireAuthorization("directie");
 
 
 
 app.MapGet("/api/calculations", async (HttpContext ctx, CalculatieRepository repo, CancellationToken ct) =>
   {
-    var vestigingFilter = ctx.User.IsInRole("manager") ? null : GetUserVestiging(ctx.User);
+    if (!VsvkRoles.HasRequiredVestigingScope(ctx.User))
+    {
+      return Results.Forbid();
+    }
+
+    var vestigingFilter = VsvkRoles.HasOrganizationWideAccess(ctx.User) ? null : GetUserVestiging(ctx.User);
     var list = await repo.ListAsync(vestigingFilter, ct);
 
     var result = list.Select(r => new
@@ -627,10 +648,15 @@ app.MapGet("/api/calculations", async (HttpContext ctx, CalculatieRepository rep
 
     return Results.Json(result);
   })
-  .RequireAuthorization("employee");
+  .RequireAuthorization(VsvkRoles.Default);
 
 app.MapPost("/api/calculations", async (HttpContext ctx, CalculatieRepository repo, CancellationToken ct) =>
   {
+    if (!VsvkRoles.HasRequiredVestigingScope(ctx.User))
+    {
+      return Results.Forbid();
+    }
+
     var vestiging = GetUserVestiging(ctx.User);
     var createdBySub = GetUserSub(ctx.User);
 
@@ -641,7 +667,7 @@ app.MapPost("/api/calculations", async (HttpContext ctx, CalculatieRepository re
 
     return Results.Json(new { number = created.Nummer, version = created.Version });
   })
-  .RequireAuthorization("employee");
+  .RequireAuthorization(VsvkRoles.Default);
 
 app.MapGet("/api/articles/autocomplete", async (string? q, int? limit, CalculatieRepository repo, CancellationToken ct) =>
   {
@@ -649,9 +675,9 @@ app.MapGet("/api/articles/autocomplete", async (string? q, int? limit, Calculati
     var items = await repo.AutocompleteArticlesAsync(query, limit ?? 10, ct);
     return Results.Json(items);
   })
-  .RequireAuthorization("employee");
+  .RequireAuthorization(VsvkRoles.Default);
 
-app.MapGet("/api/management/secret", () => Results.Ok(new { ok = true, secret = "manager-only" }))
-  .RequireAuthorization("manager");
+app.MapGet("/api/management/secret", () => Results.Ok(new { ok = true, secret = "directie-only" }))
+  .RequireAuthorization("directie");
 
 app.Run();

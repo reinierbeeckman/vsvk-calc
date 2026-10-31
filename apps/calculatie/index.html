@@ -441,11 +441,11 @@ function renderOfferte(){
 }
 
 /* ===== Offerteteksten ===== */
-function txLockBar(){return txLocked?(txAsk?`<div class="confirm-del" role="alert" style="justify-content:space-between"><span><b>Weet u het zeker?</b> Wijzigingen in offerteteksten, voorstellen en onderdelen komen direct op de offerte en in de keuzelijsten van de calculatie.</span><span class="row"><button class="btn danger" data-act="txunlockyes">Ja, wijzigen toestaan</button><button class="btn" data-act="txunlockno">Annuleren</button></span></div>`
+function txLockBar(){if(!AUTH.canManageSettings)return `<div class="lockbar">Alleen gebruikers met de rol directie kunnen instellingen wijzigen.</div>`;return txLocked?(txAsk?`<div class="confirm-del" role="alert" style="justify-content:space-between"><span><b>Weet u het zeker?</b> Wijzigingen in offerteteksten, voorstellen en onderdelen komen direct op de offerte en in de keuzelijsten van de calculatie.</span><span class="row"><button class="btn danger" data-act="txunlockyes">Ja, wijzigen toestaan</button><button class="btn" data-act="txunlockno">Annuleren</button></span></div>`
     :`<div class="lockbar"><span><b>🔒 Vergrendeld.</b> Offerteteksten, voorstellen en onderdelen kunnen niet per ongeluk worden gewijzigd.</span><button class="btn" data-act="txunlock">Wijzigen toestaan</button></div>`)
    :`<div class="lockbar open"><span><b>Bewerken staat aan.</b> Wijzigingen worden direct opgeslagen. Vergrendel weer als je klaar bent.</span><button class="btn primary" data-act="txlock">Vergrendelen</button></div>`}
 function lockHTML(h){return h.replace(/<button class="btn[^"]*"[^>]*data-act="(addtekst|deltekst|addsugg|delsugg|addond|delond)"[^>]*>[^<]*<\/button>/g,"").replace(/<input /g,'<input readonly tabindex="-1" ').replace(/<select /g,'<select disabled ')}
-function renderTeksten(){const h=renderTekstenInner();return txLocked?lockHTML(h):h}
+function renderTeksten(){const h=renderTekstenInner();return !AUTH.canManageSettings||txLocked?lockHTML(h):h}
 function renderTekstenInner(){
   return `<section class="panel"><h2>Offerteteksten</h2>__TXBAR__<p class="hint">Zet een tekst op Nee om hem niet op de offerte te tonen, zonder hem te verwijderen. Teksten verschijnen per hoofdstuk in de offerte.</p>
   ${HOOFDSTUKKEN.map(h=>{const rows=S.teksten.map((t,i)=>[t,i]).filter(([t])=>t.h===h);const on=rows.filter(([t])=>t.on&&t.t.trim()).length;
@@ -510,10 +510,10 @@ function renderPlanning(){
 }
 const fdateShort=iso=>iso?new Date(iso+"T00:00:00").toLocaleDateString("nl-NL",{weekday:"short",day:"numeric",month:"short"}):"—";
 /* ===== Artikelen ===== */
-function lockRow(h){if(!artLocked)return h;return h.replace(/<input /g,'<input readonly tabindex="-1" ').replace(/<select /g,'<select disabled ').replace(/<button class="btn ghost" data-act="delart"[^>]*>✕<\/button>/,"")}
+function lockRow(h){if(AUTH.canManageSettings&&!artLocked)return h;return h.replace(/<input /g,'<input readonly tabindex="-1" ').replace(/<select /g,'<select disabled ').replace(/<button class="btn ghost" data-act="delart"[^>]*>✕<\/button>/,"")}
 function renderArtikelen(){
-  return `<section class="panel"><div class="row" style="justify-content:space-between"><h2>Artikelen</h2><div class="row"><input id="artsearch" placeholder="Zoek artikel…" style="width:220px" value="${esc(artQ)}" aria-label="Zoek artikel">${artLocked?"":`<button class="btn primary" data-act="addart">+ Artikel</button>`}</div></div>
-  ${artLocked?(artAsk?`<div class="confirm-del" role="alert" style="justify-content:space-between"><span><b>Weet u het zeker?</b> Wijzigingen in artikelen en tarieven gelden voor alle nieuwe regels in de calculaties, ook bij collega's.</span><span class="row"><button class="btn danger" data-act="artunlockyes">Ja, wijzigen toestaan</button><button class="btn" data-act="artunlockno">Annuleren</button></span></div>`
+  return `<section class="panel"><div class="row" style="justify-content:space-between"><h2>Artikelen</h2><div class="row"><input id="artsearch" placeholder="Zoek artikel…" style="width:220px" value="${esc(artQ)}" aria-label="Zoek artikel">${AUTH.canManageSettings&&!artLocked?`<button class="btn primary" data-act="addart">+ Artikel</button>`:""}</div></div>
+  ${!AUTH.canManageSettings?`<div class="lockbar">Alleen gebruikers met de rol directie kunnen instellingen wijzigen.</div>`:artLocked?(artAsk?`<div class="confirm-del" role="alert" style="justify-content:space-between"><span><b>Weet u het zeker?</b> Wijzigingen in artikelen en tarieven gelden voor alle nieuwe regels in de calculaties, ook bij collega's.</span><span class="row"><button class="btn danger" data-act="artunlockyes">Ja, wijzigen toestaan</button><button class="btn" data-act="artunlockno">Annuleren</button></span></div>`
     :`<div class="lockbar"><span><b>🔒 Vergrendeld.</b> Artikelen en tarieven kunnen niet per ongeluk worden gewijzigd.</span><button class="btn" data-act="artunlock">Wijzigen toestaan</button></div>`)
    :`<div class="lockbar open"><span><b>Bewerken staat aan.</b> Wijzigingen worden direct opgeslagen. Vergrendel weer als je klaar bent.</span><button class="btn primary" data-act="artlock">Vergrendelen</button></div>`}
   <p class="hint">Zet Actief op Nee om een artikel uit de keuzelijst te halen zonder het te verwijderen. Tarief "zp" (zie prijs) telt in de calculatie als € 0.</p>
@@ -524,24 +524,23 @@ function renderArtikelen(){
 let artLocked=true,artAsk=false,txLocked=true,txAsk=false,vestLocked=true,vestAsk=false,artQ="",delBlockId=null,delLineId=null;
 
 /* ===== Vestigingen ===== */
-function vLock(h){if(!vestLocked)return h;return h.replace(/<input id="sig-[^>]*>/,"").replace(/<label class="btn" for="sig-[^"]*"[^>]*>Toevoegen<\/label>/,'<span class="ro">—</span>').replace(/<input /g,'<input readonly tabindex="-1" ').replace(/<select /g,'<select disabled ').replace(/<button class="btn ghost" data-act="(delvest|delmede|delsig)"[^>]*>✕<\/button>/g,"")}
-function vestLockBar(){return vestLocked?(vestAsk?`<div class="confirm-del" role="alert" style="justify-content:space-between"><span><b>Weet u het zeker?</b> Wijzigingen in vestigingen, medewerkers en handtekeningen komen op alle offertes die je daarna maakt of opent, ook bij collega's.</span><span class="row"><button class="btn danger" data-act="vestunlockyes">Ja, wijzigen toestaan</button><button class="btn" data-act="vestunlockno">Annuleren</button></span></div>`
+function vLock(h){if(AUTH.canManageSettings&&!vestLocked)return h;return h.replace(/<input id="sig-[^>]*>/,"").replace(/<label class="btn" for="sig-[^"]*"[^>]*>Toevoegen<\/label>/,'<span class="ro">—</span>').replace(/<input /g,'<input readonly tabindex="-1" ').replace(/<select /g,'<select disabled ').replace(/<button class="btn ghost" data-act="(delvest|delmede|delsig)"[^>]*>✕<\/button>/g,"")}
+function vestLockBar(){if(!AUTH.canManageSettings)return `<div class="lockbar">Alleen gebruikers met de rol directie kunnen instellingen wijzigen.</div>`;return vestLocked?(vestAsk?`<div class="confirm-del" role="alert" style="justify-content:space-between"><span><b>Weet u het zeker?</b> Wijzigingen in vestigingen, medewerkers en handtekeningen komen op alle offertes die je daarna maakt of opent, ook bij collega's.</span><span class="row"><button class="btn danger" data-act="vestunlockyes">Ja, wijzigen toestaan</button><button class="btn" data-act="vestunlockno">Annuleren</button></span></div>`
     :`<div class="lockbar"><span><b>🔒 Vergrendeld.</b> Vestigingen, medewerkers en handtekeningen kunnen niet per ongeluk worden gewijzigd.</span><button class="btn" data-act="vestunlock">Wijzigen toestaan</button></div>`)
    :`<div class="lockbar open"><span><b>Bewerken staat aan.</b> Wijzigingen worden direct opgeslagen. Vergrendel weer als je klaar bent.</span><button class="btn primary" data-act="vestlock">Vergrendelen</button></div>`}
 function renderVest(){
-  const hasSensitiveFields=S.vestigingen.some(v=>Object.prototype.hasOwnProperty.call(v,"btw")||Object.prototype.hasOwnProperty.call(v,"iban"));
-  const showSensitive=AUTH.isManager||hasSensitiveFields;
+  const showSensitive=AUTH.canViewSensitiveData;
   const vcols=[["naam","Vestiging"],["adres","Adres"],["pc","Postcode"],["plaats","Plaats"],["tel","Telefoon"],["email","E-mail"],["kvk","KvK-nummer"]];
   if(showSensitive){vcols.push(["btw","Btw-nummer"],["iban","IBAN"])}
   const vest=S.vestigingen.map(v=>v.naam).filter(Boolean);
-  return `<section class="panel"><div class="row" style="justify-content:space-between"><h2>Vestigingen</h2>${vestLocked?"":`<button class="btn" data-act="addvest">+ Vestiging</button>`}</div>
+  return `<section class="panel"><div class="row" style="justify-content:space-between"><h2>Vestigingen</h2>${AUTH.canManageSettings&&!vestLocked?`<button class="btn" data-act="addvest">+ Vestiging</button>`:""}</div>
   ${vestLockBar()}
   <p class="hint">Deze gegevens worden gebruikt in de keuzelijsten van de calculatie en onderaan de offerte.</p>
-  ${showSensitive?"":`<p class="hint">IBAN en btw-nummer zijn alleen zichtbaar voor gebruikers met de rol manager.</p>`}
+  ${showSensitive?"":`<p class="hint">IBAN en btw-nummer zijn alleen zichtbaar voor gebruikers met de rol directie of finance.</p>`}
   <div class="scroll"><table style="min-width:${showSensitive?"1300":"1020"}px"><thead><tr>${vcols.map(c=>`<th>${c[1]}</th>`).join("")}<th></th></tr></thead><tbody>
   ${S.vestigingen.map((v,i)=>vLock(`<tr>${vcols.map(c=>`<td>${inp(`vestigingen.${i}.${c[0]}`,{aria:c[1]})}</td>`).join("")}<td><button class="btn ghost" data-act="delvest" data-i="${i}" aria-label="Verwijderen">✕</button></td></tr>`)).join("")}
   </tbody></table></div></section>
-  <section class="panel"><div class="row" style="justify-content:space-between"><h2>Medewerkers</h2>${vestLocked?"":`<button class="btn" data-act="addmede">+ Medewerker</button>`}</div>
+  <section class="panel"><div class="row" style="justify-content:space-between"><h2>Medewerkers</h2>${AUTH.canManageSettings&&!vestLocked?`<button class="btn" data-act="addmede">+ Medewerker</button>`:""}</div>
   <div class="scroll"><table style="min-width:820px"><thead><tr><th>Naam</th><th>Functie</th><th>Vestiging</th><th>Telefoon</th><th>E-mail</th><th>Handtekening</th><th></th></tr></thead><tbody>
   ${S.medewerkers.map((m,i)=>vLock(`<tr><td>${inp(`medewerkers.${i}.naam`,{aria:"Naam"})}</td><td>${inp(`medewerkers.${i}.functie`,{aria:"Functie"})}</td><td>${sel(`medewerkers.${i}.vest`,vest,{aria:"Vestiging"})}</td><td>${inp(`medewerkers.${i}.tel`,{aria:"Telefoon"})}</td><td>${inp(`medewerkers.${i}.email`,{aria:"E-mail"})}</td><td style="white-space:nowrap">${m.sig?`<img src="${m.sig}" alt="Handtekening" style="height:28px;vertical-align:middle;background:#fff;padding:2px 4px;border:1px solid var(--line)"> <button class="btn ghost" data-act="delsig" data-i="${i}" aria-label="Handtekening verwijderen">✕</button>`:`<label class="btn" for="sig-${i}" style="cursor:pointer">Toevoegen</label>`}<input id="sig-${i}" type="file" accept="image/png,image/jpeg" data-sig="${i}" hidden></td><td><button class="btn ghost" data-act="delmede" data-i="${i}" aria-label="Verwijderen">✕</button></td></tr>`)).join("")}
   </tbody></table></div></section>`;
@@ -589,14 +588,23 @@ const redirectToLogin = () => {
   const returnUrl = encodeURIComponent(location.pathname + location.search + location.hash);
   location.href = `/bff/login?returnUrl=${returnUrl}`;
 };
-const AUTH={roles:[],isManager:false};
+const APPLICATION_ROLES=new Set(["default-roles-vsvk","development","directie","finance","operationeel","planning"]);
+const AUTH={roles:[],canViewSensitiveData:false,canManageSettings:false};
 function applyUserClaims(payload){
   const claims=Array.isArray(payload&&payload.claims)?payload.claims:[];
-  const roles=claims
-    .map(c=>String(c&&c.value||"").toLowerCase().trim())
-    .filter(v=>v==="employee"||v==="manager");
+  const claimRoles=claims.flatMap(c=>{
+    const values=[String(c&&c.value||"")];
+    if(c&&c.type==="realm_access"){
+      try{values.push(...(JSON.parse(c.value||"{}").roles||[]))}catch{}
+    }
+    return values;
+  });
+  const roles=claimRoles
+    .map(v=>String(v).toLowerCase().trim())
+    .filter(v=>APPLICATION_ROLES.has(v));
   AUTH.roles=[...new Set(roles)];
-  AUTH.isManager=AUTH.roles.includes("manager");
+  AUTH.canViewSensitiveData=AUTH.roles.includes("directie")||AUTH.roles.includes("finance");
+  AUTH.canManageSettings=AUTH.roles.includes("directie");
 }
 const ensureAuthenticated = async () => {
   try{
@@ -1018,33 +1026,33 @@ document.getElementById("main").addEventListener("click",e=>{
       delLineId=l.id;render();return}
     case"dellineno":delLineId=null;render();return;
     case"dellineyes":S.blocks[bi].lines.splice(+b.dataset.l,1);delLineId=null;toast("Regel verwijderd");break;
-    case"txunlock":txAsk=true;render();return;
+    case"txunlock":if(!AUTH.canManageSettings)return;txAsk=true;render();return;
     case"txunlockno":txAsk=false;render();return;
-    case"txunlockyes":txAsk=false;txLocked=false;render();toast("Wijzigen toegestaan");return;
-    case"txlock":txLocked=true;render();toast("Offerteteksten vergrendeld");return;
-    case"addtekst":if(txLocked)return;S.teksten.push({id:id(),h:b.dataset.h,t:"",on:true});break;
-    case"deltekst":if(txLocked)return;S.teksten.splice(i,1);break;
-    case"addsugg":if(txLocked)return;S.sugg.push({id:id(),o:"",t:""});break;
-    case"delsugg":if(txLocked)return;S.sugg.splice(i,1);break;
-    case"addond":if(txLocked)return;S.onderdelen.push("");break;
-    case"delond":if(txLocked)return;S.onderdelen.splice(i,1);break;
+    case"txunlockyes":if(!AUTH.canManageSettings)return;txAsk=false;txLocked=false;render();toast("Wijzigen toegestaan");return;
+    case"txlock":if(!AUTH.canManageSettings)return;txLocked=true;render();toast("Offerteteksten vergrendeld");return;
+    case"addtekst":if(!AUTH.canManageSettings||txLocked)return;S.teksten.push({id:id(),h:b.dataset.h,t:"",on:true});break;
+    case"deltekst":if(!AUTH.canManageSettings||txLocked)return;S.teksten.splice(i,1);break;
+    case"addsugg":if(!AUTH.canManageSettings||txLocked)return;S.sugg.push({id:id(),o:"",t:""});break;
+    case"delsugg":if(!AUTH.canManageSettings||txLocked)return;S.sugg.splice(i,1);break;
+    case"addond":if(!AUTH.canManageSettings||txLocked)return;S.onderdelen.push("");break;
+    case"delond":if(!AUTH.canManageSettings||txLocked)return;S.onderdelen.splice(i,1);break;
     case"addplan":S.planning.push({id:id(),naam:"",start:"",eind:"",opm:""});break;
     case"delplan":S.planning.splice(i,1);break;
-    case"addart":if(artLocked)return;S.artikelen.push({id:id(),a:"Nieuw artikel",c:"Overig",e:"uur",t:0,act:true});artQ="";break;
-    case"artunlock":artAsk=true;render();return;
+    case"addart":if(!AUTH.canManageSettings||artLocked)return;S.artikelen.push({id:id(),a:"Nieuw artikel",c:"Overig",e:"uur",t:0,act:true});artQ="";break;
+    case"artunlock":if(!AUTH.canManageSettings)return;artAsk=true;render();return;
     case"artunlockno":artAsk=false;render();return;
-    case"artunlockyes":artAsk=false;artLocked=false;render();toast("Wijzigen toegestaan");return;
-    case"artlock":artLocked=true;render();toast("Artikelen vergrendeld");return;
-    case"delart":if(artLocked)return;S.artikelen.splice(i,1);break;
-    case"vestunlock":vestAsk=true;render();return;
+    case"artunlockyes":if(!AUTH.canManageSettings)return;artAsk=false;artLocked=false;render();toast("Wijzigen toegestaan");return;
+    case"artlock":if(!AUTH.canManageSettings)return;artLocked=true;render();toast("Artikelen vergrendeld");return;
+    case"delart":if(!AUTH.canManageSettings||artLocked)return;S.artikelen.splice(i,1);break;
+    case"vestunlock":if(!AUTH.canManageSettings)return;vestAsk=true;render();return;
     case"vestunlockno":vestAsk=false;render();return;
-    case"vestunlockyes":vestAsk=false;vestLocked=false;render();toast("Wijzigen toegestaan");return;
-    case"vestlock":vestLocked=true;render();toast("Vestigingen vergrendeld");return;
-    case"addvest":if(vestLocked)return;S.vestigingen.push({id:id(),naam:"",adres:"",pc:"",plaats:"",tel:"",email:"",kvk:"",btw:"",iban:""});break;
-    case"delvest":if(vestLocked)return;S.vestigingen.splice(i,1);break;
-    case"addmede":if(vestLocked)return;S.medewerkers.push({id:id(),naam:"",functie:"",vest:"",tel:"",email:""});break;
-    case"delsig":if(vestLocked)return;S.medewerkers[i].sig="";break;
-    case"delmede":if(vestLocked)return;S.medewerkers.splice(i,1);break;
+    case"vestunlockyes":if(!AUTH.canManageSettings)return;vestAsk=false;vestLocked=false;render();toast("Wijzigen toegestaan");return;
+    case"vestlock":if(!AUTH.canManageSettings)return;vestLocked=true;render();toast("Vestigingen vergrendeld");return;
+    case"addvest":if(!AUTH.canManageSettings||vestLocked)return;S.vestigingen.push({id:id(),naam:"",adres:"",pc:"",plaats:"",tel:"",email:"",kvk:"",btw:"",iban:""});break;
+    case"delvest":if(!AUTH.canManageSettings||vestLocked)return;S.vestigingen.splice(i,1);break;
+    case"addmede":if(!AUTH.canManageSettings||vestLocked)return;S.medewerkers.push({id:id(),naam:"",functie:"",vest:"",tel:"",email:""});break;
+    case"delsig":if(!AUTH.canManageSettings||vestLocked)return;S.medewerkers[i].sig="";break;
+    case"delmede":if(!AUTH.canManageSettings||vestLocked)return;S.medewerkers.splice(i,1);break;
     case"new":{
       const go=()=>{S=Object.assign(baseData(),keep());S.status="Concept";S.nummer=null;tab="calculatie";save();render();scrollTo({top:0});assignNumber()};
       if(S.voorbeeld||S.nummer){go();return}
