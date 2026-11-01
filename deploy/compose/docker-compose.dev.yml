@@ -26,6 +26,13 @@
     depends_on:
       postgres:
         condition: service_healthy
+    develop:
+      watch:
+        - action: rebuild
+          path: ../../apps/api-dotnet
+          ignore:
+            - bin/
+            - obj/
 
   migrate:
     environment:
@@ -46,6 +53,15 @@
       Oidc__ClientId: ${OIDC_CLIENT_ID:-vsvk-bff}
       Oidc__ClientSecret: ${OIDC_CLIENT_SECRET:-dev-secret}
       Oidc__CallbackPath: ${OIDC_CALLBACK_PATH:-/signin-oidc}
+    develop:
+      watch:
+        - action: rebuild
+          path: ../../apps/bff
+          ignore:
+            - bin/
+            - obj/
+        - action: rebuild
+          path: ../../apps/calculatie
 
   keycloak:
     command: ["start", "--http-port=8080", "--import-realm"]

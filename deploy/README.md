@@ -25,14 +25,14 @@ Vanuit repo-root:
 
 ```powershell
 # 1) Start/rebuild services met expliciete env-file
-& "C:\Users\<you>\AppData\Local\Programs\DockerDesktop\resources\bin\docker.exe" compose `
+docker compose `
   --env-file deploy/env/.env `
   -f deploy/compose/docker-compose.yml `
   -f deploy/compose/docker-compose.dev.yml `
   up -d --build --force-recreate
 
 # 2) Run migrations
-& "C:\Users\<you>\AppData\Local\Programs\DockerDesktop\resources\bin\docker.exe" compose `
+docker compose `
   --env-file deploy/env/.env `
   -f deploy/compose/docker-compose.yml `
   -f deploy/compose/docker-compose.dev.yml `
@@ -44,6 +44,43 @@ Open daarna:
 - App/BFF: http://localhost:8080
 - Login start: http://localhost:8080/bff/login
 - Keycloak: http://localhost:8081
+
+### Automatisch herbouwen tijdens lokaal ontwikkelen
+
+Docker Compose Watch (Compose 2.22 of nieuwer) bouwt de API opnieuw wanneer `apps/api-dotnet` wijzigt en de BFF opnieuw wanneer `apps/bff` of `apps/calculatie` wijzigt. De BFF serveert de SPA, daarom worden wijzigingen aan de calculatiepagina ook via de BFF-container zichtbaar. De database en Keycloak worden niet opnieuw gebouwd.
+
+Start eerst de stack en voer de database-migraties uit met de opdrachten hierboven. Start daarna in een aparte PowerShell-terminal, vanuit de repository-root, de watcher:
+
+```powershell
+docker compose `
+  --env-file deploy/env/.env `
+  -f deploy/compose/docker-compose.yml `
+  -f deploy/compose/docker-compose.dev.yml `
+  watch api bff
+```
+
+Laat dit terminalvenster open. Bij opslaan wordt de relevante container opnieuw gebouwd en gestart:
+
+- `apps/api-dotnet`: de API-container (`api`)
+- `apps/bff`: de BFF-container (`bff`)
+- `apps/calculatie`: de BFF-container, die de SPA serveert
+
+De database en Keycloak worden niet opnieuw gebouwd. Stop de watcher met `Ctrl+C`; de containers blijven draaien. Start de watcher opnieuw met hetzelfde commando. Na wijzigingen aan het databaseschema voer je de migratieopdracht hierboven opnieuw uit. Wijzigingen aan `.env`, Compose-configuratie of gedeelde buildbestanden vereisen een nieuwe `docker compose up -d --build` met dezelfde `--env-file` en `-f` opties.
+
+Handige opdrachten vanuit de repository-root:
+
+```powershell
+# Status bekijken
+docker compose --env-file deploy/env/.env -f deploy/compose/docker-compose.yml -f deploy/compose/docker-compose.dev.yml ps
+
+# Logs volgen (bijvoorbeeld de API)
+docker compose --env-file deploy/env/.env -f deploy/compose/docker-compose.yml -f deploy/compose/docker-compose.dev.yml logs -f api
+
+# Containers stoppen; data-volumes blijven behouden
+docker compose --env-file deploy/env/.env -f deploy/compose/docker-compose.yml -f deploy/compose/docker-compose.dev.yml down
+```
+
+Als `docker` in PowerShell nog niet wordt herkend, herstart Docker Desktop en PowerShell na installatie. Je kunt tijdelijk het volledige pad naar `docker.exe` gebruiken, bijvoorbeeld `& 'C:\Users\reini\AppData\Local\Programs\DockerDesktop\resources\bin\docker.exe' compose ...`.
 
 De Keycloak-image bevat het VSVK-login-thema. Een nieuwe realm krijgt dit thema via de realm-import. Voor een bestaande realm moet je het eenmalig activeren in Keycloak: **Realm settings → Themes → Login theme → `vsvk` → Save**. De keuze blijft opgeslagen in de Keycloak-database.
 
