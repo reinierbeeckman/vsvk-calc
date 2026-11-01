@@ -9,6 +9,7 @@ using Npgsql;
 using Vsvk.Api.Auth;
 using Vsvk.Api.Db;
 using Vsvk.Api.DTOs;
+using Vsvk.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +26,7 @@ builder.Services.AddSingleton<StamdataRepository>();
 builder.Services.AddSingleton<CalculatieRepository>();
 builder.Services.AddScoped<InstellingenRepository>();
 builder.Services.AddScoped<VestigingRepository>();
+builder.Services.AddScoped<ArtikelRepository>();
 builder.Services.AddSingleton<DatabaseMigrator>();
 
 builder.Services.AddTransient<IClaimsTransformation, KeycloakRealmRoleClaimsTransformation>();
@@ -184,7 +186,10 @@ static JsonElement GetOrNull(System.Text.Json.JsonElement element, string proper
   using var doc = System.Text.Json.JsonDocument.Parse("null");
   return doc.RootElement.Clone();
 }
-static List<CalculationArticleSelection> ExtractSelectedArticles(string dataJson)
+static async Task<List<CalculationArticleSelection>> ExtractSelectedArticlesAsync(
+  string dataJson,
+  ArtikelRepository artikelRepository,
+  CancellationToken cancellationToken)
 {
   var selected = new List<CalculationArticleSelection>();
   if (string.IsNullOrWhiteSpace(dataJson))
@@ -219,6 +224,17 @@ static List<CalculationArticleSelection> ExtractSelectedArticles(string dataJson
       return selected;
     }
 
+    var articleNames = blocks
+      .EnumerateArray()
+      .Where(block => block.TryGetProperty("lines", out var lines) && lines.ValueKind == System.Text.Json.JsonValueKind.Array)
+      .SelectMany(block => block.GetProperty("lines").EnumerateArray())
+      .Select(line => line.TryGetProperty("artikel", out var article) ? article.GetString() : null)
+      .Where(name => !string.IsNullOrWhiteSpace(name))
+      .Select(name => name!)
+      .Distinct(StringComparer.OrdinalIgnoreCase)
+      .ToArray();
+    var catalogDefinitions = await artikelRepository.GetSnapshotsByNameAsync(articleNames, cancellationToken);
+
     foreach (var block in blocks.EnumerateArray())
     {
       if (!block.TryGetProperty("lines", out var lines) || lines.ValueKind != System.Text.Json.JsonValueKind.Array)
@@ -241,7 +257,14 @@ static List<CalculationArticleSelection> ExtractSelectedArticles(string dataJson
         decimal? uren = line.TryGetProperty("uren", out var urenEl) ? ReadNullableDecimal(urenEl) : null;
         decimal? toeslag = line.TryGetProperty("toeslag", out var toeslagEl) ? ReadNullableDecimal(toeslagEl) : null;
 
-        articleDefinitions.TryGetValue(articleName, out var def);
+        if (!articleDefinitions.TryGetValue(articleName, out var def))
+        {
+          catalogDefinitions.TryGetValue(articleName, out def);
+        }
+
+        var linePrice = line.TryGetProperty("tarief", out var linePriceElement)
+          ? ReadNullableDecimal(linePriceElement) ?? def.unitPrice
+          : def.unitPrice;
 
         var qty = aantal ?? 1m;
         var dayFactor = dagen ?? 1m;
@@ -249,9 +272,9 @@ static List<CalculationArticleSelection> ExtractSelectedArticles(string dataJson
         var surcharge = toeslag ?? 1m;
         decimal? lineTotal = null;
 
-        if (def.unitPrice is not null)
+        if (linePrice is not null)
         {
-          lineTotal = RoundCurrency(def.unitPrice.Value * qty * dayFactor * hourFactor * surcharge);
+          lineTotal = RoundCurrency(linePrice.Value * qty * dayFactor * hourFactor * surcharge);
         }
 
         selected.Add(new CalculationArticleSelection(
@@ -262,13 +285,13 @@ static List<CalculationArticleSelection> ExtractSelectedArticles(string dataJson
           Dagen: dagen,
           Uren: uren,
           Toeslag: toeslag,
-          Eenheidsprijs: def.unitPrice,
+          Eenheidsprijs: linePrice,
           RegelTotaal: lineTotal
         ));
       }
     }
   }
-  catch
+  catch (JsonException)
   {
     return selected;
   }
@@ -281,6 +304,7 @@ app.MapGet("/health", () => Results.Ok(new { ok = true }))
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapArtikelEndpoints();
 
 // Example endpoint (stays for now)
 app.MapGet("/api/stamdata", async (StamdataRepository repo) =>
@@ -384,7 +408,7 @@ app.MapGet("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, C
   })
   .RequireAuthorization(VsvkRoles.Default);
 
-app.MapPut("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, CalculatieRepository repo, CancellationToken ct) =>
+app.MapPut("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, CalculatieRepository repo, ArtikelRepository artikelRepo, CancellationToken ct) =>
   {
     if (!VsvkRoles.HasRequiredVestigingScope(ctx.User))
     {
@@ -443,7 +467,7 @@ app.MapPut("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, C
 
     var bedrag = GetDec("bedrag");
     var totals = ExtractTotals(root, dataJson, bedrag);
-    var selectedArticles = ExtractSelectedArticles(dataJson);
+    var selectedArticles = await ExtractSelectedArticlesAsync(dataJson, artikelRepo, ct);
 
     var rec = new CalculatieRecord(
       Nummer: nummer,
@@ -601,7 +625,6 @@ app.MapPut("/api/instellingen/algemeen", async (HttpContext ctx, InstellingenRep
     {
       bijgewerkt = updated.UpdatedAt.ToString("o"),
       version = updated.Version,
-      artikelen = GetOrNull(updated.Data, "artikelen"),
       vestigingen = await vestigingRepo.ListAsync(ctx.User, ct),
       medewerkers = GetOrNull(updated.Data, "medewerkers"),
       onderdelen = GetOrNull(updated.Data, "onderdelen"),
@@ -666,14 +689,6 @@ app.MapPost("/api/calculations", async (HttpContext ctx, CalculatieRepository re
     SetEtag(ctx.Response, created.Version);
 
     return Results.Json(new { number = created.Nummer, version = created.Version });
-  })
-  .RequireAuthorization(VsvkRoles.Default);
-
-app.MapGet("/api/articles/autocomplete", async (string? q, int? limit, CalculatieRepository repo, CancellationToken ct) =>
-  {
-    var query = (q ?? string.Empty).Trim();
-    var items = await repo.AutocompleteArticlesAsync(query, limit ?? 10, ct);
-    return Results.Json(items);
   })
   .RequireAuthorization(VsvkRoles.Default);
 

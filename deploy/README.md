@@ -39,6 +39,10 @@ docker compose `
   --profile migrate run --rm migrate
 ```
 
+De migratie maakt relationele tabellen voor artikelen, artikelcategorieën en artikeleenheden. Bestaande artikelen worden eenmalig uit `instellingen_algemeen.data.artikelen` overgezet; als daar nog geen artikelcatalogus staat, wordt de huidige catalogus als startdata geladen. De oude JSONB-sleutel wordt na een geslaagde import verwijderd. De migratie is versie-geregistreerd en veilig opnieuw uit te voeren.
+
+De SPA leest de catalogus via `GET /api/articles`, `GET /api/article-categories` en `GET /api/article-units`. Alleen `directie` kan artikelen aanpassen of deactiveren; categorieën en eenheden worden als referentiedata via hun eigen opzoektabellen geleverd.
+
 Open daarna:
 
 - App/BFF: http://localhost:8080
@@ -142,6 +146,7 @@ De VSVK-realm gebruikt de rollen `development`, `directie`, `finance`, `operatio
 | --- | --- |
 | Applicatietoegang en calculaties binnen de eigen vestiging | `default-roles-vsvk` (geërfd door alle vijf rollen) en een `vestiging`-claim |
 | Alle vestigingen en calculaties beheren; instellingen wijzigen; status wijzigen/verwijderen | `directie` |
+| Artikelcatalogus lezen; artikelen toevoegen, wijzigen of deactiveren | Lezen: `default-roles-vsvk`; schrijven: `directie` |
 | IBAN- en btw-gegevens van vestigingen inzien | `directie`, `finance` |
 
 Ontbreekt bij een gebruiker buiten `directie` de vestigingsclaim, dan weigert de API de vestigingsgebonden calculatie-endpoints (`403`) in plaats van alle vestigingen te tonen. Ontbreekt `default-roles-vsvk` in het JWT, dan wordt applicatietoegang geweigerd. De API gebruikt de Keycloak-realmrol dus als expliciete gemeenschappelijke toegangspoort.

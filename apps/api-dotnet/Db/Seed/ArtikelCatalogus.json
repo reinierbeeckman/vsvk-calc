@@ -1,0 +1,647 @@
+{
+  "categories": [
+    "Arbeid",
+    "Materieel",
+    "Materiaal",
+    "Opslag en logistiek",
+    "Overig"
+  ],
+  "units": [
+    "uur",
+    "per dag",
+    "per week",
+    "per km",
+    "per stuk",
+    "stuk",
+    "per zak",
+    "M3",
+    "keer",
+    "per bon"
+  ],
+  "articles": [
+    {
+      "name": "Grondwerker",
+      "category": "Arbeid",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 48.04,
+      "active": true
+    },
+    {
+      "name": "Vakman Verkeersmaatregel",
+      "category": "Arbeid",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 45.68,
+      "active": true
+    },
+    {
+      "name": "Specialist Verkeersmaatregel",
+      "category": "Arbeid",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 52.5,
+      "active": true
+    },
+    {
+      "name": "Monteur E&M",
+      "category": "Arbeid",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 62.7,
+      "active": true
+    },
+    {
+      "name": "Werkvoorbereider",
+      "category": "Arbeid",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 63.79,
+      "active": true
+    },
+    {
+      "name": "Voorman",
+      "category": "Arbeid",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 67.46,
+      "active": true
+    },
+    {
+      "name": "Uitvoerder",
+      "category": "Arbeid",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 80.59,
+      "active": true
+    },
+    {
+      "name": "Machinist materieel",
+      "category": "Arbeid",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 52.5,
+      "active": true
+    },
+    {
+      "name": "Hoogwerker snorkel",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 50,
+      "active": true
+    },
+    {
+      "name": "Heftruck",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 30,
+      "active": true
+    },
+    {
+      "name": "Schaftkeet / handenwasunit",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 20,
+      "active": true
+    },
+    {
+      "name": "Overdukmaskers",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 20,
+      "active": true
+    },
+    {
+      "name": "Stofzuigers, snoeren",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 20,
+      "active": true
+    },
+    {
+      "name": "Afval bakken en bokken",
+      "category": "Materieel",
+      "unit": "stuk",
+      "tariffType": "vast",
+      "tariff": 40,
+      "active": true
+    },
+    {
+      "name": "Borden bok",
+      "category": "Materieel",
+      "unit": "stuk",
+      "tariffType": "vast",
+      "tariff": 250,
+      "active": true
+    },
+    {
+      "name": "Elektrische hoogwerker met werkhoogte ≤ 11 meter",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 46.2,
+      "active": true
+    },
+    {
+      "name": "Hoogwerker met werkhoogte ≤ 15 meter",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 38.59,
+      "active": true
+    },
+    {
+      "name": "Hoogwerker met werkhoogte ≤ 22 meter",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 41.75,
+      "active": true
+    },
+    {
+      "name": "Hoogwerker met werkhoogte ≤ 27 meter",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 48.04,
+      "active": true
+    },
+    {
+      "name": "Vrachtwagenhoogwerker 30mtr.",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 79.8,
+      "active": true
+    },
+    {
+      "name": "Bakwagen met Autolaadkraan",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 49.08,
+      "active": true
+    },
+    {
+      "name": "Trekker met Autolaadkraan",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 68.25,
+      "active": true
+    },
+    {
+      "name": "Trekker (Vrachtwagen)",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 47.51,
+      "active": true
+    },
+    {
+      "name": "E-Trekker (Vrachtwagen emissieloos)",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 57.23,
+      "active": true
+    },
+    {
+      "name": "Semi-Dieplader",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 20.48,
+      "active": true
+    },
+    {
+      "name": "Dieplader",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 20.48,
+      "active": true
+    },
+    {
+      "name": "Citytrailer 1 as",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 20.48,
+      "active": true
+    },
+    {
+      "name": "Vlakke trailer 2 as",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 20.48,
+      "active": true
+    },
+    {
+      "name": "Steentrailer met Rollerkraan",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 29.93,
+      "active": true
+    },
+    {
+      "name": "Minigraver U10 op transportaanhangwagen",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 18.9,
+      "active": true
+    },
+    {
+      "name": "Minigraver U17 op transportaanhangwagen",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 26.25,
+      "active": true
+    },
+    {
+      "name": "Minigraver 4,5t",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 33.6,
+      "active": true
+    },
+    {
+      "name": "Bakwagen tot 3,5 ton",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 22,
+      "active": true
+    },
+    {
+      "name": "Bakwagen tot 5 ton incl strippenlegger",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 34.13,
+      "active": true
+    },
+    {
+      "name": "Bakwagen tot 5 ton met kraan",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 37.8,
+      "active": true
+    },
+    {
+      "name": "Bestelwagen klein (per uur)",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 11.55,
+      "active": true
+    },
+    {
+      "name": "Bestelwagen klein (per km)",
+      "category": "Materieel",
+      "unit": "per km",
+      "tariffType": "vast",
+      "tariff": 0.45,
+      "active": true
+    },
+    {
+      "name": "Botsabsorber met bediening dag 06-18u",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 75.34,
+      "active": true
+    },
+    {
+      "name": "Botsabsorber met bediening nacht 18-06u & zaterdag 00-24u",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 88.73,
+      "active": true
+    },
+    {
+      "name": "Botsabsorber met bediening zondag 00-24u",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 114.74,
+      "active": true
+    },
+    {
+      "name": "Provinciewagen",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 78.23,
+      "active": true
+    },
+    {
+      "name": "Aktiewagen",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 103.95,
+      "active": true
+    },
+    {
+      "name": "Tekstwagen",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 207.38,
+      "active": true
+    },
+    {
+      "name": "Verkeerskegel",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 1.58,
+      "active": true
+    },
+    {
+      "name": "Compressor met lucht hamer",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 138.08,
+      "active": true
+    },
+    {
+      "name": "Hakhamer",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 69.3,
+      "active": true
+    },
+    {
+      "name": "Tandemas aanhangwagen 2700KG",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 11.55,
+      "active": true
+    },
+    {
+      "name": "Haspelwagen",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 171.68,
+      "active": true
+    },
+    {
+      "name": "LightCube",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 78.23,
+      "active": true
+    },
+    {
+      "name": "Lichtmastwagen - Mobilight",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 131.25,
+      "active": true
+    },
+    {
+      "name": "Rijplaat kunststof 3x1mtr",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 4.46,
+      "active": true
+    },
+    {
+      "name": "Wacker trilstamper",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 36.23,
+      "active": true
+    },
+    {
+      "name": "Trilplaat Klein <100 kg",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 43.05,
+      "active": true
+    },
+    {
+      "name": "Trilplaat Groot >100KG",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 105.53,
+      "active": true
+    },
+    {
+      "name": "Valgordel",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 17.33,
+      "active": true
+    },
+    {
+      "name": "Trekveer 60 meter",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 47.78,
+      "active": true
+    },
+    {
+      "name": "Trekveer 80 meter",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 92.93,
+      "active": true
+    },
+    {
+      "name": "Roterende waterpaslaser incl. statief",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 90.3,
+      "active": true
+    },
+    {
+      "name": "Vuilwaterpomp",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 171.68,
+      "active": true
+    },
+    {
+      "name": "Aggregaat 230/380V 7.9 KW Diesel",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 90.3,
+      "active": true
+    },
+    {
+      "name": "Klopboormachine Hilti (excl verbruik van boren)",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 55.65,
+      "active": true
+    },
+    {
+      "name": "Motorslijper",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 41.48,
+      "active": true
+    },
+    {
+      "name": "Momentsleutel 3200n/m op accu incl. doppenset",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 362.78,
+      "active": true
+    },
+    {
+      "name": "Borden bok (per dag)",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 69.3,
+      "active": true
+    },
+    {
+      "name": "Evenaar 6 mtr",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 69.3,
+      "active": true
+    },
+    {
+      "name": "Evenaar 6 - 10 mtr",
+      "category": "Materieel",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 113.93,
+      "active": true
+    },
+    {
+      "name": "Gereedschap (slagtol en handgereedschap)",
+      "category": "Materieel",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 10,
+      "active": true
+    },
+    {
+      "name": "Big bag breker zand",
+      "category": "Materiaal",
+      "unit": "M3",
+      "tariffType": "vast",
+      "tariff": 103.43,
+      "active": true
+    },
+    {
+      "name": "Zak Snelbeton",
+      "category": "Materiaal",
+      "unit": "per zak",
+      "tariffType": "vast",
+      "tariff": 17.06,
+      "active": true
+    },
+    {
+      "name": "Zak a25 KG Krimpvrije Betonmortel",
+      "category": "Materiaal",
+      "unit": "per zak",
+      "tariffType": "vast",
+      "tariff": 115.4,
+      "active": true
+    },
+    {
+      "name": "Slijpschijf diamant t.b.v. motorslijper",
+      "category": "Materiaal",
+      "unit": "per dag",
+      "tariffType": "vast",
+      "tariff": 115.4,
+      "active": true
+    },
+    {
+      "name": "Slijpschijf metaal t.b.v motorslijper",
+      "category": "Materiaal",
+      "unit": "per stuk",
+      "tariffType": "vast",
+      "tariff": 20.27,
+      "active": true
+    },
+    {
+      "name": "Slijpschijf klein",
+      "category": "Materiaal",
+      "unit": "per stuk",
+      "tariffType": "vast",
+      "tariff": 2.44,
+      "active": true
+    },
+    {
+      "name": "Opslag per m2",
+      "category": "Opslag en logistiek",
+      "unit": "per week",
+      "tariffType": "vast",
+      "tariff": 2.05,
+      "active": true
+    },
+    {
+      "name": "Magazijn medewerker incl. heftruck",
+      "category": "Opslag en logistiek",
+      "unit": "uur",
+      "tariffType": "vast",
+      "tariff": 66.94,
+      "active": true
+    },
+    {
+      "name": "Afvoeren vuil",
+      "category": "Overig",
+      "unit": "keer",
+      "tariffType": "vast",
+      "tariff": 200,
+      "active": true
+    },
+    {
+      "name": "Afvoer vrijgekomen materialen",
+      "category": "Overig",
+      "unit": "keer",
+      "tariffType": "zie_prijs",
+      "tariff": null,
+      "active": true
+    },
+    {
+      "name": "IBC",
+      "category": "Overig",
+      "unit": "keer",
+      "tariffType": "vast",
+      "tariff": 75,
+      "active": true
+    }
+  ]
+}

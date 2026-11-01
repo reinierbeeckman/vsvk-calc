@@ -1,4 +1,6 @@
 using Npgsql;
+using NpgsqlTypes;
+using System.Reflection;
 
 namespace Vsvk.Api.Db;
 
@@ -139,6 +141,44 @@ end $$;
 create index if not exists ix_vestigingen_instellingen_algemeen_id
   on vestigingen(instellingen_algemeen_id);
 
+create table if not exists artikel_categorieen (
+  id uuid primary key,
+  code text not null unique,
+  naam text not null,
+  sorteervolgorde int not null default 0,
+  actief boolean not null default true
+);
+
+create table if not exists artikel_eenheden (
+  id uuid primary key,
+  code text not null unique,
+  naam text not null,
+  sorteervolgorde int not null default 0,
+  actief boolean not null default true
+);
+
+create table if not exists artikelen (
+  id uuid primary key,
+  naam text not null,
+  categorie_id uuid not null references artikel_categorieen(id) on delete restrict,
+  eenheid_id uuid not null references artikel_eenheden(id) on delete restrict,
+  tariefsoort text not null check (tariefsoort in ('vast', 'zie_prijs')),
+  tarief numeric(14,4) null,
+  actief boolean not null default true,
+  constraint ck_artikelen_tariefsoort_tarief check (
+    (tariefsoort = 'vast' and tarief is not null)
+    or (tariefsoort = 'zie_prijs' and tarief is null)
+  )
+);
+
+create unique index if not exists ix_artikelen_naam_lower on artikelen (lower(naam));
+create index if not exists ix_artikelen_actief on artikelen (actief);
+
+create table if not exists vsvk_schema_migrations (
+  migration_id text primary key,
+  applied_at timestamptz not null default now()
+);
+
 insert into vestigingen (
   id,
   naam,
@@ -242,5 +282,175 @@ where id = 1
 
     await using var cmd = _dataSource.CreateCommand(sql);
     await cmd.ExecuteNonQueryAsync(cancellationToken);
+    await ImportArticleCatalogAsync(cancellationToken);
+  }
+
+  private async Task ImportArticleCatalogAsync(CancellationToken cancellationToken)
+  {
+    const string migrationId = "20261101_articles_relational_v1";
+    const string migrationSql = """
+with legacy_articles as (
+  select value as item, ordinal
+  from instellingen_algemeen settings
+  cross join lateral jsonb_array_elements(case when jsonb_typeof(settings.data->'artikelen') = 'array' then settings.data->'artikelen' else '[]'::jsonb end) with ordinality as source(value, ordinal)
+  where settings.id = 1
+), seed_categories as (
+  select value as naam, ordinal
+  from jsonb_array_elements_text($1::jsonb->'categories') with ordinality as source(value, ordinal)
+), seed_units as (
+  select value as naam, ordinal
+  from jsonb_array_elements_text($1::jsonb->'units') with ordinality as source(value, ordinal)
+), legacy_category_names as (
+  select distinct nullif(btrim(item->>'c'), '') as naam from legacy_articles
+), legacy_unit_names as (
+  select distinct nullif(btrim(item->>'e'), '') as naam from legacy_articles
+)
+insert into artikel_categorieen(id, code, naam, sorteervolgorde)
+select
+  (substr(md5(lower(btrim(naam))), 1, 8) || '-' || substr(md5(lower(btrim(naam))), 9, 4) || '-' || substr(md5(lower(btrim(naam))), 13, 4) || '-' || substr(md5(lower(btrim(naam))), 17, 4) || '-' || substr(md5(lower(btrim(naam))), 21, 12))::uuid,
+  lower(regexp_replace(btrim(naam), '[^a-zA-Z0-9]+', '-', 'g')),
+  btrim(naam),
+  ordinal::int - 1
+from seed_categories
+where nullif(btrim(naam), '') is not null
+on conflict (code) do nothing;
+
+with seed_units as (
+  select value as naam, ordinal
+  from jsonb_array_elements_text($1::jsonb->'units') with ordinality as source(value, ordinal)
+)
+insert into artikel_eenheden(id, code, naam, sorteervolgorde)
+select
+  (substr(md5(lower(btrim(naam))), 1, 8) || '-' || substr(md5(lower(btrim(naam))), 9, 4) || '-' || substr(md5(lower(btrim(naam))), 13, 4) || '-' || substr(md5(lower(btrim(naam))), 17, 4) || '-' || substr(md5(lower(btrim(naam))), 21, 12))::uuid,
+  lower(regexp_replace(btrim(naam), '[^a-zA-Z0-9]+', '-', 'g')),
+  btrim(naam),
+  ordinal::int - 1
+from seed_units
+where nullif(btrim(naam), '') is not null
+on conflict (code) do nothing;
+
+with legacy_articles as (
+  select value as item, ordinal
+  from instellingen_algemeen settings
+  cross join lateral jsonb_array_elements(case when jsonb_typeof(settings.data->'artikelen') = 'array' then settings.data->'artikelen' else '[]'::jsonb end) with ordinality as source(value, ordinal)
+  where settings.id = 1
+), lookup_names as (
+  select distinct nullif(btrim(item->>'c'), '') as naam from legacy_articles
+), lookup_unit_names as (
+  select distinct nullif(btrim(item->>'e'), '') as naam from legacy_articles
+)
+insert into artikel_categorieen(id, code, naam, sorteervolgorde)
+select
+  (substr(md5(lower(btrim(names.naam))), 1, 8) || '-' || substr(md5(lower(btrim(names.naam))), 9, 4) || '-' || substr(md5(lower(btrim(names.naam))), 13, 4) || '-' || substr(md5(lower(btrim(names.naam))), 17, 4) || '-' || substr(md5(lower(btrim(names.naam))), 21, 12))::uuid,
+  lower(regexp_replace(btrim(names.naam), '[^a-zA-Z0-9]+', '-', 'g')),
+  btrim(names.naam),
+  coalesce((select max(sorteervolgorde) + 1 from artikel_categorieen), 0)
+from lookup_names names
+where names.naam is not null
+on conflict (code) do nothing;
+
+with legacy_articles as (
+  select value as item
+  from instellingen_algemeen settings
+  cross join lateral jsonb_array_elements(case when jsonb_typeof(settings.data->'artikelen') = 'array' then settings.data->'artikelen' else '[]'::jsonb end) as source(value)
+  where settings.id = 1
+), lookup_unit_names as (
+  select distinct nullif(btrim(item->>'e'), '') as naam from legacy_articles
+)
+insert into artikel_eenheden(id, code, naam, sorteervolgorde)
+select
+  (substr(md5(lower(btrim(names.naam))), 1, 8) || '-' || substr(md5(lower(btrim(names.naam))), 9, 4) || '-' || substr(md5(lower(btrim(names.naam))), 13, 4) || '-' || substr(md5(lower(btrim(names.naam))), 17, 4) || '-' || substr(md5(lower(btrim(names.naam))), 21, 12))::uuid,
+  lower(regexp_replace(btrim(names.naam), '[^a-zA-Z0-9]+', '-', 'g')),
+  btrim(names.naam),
+  coalesce((select max(sorteervolgorde) + 1 from artikel_eenheden), 0)
+from lookup_unit_names names
+where names.naam is not null
+on conflict (code) do nothing;
+
+with legacy_articles as (
+  select value as item, ordinal
+  from instellingen_algemeen settings
+  cross join lateral jsonb_array_elements(case when jsonb_typeof(settings.data->'artikelen') = 'array' then settings.data->'artikelen' else '[]'::jsonb end) with ordinality as source(value, ordinal)
+  where settings.id = 1
+), ranked as (
+  select
+    item,
+    row_number() over (partition by lower(btrim(item->>'a')) order by ordinal) as duplicate_number
+  from legacy_articles
+  where nullif(btrim(item->>'a'), '') is not null
+)
+insert into artikelen(id, naam, categorie_id, eenheid_id, tariefsoort, tarief, actief)
+select
+  (substr(md5(lower(btrim(source.item->>'a'))), 1, 8) || '-' || substr(md5(lower(btrim(source.item->>'a'))), 9, 4) || '-' || substr(md5(lower(btrim(source.item->>'a'))), 13, 4) || '-' || substr(md5(lower(btrim(source.item->>'a'))), 17, 4) || '-' || substr(md5(lower(btrim(source.item->>'a'))), 21, 12))::uuid,
+  btrim(source.item->>'a'),
+  categorie.id,
+  eenheid.id,
+  case when coalesce(source.item->>'t', '') ~ '^-?[0-9]+([.,][0-9]+)?$' then 'vast' else 'zie_prijs' end,
+  case when coalesce(source.item->>'t', '') ~ '^-?[0-9]+([.,][0-9]+)?$' then replace(source.item->>'t', ',', '.')::numeric else null end,
+  lower(coalesce(source.item->>'act', 'true')) not in ('false', '0', 'nee')
+from ranked source
+join artikel_categorieen categorie on lower(categorie.naam) = lower(coalesce(nullif(btrim(source.item->>'c'), ''), 'Overig'))
+join artikel_eenheden eenheid on lower(eenheid.naam) = lower(coalesce(nullif(btrim(source.item->>'e'), ''), 'uur'))
+where source.duplicate_number = 1
+on conflict do nothing;
+
+insert into artikelen(id, naam, categorie_id, eenheid_id, tariefsoort, tarief, actief)
+select
+  (substr(md5(lower(btrim(seed.name))), 1, 8) || '-' || substr(md5(lower(btrim(seed.name))), 9, 4) || '-' || substr(md5(lower(btrim(seed.name))), 13, 4) || '-' || substr(md5(lower(btrim(seed.name))), 17, 4) || '-' || substr(md5(lower(btrim(seed.name))), 21, 12))::uuid,
+  btrim(seed.name),
+  categorie.id,
+  eenheid.id,
+  seed."tariffType",
+  seed.tariff,
+  seed.active
+from jsonb_to_recordset($1::jsonb->'articles') as seed(name text, category text, unit text, "tariffType" text, tariff numeric, active boolean)
+join artikel_categorieen categorie on lower(categorie.naam) = lower(seed.category)
+join artikel_eenheden eenheid on lower(eenheid.naam) = lower(seed.unit)
+where not exists (select 1 from artikelen)
+on conflict do nothing;
+
+update instellingen_algemeen
+set data = coalesce(data, '{}'::jsonb) - 'artikelen', version = version + 1, updated_at = now()
+where id = 1 and coalesce(data, '{}'::jsonb) ? 'artikelen';
+""";
+
+    await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+    await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+    await using (var marker = new NpgsqlCommand(
+      "insert into vsvk_schema_migrations(migration_id) values ($1) on conflict do nothing returning migration_id",
+      connection,
+      transaction))
+    {
+      marker.Parameters.AddWithValue(migrationId);
+      if (await marker.ExecuteScalarAsync(cancellationToken) is null)
+      {
+        await transaction.CommitAsync(cancellationToken);
+        return;
+      }
+    }
+
+    var seedJson = ReadArticleCatalogSeed();
+    foreach (var statement in migrationSql.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+    {
+      await using var import = new NpgsqlCommand(statement, connection, transaction);
+      if (statement.Contains("$1", StringComparison.Ordinal))
+      {
+        import.Parameters.AddWithValue(NpgsqlDbType.Jsonb, seedJson);
+      }
+      await import.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    await transaction.CommitAsync(cancellationToken);
+  }
+
+  private static string ReadArticleCatalogSeed()
+  {
+    var resourceName = Assembly.GetExecutingAssembly().GetManifestResourceNames()
+      .Single(name => name.EndsWith("Db.Seed.ArtikelCatalogus.json", StringComparison.Ordinal));
+    using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName)
+      ?? throw new InvalidOperationException("Artikelcatalogus seed resource is missing.");
+    using var reader = new StreamReader(stream);
+    return reader.ReadToEnd();
   }
 }

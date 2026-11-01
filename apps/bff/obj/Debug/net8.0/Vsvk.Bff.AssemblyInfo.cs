@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Vsvk.Bff")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+df0e010e37442c2fb1d0221fa32ecb4c8827e74c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+059fc324039e521c27a627eabc6cbbbaa3702246")]
 [assembly: System.Reflection.AssemblyProductAttribute("Vsvk.Bff")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Vsvk.Bff")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

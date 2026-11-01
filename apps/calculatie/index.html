@@ -197,13 +197,11 @@ td.ro{color:var(--muted);font-size:13px;padding:3px 8px;white-space:nowrap}
 const KEY="vsvk-calc-2027";
 const LOGO=document.querySelector(".brand .logo-svg").outerHTML;
 const TABS=[["overzicht","Overzicht"],["calculatie","Calculatie"],["offerte","Offerte"],["teksten","Offerteteksten"],["planning","Planning"],["artikelen","Artikelen"],["vestigingen","Vestigingen"],["opslaan","Opslaan / laden"]];
-const CATS=["Arbeid","Materieel","Materiaal","Opslag en logistiek","Overig"];
-const EENHEDEN=["uur","per dag","per week","per km","per stuk","stuk","per zak","M3","keer","per bon"];
+let CATS=[],EENHEDEN=[],ARTICLE_CATEGORIES=[],ARTICLE_UNITS=[];
 const TOESLAGEN=[1,1.25,1.35,1.5,1.75,2];
 const HOOFDSTUKKEN=["Planning","Uitgangspunten","Niet inbegrepen","Voorwaarden"];
 let uid=Date.now();const id=()=>(uid++).toString(36);
 
-const ART=[["Grondwerker","Arbeid","uur",48.04],["Vakman Verkeersmaatregel","Arbeid","uur",45.68],["Specialist Verkeersmaatregel","Arbeid","uur",52.5],["Monteur E&M","Arbeid","uur",62.7],["Werkvoorbereider","Arbeid","uur",63.79],["Voorman","Arbeid","uur",67.46],["Uitvoerder","Arbeid","uur",80.59],["Machinist materieel","Arbeid","uur",52.5],["Hoogwerker snorkel","Materieel","uur",50],["Heftruck","Materieel","uur",30],["Schaftkeet / handenwasunit","Materieel","uur",20],["Overdukmaskers","Materieel","uur",20],["Stofzuigers, snoeren","Materieel","uur",20],["Afval bakken en bokken","Materieel","stuk",40],["Borden bok","Materieel","stuk",250],["Elektrische hoogwerker met werkhoogte ≤ 11 meter","Materieel","uur",46.2],["Hoogwerker met werkhoogte ≤ 15 meter","Materieel","uur",38.59],["Hoogwerker met werkhoogte ≤ 22 meter","Materieel","uur",41.75],["Hoogwerker met werkhoogte ≤ 27 meter","Materieel","uur",48.04],["Vrachtwagenhoogwerker 30mtr.","Materieel","uur",79.8],["Bakwagen met Autolaadkraan","Materieel","uur",49.08],["Trekker met Autolaadkraan","Materieel","uur",68.25],["Trekker (Vrachtwagen)","Materieel","uur",47.51],["E-Trekker (Vrachtwagen emissieloos)","Materieel","uur",57.23],["Semi-Dieplader","Materieel","uur",20.48],["Dieplader","Materieel","uur",20.48],["Citytrailer 1 as","Materieel","uur",20.48],["Vlakke trailer 2 as","Materieel","uur",20.48],["Steentrailer met Rollerkraan","Materieel","uur",29.93],["Minigraver U10 op transportaanhangwagen","Materieel","uur",18.9],["Minigraver U17 op transportaanhangwagen","Materieel","uur",26.25],["Minigraver 4,5t","Materieel","uur",33.6],["Bakwagen tot 3,5 ton","Materieel","uur",22],["Bakwagen tot 5 ton incl strippenlegger","Materieel","uur",34.13],["Bakwagen tot 5 ton met kraan","Materieel","uur",37.8],["Bestelwagen klein (per uur)","Materieel","uur",11.55],["Bestelwagen klein (per km)","Materieel","per km",0.45],["Botsabsorber met bediening dag 06-18u","Materieel","uur",75.34],["Botsabsorber met bediening nacht 18-06u & zaterdag 00-24u","Materieel","uur",88.73],["Botsabsorber met bediening zondag 00-24u","Materieel","uur",114.74],["Provinciewagen","Materieel","per dag",78.23],["Aktiewagen","Materieel","per dag",103.95],["Tekstwagen","Materieel","per dag",207.38],["Verkeerskegel","Materieel","per dag",1.58],["Compressor met lucht hamer","Materieel","per dag",138.08],["Hakhamer","Materieel","per dag",69.3],["Tandemas aanhangwagen 2700KG","Materieel","uur",11.55],["Haspelwagen","Materieel","per dag",171.68],["LightCube","Materieel","per dag",78.23],["Lichtmastwagen - Mobilight","Materieel","per dag",131.25],["Rijplaat kunststof 3x1mtr","Materieel","per dag",4.46],["Wacker trilstamper","Materieel","per dag",36.23],["Trilplaat Klein <100 kg","Materieel","per dag",43.05],["Trilplaat Groot >100KG","Materieel","per dag",105.53],["Valgordel","Materieel","per dag",17.33],["Trekveer 60 meter","Materieel","per dag",47.78],["Trekveer 80 meter","Materieel","per dag",92.93],["Roterende waterpaslaser incl. statief","Materieel","per dag",90.3],["Vuilwaterpomp","Materieel","per dag",171.68],["Aggregaat 230/380V 7.9 KW Diesel","Materieel","per dag",90.3],["Klopboormachine Hilti (excl verbruik van boren)","Materieel","per dag",55.65],["Motorslijper","Materieel","per dag",41.48],["Momentsleutel 3200n/m op accu incl. doppenset","Materieel","per dag",362.78],["Borden bok (per dag)","Materieel","per dag",69.3],["Evenaar 6 mtr","Materieel","per dag",69.3],["Evenaar 6 - 10 mtr","Materieel","per dag",113.93],["Gereedschap (slagtol en handgereedschap)","Materieel","uur",10],["Big bag breker zand","Materiaal","M3",103.43],["Zak Snelbeton","Materiaal","per zak",17.06],["Zak a25 KG Krimpvrije Betonmortel","Materiaal","per zak",115.4],["Slijpschijf diamant t.b.v. motorslijper","Materiaal","per dag",115.4],["Slijpschijf metaal t.b.v motorslijper","Materiaal","per stuk",20.27],["Slijpschijf klein","Materiaal","per stuk",2.44],["Opslag per m2","Opslag en logistiek","per week",2.05],["Magazijn medewerker incl. heftruck","Opslag en logistiek","uur",66.94],["Afvoeren vuil","Overig","keer",200],["Afvoer vrijgekomen materialen","Overig","keer","zp"],["IBC","Overig","keer",75]];
 const ONDERDELEN=["Voorbereiding","Opslag, transport en logistiek","Reinigen van de huidige installatie","Demontage","Montage","Afvoer","Oplevering","Reistijd","Overig","Aansluiten","Aanbrengen van bekabeling","Montage van armaturen","Reinigen van de te demonteren installatie","Verwijderen installatie tunnelwand noord en zuid","Verwijderen installatie tunnelplafond noord en zuid","Buitengebied west","Buitengebied oost"];
 const SUGG=[["Voorbereiding","Het schouwen in de tunnel"],["Voorbereiding","Het maken van een intern plan van aanpak"],["Voorbereiding","Het deelnemen aan werkoverleggen"],["Voorbereiding","Het voorbereiden van de werkzaamheden"],["Voorbereiding","Het opzetten van de planning"]];
 const TEKSTEN=[
@@ -247,7 +245,7 @@ function baseData(){return{
   teksten:TEKSTEN.map(t=>({id:id(),h:t[0],t:t[1],on:!!t[2]})),
   planning:[],
   plan:{},
-  artikelen:ART.map(a=>({id:id(),a:a[0],c:a[1],e:a[2],t:a[3],act:true})),
+  artikelen:[],
   onderdelen:ONDERDELEN.slice(),
   sugg:SUGG.map(s=>({id:id(),o:s[0],t:s[1]})),
   vestigingen:[],
@@ -291,6 +289,8 @@ function toast(m){const t=document.getElementById("toast");t.textContent=m;t.cla
 
 /* rekenen */
 const art=name=>S.artikelen.find(a=>a.a===name);
+const articleFromDto=a=>({id:a.id,a:a.naam,c:a.categorie,categorieId:a.categorieId,e:a.eenheid,eenheidId:a.eenheidId,t:a.tariefSoort==="zie_prijs"?"zp":a.tarief,tariefSoort:a.tariefSoort,act:a.actief});
+const articleRequest=a=>({naam:a.a,categorieId:ARTICLE_CATEGORIES.find(c=>c.naam===a.c)?.id||a.categorieId,eenheidId:ARTICLE_UNITS.find(u=>u.naam===a.e)?.id||a.eenheidId,tariefSoort:num(a.t)==null?"zie_prijs":"vast",tarief:num(a.t),actief:a.act!==false});
 function lineTotal(l){
   if(!l.artikel)return 0;const a=art(l.artikel);const own=(l.tarief!==""&&l.tarief!=null)?num(l.tarief):null;const tarief=own!=null?own:(a?num(a.t):null);if(tarief==null)return 0;
   const f=[l.aantal,l.dagen,l.uren].map(num).filter(v=>v!=null);
@@ -301,7 +301,7 @@ const blockTotal=b=>b.lines.reduce((s,l)=>s+lineTotal(l),0);
 function calc(){
   const ak=num(S.project.akwr)||0;const sub=S.blocks.reduce((s,b)=>s+blockTotal(b),0);
   const perCat={};CATS.forEach(c=>perCat[c]=0);
-  S.blocks.forEach(b=>b.lines.forEach(l=>{const a=art(l.artikel);if(a){const c=CATS.includes(a.c)?a.c:"Overig";perCat[c]+=lineTotal(l)}}));
+  S.blocks.forEach(b=>b.lines.forEach(l=>{const a=art(l.artikel);if(a){const c=CATS.includes(a.c)?a.c:(CATS.at(-1)||"");if(c)perCat[c]+=lineTotal(l)}}));
   const perOnd={};S.blocks.forEach(b=>{const k=b.onderdeel||"(geen onderdeel)";perOnd[k]=(perOnd[k]||0)+blockTotal(b)});
   return{sub,ak,akBedrag:sub*ak,tot:sub*(1+ak),perCat,perOnd};
 }
@@ -538,6 +538,16 @@ function renderArtikelen(){
   </tbody></table></div></section>`;
 }
 let artLocked=true,artAsk=false,txLocked=true,txAsk=false,vestLocked=true,vestAsk=false,artQ="",delBlockId=null,delLineId=null;
+const articleSaveTimers=new Map(),articleSaveChains=new Map();
+function scheduleArticleSave(index){
+  const article=S.artikelen[index];if(!article||!article.id)return;
+  clearTimeout(articleSaveTimers.get(article.id));
+  articleSaveTimers.set(article.id,setTimeout(()=>{
+    const previous=articleSaveChains.get(article.id)||Promise.resolve();
+    const pending=previous.then(()=>{const current=S.artikelen.find(item=>item.id===article.id);return current?store.saveArticle(current):false});
+    articleSaveChains.set(article.id,pending.catch(()=>{}));
+  },600));
+}
 
 /* ===== Vestigingen ===== */
 function vLock(h){if(AUTH.canManageSettings&&!vestLocked)return h;return h.replace(/<input id="sig-[^>]*>/,"").replace(/<label class="btn" for="sig-[^"]*"[^>]*>Toevoegen<\/label>/,'<span class="ro">—</span>').replace(/<input /g,'<input readonly tabindex="-1" ').replace(/<select /g,'<select disabled ').replace(/<button class="btn ghost" data-act="(delvest|delmede|delsig)"[^>]*>✕<\/button>/g,"")}
@@ -683,6 +693,8 @@ const store={db:null,_poll:null,
         applySettings({exists:true,data:()=>data,metadata:{hasPendingWrites:false}})
       }
 
+      await this._refreshArticleCatalog();
+
       await this._refreshOv();
       this.db={kind:"http"};
       if(this._poll)clearInterval(this._poll);
@@ -715,6 +727,43 @@ const store={db:null,_poll:null,
       onOv();
       toast("Database niet bereikbaar. Herlaad of log opnieuw in.");
     }
+  },
+  async _refreshArticleCatalog(){
+    const responses=await Promise.all(["/api/articles","/api/article-categories","/api/article-units"].map(url=>this._json(url)));
+    if(responses.some(isAuthFailure)){redirectToLogin();throw new Error("auth")}
+    if(responses.some(isAccessDenied))throw new Error("forbidden");
+    if(responses.some(response=>!response.ok))throw new Error("article-catalog");
+    const [articles,categories,units]=await Promise.all(responses.map(response=>response.json()));
+    S.artikelen=(articles||[]).map(articleFromDto);
+    ARTICLE_CATEGORIES=categories||[];
+    ARTICLE_UNITS=units||[];
+    CATS=ARTICLE_CATEGORIES.map(category=>category.naam);
+    EENHEDEN=ARTICLE_UNITS.map(unit=>unit.naam);
+    render();
+  },
+  async saveArticle(article){
+    try{
+      const response=await this._json(`/api/articles/${encodeURIComponent(article.id)}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(articleRequest(article))});
+      if(isAuthFailure(response)){redirectToLogin();return false}
+      if(response.status===403){toast("Je hebt geen rechten om artikelen te wijzigen.");return false}
+      if(response.status===409){toast("Er bestaat al een artikel met deze naam.");return false}
+      if(!response.ok)throw new Error("article-save");
+      return true;
+    }catch(error){toast("Artikel opslaan in PostgreSQL lukte niet.");return false}
+  },
+  async createArticle(article){
+    const response=await this._json("/api/articles",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(articleRequest(article))});
+    if(isAuthFailure(response)){redirectToLogin();return null}
+    if(response.status===403){toast("Je hebt geen rechten om artikelen toe te voegen.");return null}
+    if(response.status===409){toast("Er bestaat al een artikel met deze naam.");return null}
+    if(!response.ok)throw new Error("article-create");
+    return articleFromDto(await response.json());
+  },
+  async deactivateArticle(article){
+    const response=await this._json(`/api/articles/${encodeURIComponent(article.id)}`,{method:"DELETE"});
+    if(isAuthFailure(response)){redirectToLogin();return false}
+    if(response.status===403){toast("Je hebt geen rechten om artikelen te wijzigen.");return false}
+    return response.ok;
   },
   async save(rec){
     if(!this.db){toast("Geen databaseverbinding. Opslaan is nu niet mogelijk.");return}
@@ -783,15 +832,15 @@ const store={db:null,_poll:null,
   }
 };
 let DEF_TEKSTEN=null,lastSet=null,setLoaded=false,setT,settingsVer=null;
-function settingsPart(){return{artikelen:S.artikelen,vestigingen:S.vestigingen,medewerkers:S.medewerkers,onderdelen:S.onderdelen,sugg:S.sugg,teksten:S.teksten,standaard:{btw:S.offerte.btw,website:S.offerte.website,geldig:S.offerte.geldig,betaal:S.offerte.betaal}}}
+function settingsPart(){return{vestigingen:S.vestigingen,medewerkers:S.medewerkers,onderdelen:S.onderdelen,sugg:S.sugg,teksten:S.teksten,standaard:{btw:S.offerte.btw,website:S.offerte.website,geldig:S.offerte.geldig,betaal:S.offerte.betaal}}}
 function applySettings(sn){
   if(!sn.exists){if(!setLoaded){setLoaded=true;writeSettings()}return}
   if(sn.metadata&&sn.metadata.hasPendingWrites)return;
   const d=sn.data()||{};setLoaded=true;if(d&&d.version!=null)settingsVer=d.version;if(Array.isArray(d.teksten))DEF_TEKSTEN=d.teksten;
-  const pick=x=>JSON.stringify([x.artikelen,x.vestigingen,x.medewerkers,x.onderdelen,x.sugg]);
-  if(pick(d)!==pick(S)){["artikelen","vestigingen","medewerkers","onderdelen","sugg"].forEach(k=>{if(Array.isArray(d[k]))S[k]=d[k]});
+  const pick=x=>JSON.stringify([x.vestigingen,x.medewerkers,x.onderdelen,x.sugg]);
+  if(pick(d)!==pick(S)){["vestigingen","medewerkers","onderdelen","sugg"].forEach(k=>{if(Array.isArray(d[k]))S[k]=d[k]});
     if(S.voorbeeld||!S.nummer){if(d.teksten)S.teksten=d.teksten}
-    if(document.activeElement&&document.activeElement.matches("input,select,textarea")&&/^(artikelen|vestigingen)$/.test(tab)){}else render()}
+    if(document.activeElement&&document.activeElement.matches("input,select,textarea")&&tab==="vestigingen"){}else render()}
   lastSet=JSON.stringify(settingsPart());
 }
 async function writeSettings(){if(!store.db)return;const body=Object.assign(settingsPart(),{bijgewerkt:new Date().toISOString()});const str=JSON.stringify(body);
@@ -816,7 +865,7 @@ async function makeBackup(btn){
   catch(e){toast("Back-up downloaden lukte niet.")}}
 async function restoreBackup(d){
   const recs=(d.calculaties||[]).filter(r=>r&&r.nummer&&r.data);const st=d.instellingen||{};
-  ["artikelen","vestigingen","medewerkers","onderdelen","sugg"].forEach(k=>{if(Array.isArray(st[k]))S[k]=st[k]});if(Array.isArray(st.teksten))DEF_TEKSTEN=st.teksten;
+  ["vestigingen","medewerkers","onderdelen","sugg"].forEach(k=>{if(Array.isArray(st[k]))S[k]=st[k]});if(Array.isArray(st.teksten))DEF_TEKSTEN=st.teksten;
   save();if(store.db)await writeSettings();
   let n=0;for(const r of recs){await store.save(r);n++}
   tab="overzicht";render();toast(`Back-up teruggezet: ${n} calculaties en de instellingen`);
@@ -970,6 +1019,7 @@ function onField(e,final){
   if(v==="true"||v==="false"){if(/\.(on|act)$/.test(p))v=v==="true"}
   else if(el.dataset.num){v=v===""?"":(num(v)??v)}
   setPath(p,v);
+  const articleField=p.match(/^artikelen\.(\d+)\./);if(articleField)scheduleArticleSave(+articleField[1]);
   if(/^planning\.\d+\.(start|eind)$/.test(p)){const r=getPath(p.replace(/\.(start|eind)$/,''));if(r.start&&(!r.eind||r.eind<r.start))r.eind=r.start}if(S.voorbeeld&&/^(project|klant|blocks)/.test(p))S.voorbeeld=S.voorbeeld;save();
   if(/\.artikel$/.test(p)){const [,bi,,li]=p.split(".");const a=art(v);const u=document.querySelector(`[data-u="${bi}:${li}"]`),r=document.querySelector(`[data-r="${bi}:${li}"]`);
     if(u&&!getPath(p.replace(/artikel$/,"eenheid"))){const def=mapUnit(a);if(def&&![...u.options].some(o=>o.value===def))u.add(new Option(def,def));u.value=def}const tp=p.replace(/artikel$/,"tarief");const tv=a&&num(a.t)!=null?num(a.t):"";setPath(tp,tv);if(r){r.value=money(tv);r.placeholder=a?money(a.t):""}}
@@ -1058,7 +1108,7 @@ document.getElementById("main").addEventListener("change",e=>{
 
 let pending=null,pendingBackup=null;
 function ask(txt,fn){pending=fn;const c=document.getElementById("confirm");if(c){document.getElementById("confirmtxt").textContent=txt;c.hidden=false}else{tab="opslaan";render();ask(txt,fn)}}
-function doImport(){const box=document.getElementById("jsonbox");let d;try{d=JSON.parse(box.value)}catch(x){d=null}if(d&&d.type==="vsvk-backup"){pendingBackup=d;ask(`Back-up van ${String(d.gemaakt||"").slice(0,10)} terugzetten? ${(d.calculaties||[]).length} calculaties en de instellingen worden overschreven als ze hetzelfde nummer hebben.`,()=>restoreBackup(pendingBackup));return}try{if(!d.project||!d.blocks)throw 0;S=d;if(!S.nummer)S.voorbeeld=false;save();toast("Calculatie geladen");tab="calculatie";render();assignNumber()}catch(x){toast("Dit is geen geldige calculatiecode. Kopieer de volledige code en probeer opnieuw.")}}
+function doImport(){const box=document.getElementById("jsonbox");let d;try{d=JSON.parse(box.value)}catch(x){d=null}if(d&&d.type==="vsvk-backup"){pendingBackup=d;ask(`Back-up van ${String(d.gemaakt||"").slice(0,10)} terugzetten? ${(d.calculaties||[]).length} calculaties en de instellingen worden overschreven als ze hetzelfde nummer hebben.`,()=>restoreBackup(pendingBackup));return}try{if(!d.project||!d.blocks)throw 0;S=Object.assign(baseData(),{artikelen:S.artikelen},d);if(!S.nummer)S.voorbeeld=false;save();toast("Calculatie geladen");tab="calculatie";render();assignNumber()}catch(x){toast("Dit is geen geldige calculatiecode. Kopieer de volledige code en probeer opnieuw.")}}
 function copy(text,msg){(navigator.clipboard?navigator.clipboard.writeText(text):Promise.reject()).then(()=>toast(msg)).catch(()=>{toast("Kopiëren lukte niet; selecteer de tekst en kopieer handmatig.")})}
 
 document.getElementById("main").addEventListener("click",e=>{
@@ -1087,12 +1137,16 @@ document.getElementById("main").addEventListener("click",e=>{
     case"delond":if(!AUTH.canManageSettings||txLocked)return;S.onderdelen.splice(i,1);break;
     case"addplan":S.planning.push({id:id(),naam:"",start:"",eind:"",opm:""});break;
     case"delplan":S.planning.splice(i,1);break;
-    case"addart":if(!AUTH.canManageSettings||artLocked)return;S.artikelen.push({id:id(),a:"Nieuw artikel",c:"Overig",e:"uur",t:0,act:true});artQ="";break;
+    case"addart":if(!AUTH.canManageSettings||artLocked)return;{
+      const article={a:"Nieuw artikel",c:CATS.includes("Overig")?"Overig":(CATS[0]||""),e:EENHEDEN[0]||"",t:0,act:true};
+      store.createArticle(article).then(created=>{if(!created)return;S.artikelen.push(created);artQ="";render();toast("Artikel toegevoegd")}).catch(()=>toast("Artikel toevoegen aan PostgreSQL lukte niet."));return}
     case"artunlock":if(!AUTH.canManageSettings)return;artAsk=true;render();return;
     case"artunlockno":artAsk=false;render();return;
     case"artunlockyes":if(!AUTH.canManageSettings)return;artAsk=false;artLocked=false;render();toast("Wijzigen toegestaan");return;
     case"artlock":if(!AUTH.canManageSettings)return;artLocked=true;render();toast("Artikelen vergrendeld");return;
-    case"delart":if(!AUTH.canManageSettings||artLocked)return;S.artikelen.splice(i,1);break;
+    case"delart":if(!AUTH.canManageSettings||artLocked)return;{
+      const article=S.artikelen[i];if(!article||!article.id)return;
+      store.deactivateArticle(article).then(ok=>{if(!ok){toast("Artikel deactiveren lukte niet.");return}article.act=false;render();toast("Artikel gedeactiveerd")}).catch(()=>toast("Artikel deactiveren lukte niet."));return}
     case"vestunlock":if(!AUTH.canManageSettings)return;vestAsk=true;render();return;
     case"vestunlockno":vestAsk=false;render();return;
     case"vestunlockyes":if(!AUTH.canManageSettings)return;vestAsk=false;vestLocked=false;render();toast("Wijzigen toegestaan");return;
@@ -1112,7 +1166,7 @@ document.getElementById("main").addEventListener("click",e=>{
     case"del":ovConfirm=b.dataset.nr;render();return;
     case"delno":ovConfirm=null;render();return;
     case"delyes":{const nr=ovConfirm;ovConfirm=null;if(S.nummer===nr){S.nummer=null;S.project.calcnr="";S.project.offertenr=""}store.del(nr).then(()=>toast(`Calculatie ${nr} verwijderd`));render();return}
-    case"sample":ask("Huidige calculatie vervangen door het voorbeeld?",()=>{S=sampleData();save();tab="calculatie"});return;
+    case"sample":ask("Huidige calculatie vervangen door het voorbeeld?",()=>{const catalog=S.artikelen;S=sampleData();S.artikelen=catalog;save();tab="calculatie"});return;
     case"yes":if(pending)pending();pending=null;break;
     case"no":pending=null;document.getElementById("confirm").hidden=true;return;
     case"export":document.getElementById("jsonbox").value=JSON.stringify(S,null,1);return;

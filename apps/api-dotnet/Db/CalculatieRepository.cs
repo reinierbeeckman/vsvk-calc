@@ -412,51 +412,6 @@ where nummer = $1
     return rows > 0;
   }
 
-  public async Task<IReadOnlyList<string>> AutocompleteArticlesAsync(string query, int limit, CancellationToken cancellationToken)
-  {
-    const string sql = @"
-with from_settings as (
-  select distinct nullif(trim(a->>'a'), '') as artikel_naam
-  from instellingen_algemeen ia,
-       jsonb_array_elements(coalesce(ia.data->'artikelen', '[]'::jsonb)) as a
-  where ia.id = 1
-),
-from_saved as (
-  select distinct nullif(trim(artikel_naam), '') as artikel_naam
-  from calculatie_artikelen
-)
-select artikel_naam
-from (
-  select artikel_naam from from_settings
-  union
-  select artikel_naam from from_saved
-) src
-where artikel_naam is not null
-  and (
-    $1 = ''
-    or artikel_naam ilike '%' || $1 || '%'
-  )
-order by
-  case when lower(artikel_naam) like lower($1) || '%' then 0 else 1 end,
-  artikel_naam
-limit $2;
-";
-
-    await using var cmd = _dataSource.CreateCommand(sql);
-    cmd.Parameters.AddWithValue(query ?? string.Empty);
-    cmd.Parameters.AddWithValue(Math.Clamp(limit, 1, 50));
-
-    await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-    var result = new List<string>();
-
-    while (await reader.ReadAsync(cancellationToken))
-    {
-      result.Add(reader.GetString(0));
-    }
-
-    return result;
-  }
-
   private static async Task ReplaceArticlesAsync(
     NpgsqlConnection conn,
     NpgsqlTransaction tx,

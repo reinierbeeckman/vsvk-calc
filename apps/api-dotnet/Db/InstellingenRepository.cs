@@ -36,7 +36,7 @@ public sealed class InstellingenRepository
     const string sqlWithCheck = @"
 update instellingen_algemeen
 set
-  data = $1,
+  data = $1 - 'artikelen',
   version = version + 1,
   updated_at = now(),
   updated_by_sub = $2
@@ -48,7 +48,7 @@ returning data::text, version, updated_at;
     const string sqlNoCheck = @"
 update instellingen_algemeen
 set
-  data = $1,
+  data = $1 - 'artikelen',
   version = version + 1,
   updated_at = now(),
   updated_by_sub = $2

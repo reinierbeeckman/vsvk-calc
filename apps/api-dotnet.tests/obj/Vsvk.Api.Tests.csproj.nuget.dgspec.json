@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "/src/apps/api-dotnet.tests/Vsvk.Api.Tests.csproj": {}
+    "C:\\Projects\\vsvk-calc\\apps\\api-dotnet.tests\\Vsvk.Api.Tests.csproj": {}
   },
   "projects": {
-    "/src/apps/api-dotnet.tests/Vsvk.Api.Tests.csproj": {
+    "C:\\Projects\\vsvk-calc\\apps\\api-dotnet.tests\\Vsvk.Api.Tests.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/src/apps/api-dotnet.tests/Vsvk.Api.Tests.csproj",
+        "projectUniqueName": "C:\\Projects\\vsvk-calc\\apps\\api-dotnet.tests\\Vsvk.Api.Tests.csproj",
         "projectName": "Vsvk.Api.Tests",
-        "projectPath": "/src/apps/api-dotnet.tests/Vsvk.Api.Tests.csproj",
-        "packagesPath": "/root/.nuget/packages/",
-        "outputPath": "/src/apps/api-dotnet.tests/obj/",
+        "projectPath": "C:\\Projects\\vsvk-calc\\apps\\api-dotnet.tests\\Vsvk.Api.Tests.csproj",
+        "packagesPath": "C:\\Users\\reini\\.nuget\\packages\\",
+        "outputPath": "C:\\Projects\\vsvk-calc\\apps\\api-dotnet.tests\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/root/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\reini\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
@@ -24,10 +24,11 @@
         },
         "frameworks": {
           "net8.0": {
+            "framework": "net8.0",
             "targetAlias": "net8.0",
             "projectReferences": {
-              "/src/apps/api-dotnet/Vsvk.Api.csproj": {
-                "projectPath": "/src/apps/api-dotnet/Vsvk.Api.csproj"
+              "C:\\Projects\\vsvk-calc\\apps\\api-dotnet\\Vsvk.Api.csproj": {
+                "projectPath": "C:\\Projects\\vsvk-calc\\apps\\api-dotnet\\Vsvk.Api.csproj"
               }
             }
           }
@@ -41,10 +42,12 @@
           "enableAudit": "true",
           "auditLevel": "low",
           "auditMode": "direct"
-        }
+        },
+        "SdkAnalysisLevel": "10.0.400"
       },
       "frameworks": {
         "net8.0": {
+          "framework": "net8.0",
           "targetAlias": "net8.0",
           "dependencies": {
             "Microsoft.NET.Test.Sdk": {
@@ -71,26 +74,40 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[8.0.33, 8.0.33]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[8.0.33, 8.0.33]"
+            },
+            {
+              "name": "Microsoft.WindowsDesktop.App.Ref",
+              "version": "[8.0.33, 8.0.33]"
+            }
+          ],
           "frameworkReferences": {
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/8.0.427/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.403/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "/src/apps/api-dotnet/Vsvk.Api.csproj": {
+    "C:\\Projects\\vsvk-calc\\apps\\api-dotnet\\Vsvk.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/src/apps/api-dotnet/Vsvk.Api.csproj",
+        "projectUniqueName": "C:\\Projects\\vsvk-calc\\apps\\api-dotnet\\Vsvk.Api.csproj",
         "projectName": "Vsvk.Api",
-        "projectPath": "/src/apps/api-dotnet/Vsvk.Api.csproj",
-        "packagesPath": "/root/.nuget/packages/",
-        "outputPath": "/src/apps/api-dotnet/obj/",
+        "projectPath": "C:\\Projects\\vsvk-calc\\apps\\api-dotnet\\Vsvk.Api.csproj",
+        "packagesPath": "C:\\Users\\reini\\.nuget\\packages\\",
+        "outputPath": "C:\\Projects\\vsvk-calc\\apps\\api-dotnet\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/root/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\reini\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
@@ -100,6 +117,7 @@
         },
         "frameworks": {
           "net8.0": {
+            "framework": "net8.0",
             "targetAlias": "net8.0",
             "projectReferences": {}
           }
@@ -113,10 +131,12 @@
           "enableAudit": "true",
           "auditLevel": "low",
           "auditMode": "direct"
-        }
+        },
+        "SdkAnalysisLevel": "10.0.400"
       },
       "frameworks": {
         "net8.0": {
+          "framework": "net8.0",
           "targetAlias": "net8.0",
           "dependencies": {
             "Microsoft.AspNetCore.Authentication.JwtBearer": {
@@ -147,6 +167,24 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[8.0.33, 8.0.33]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Host.win-x64",
+              "version": "[8.0.33, 8.0.33]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[8.0.33, 8.0.33]"
+            },
+            {
+              "name": "Microsoft.WindowsDesktop.App.Ref",
+              "version": "[8.0.33, 8.0.33]"
+            }
+          ],
           "frameworkReferences": {
             "Microsoft.AspNetCore.App": {
               "privateAssets": "none"
@@ -155,7 +193,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/8.0.427/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.403/PortableRuntimeIdentifierGraph.json"
         }
       }
     }
