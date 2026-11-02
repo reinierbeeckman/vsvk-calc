@@ -127,7 +127,7 @@ order by jaar desc, seq desc;
 ";
 
     await using var cmd = _dataSource.CreateCommand(sql);
-    cmd.Parameters.AddWithValue((object?)vestigingFilter ?? DBNull.Value);
+    cmd.Parameters.AddWithValue(NpgsqlDbType.Text, (object?)vestigingFilter ?? DBNull.Value);
 
     await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
 
@@ -167,7 +167,7 @@ where nummer = $1
 
     await using var cmd = _dataSource.CreateCommand(sql);
     cmd.Parameters.AddWithValue(nummer);
-    cmd.Parameters.AddWithValue((object?)vestigingFilter ?? DBNull.Value);
+    cmd.Parameters.AddWithValue(NpgsqlDbType.Text, (object?)vestigingFilter ?? DBNull.Value);
 
     await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
     if (!await reader.ReadAsync(cancellationToken))
@@ -182,7 +182,7 @@ where nummer = $1
     CalculatieRecord record,
     CalculatieTotals totals,
     IReadOnlyList<CalculationArticleSelection> selectedArticles,
-    long? expectedVersion,
+    long expectedVersion,
     string? vestigingFilter,
     string? updatedBySub,
     CancellationToken cancellationToken)
@@ -227,51 +227,12 @@ returning
   updated_at;
 ";
 
-    const string sqlNoCheck = @"
-update calculaties
-set
-  projectnaam = $2,
-  klant = $3,
-  datum = $4,
-  door = $5,
-  vestiging = $6,
-  status = $7,
-  bedrag_snapshot = $8,
-  subtotal_snapshot = $9,
-  btw_rate_snapshot = $10,
-  btw_amount_snapshot = $11,
-  total_snapshot = $12,
-  data = $13,
-  version = version + 1,
-  updated_at = now(),
-  updated_by_sub = $14
-where nummer = $1
-  and is_deleted = false
-  and ($15 is null or vestiging = $15)
-returning
-  nummer,
-  projectnaam,
-  klant,
-  datum,
-  door,
-  vestiging,
-  status,
-  bedrag_snapshot,
-  subtotal_snapshot,
-  btw_rate_snapshot,
-  btw_amount_snapshot,
-  total_snapshot,
-  data::text,
-  version,
-  updated_at;
-";
-
     await using var conn = await _dataSource.OpenConnectionAsync(cancellationToken);
     await using var tx = await conn.BeginTransactionAsync(cancellationToken);
 
     CalculatieRecord? updated;
 
-    await using (var cmd = new NpgsqlCommand(expectedVersion is null ? sqlNoCheck : sqlWithCheck, conn, tx))
+    await using (var cmd = new NpgsqlCommand(sqlWithCheck, conn, tx))
     {
       cmd.Parameters.AddWithValue(record.Nummer);
       cmd.Parameters.AddWithValue(record.Projectnaam ?? "");
@@ -285,23 +246,22 @@ returning
       cmd.Parameters.AddWithValue(totals.BtwTarief);
       cmd.Parameters.AddWithValue(totals.BtwBedrag);
       cmd.Parameters.AddWithValue(totals.Totaal);
-      cmd.Parameters.AddWithValue(record.DataJson ?? "{}", NpgsqlDbType.Jsonb);
+      cmd.Parameters.AddWithValue(NpgsqlDbType.Jsonb, record.DataJson ?? "{}");
       cmd.Parameters.AddWithValue((object?)updatedBySub ?? DBNull.Value);
-      cmd.Parameters.AddWithValue((object?)vestigingFilter ?? DBNull.Value);
+      cmd.Parameters.AddWithValue(NpgsqlDbType.Text, (object?)vestigingFilter ?? DBNull.Value);
 
-      if (expectedVersion is not null)
+      cmd.Parameters.AddWithValue(expectedVersion);
+
+      await using (var reader = await cmd.ExecuteReaderAsync(cancellationToken))
       {
-        cmd.Parameters.AddWithValue(expectedVersion.Value);
+        updated = await reader.ReadAsync(cancellationToken) ? ReadRecord(reader) : null;
       }
+    }
 
-      await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-      if (!await reader.ReadAsync(cancellationToken))
-      {
-        await tx.RollbackAsync(cancellationToken);
-        return null;
-      }
-
-      updated = ReadRecord(reader);
+    if (updated is null)
+    {
+      await tx.RollbackAsync(cancellationToken);
+      return null;
     }
 
     await ReplaceArticlesAsync(conn, tx, record.Nummer, selectedArticles, cancellationToken);
@@ -310,7 +270,7 @@ returning
     return updated;
   }
 
-  public async Task<CalculatieRecord?> SetStatusAsync(string nummer, string status, long? expectedVersion, string? vestigingFilter, string? updatedBySub, CancellationToken cancellationToken)
+  public async Task<CalculatieRecord?> SetStatusAsync(string nummer, string status, long expectedVersion, string? vestigingFilter, string? updatedBySub, CancellationToken cancellationToken)
   {
     const string sqlWithCheck = @"
 update calculaties
@@ -341,43 +301,12 @@ returning
   updated_at;
 ";
 
-    const string sqlNoCheck = @"
-update calculaties
-set
-  status = $2,
-  version = version + 1,
-  updated_at = now(),
-  updated_by_sub = $3
-where nummer = $1
-  and is_deleted = false
-  and ($4 is null or vestiging = $4)
-returning
-  nummer,
-  projectnaam,
-  klant,
-  datum,
-  door,
-  vestiging,
-  status,
-  bedrag_snapshot,
-  subtotal_snapshot,
-  btw_rate_snapshot,
-  btw_amount_snapshot,
-  total_snapshot,
-  data::text,
-  version,
-  updated_at;
-";
-
-    await using var cmd = _dataSource.CreateCommand(expectedVersion is null ? sqlNoCheck : sqlWithCheck);
+    await using var cmd = _dataSource.CreateCommand(sqlWithCheck);
     cmd.Parameters.AddWithValue(nummer);
     cmd.Parameters.AddWithValue(status);
     cmd.Parameters.AddWithValue((object?)updatedBySub ?? DBNull.Value);
-    cmd.Parameters.AddWithValue((object?)vestigingFilter ?? DBNull.Value);
-    if (expectedVersion is not null)
-    {
-      cmd.Parameters.AddWithValue(expectedVersion.Value);
-    }
+    cmd.Parameters.AddWithValue(NpgsqlDbType.Text, (object?)vestigingFilter ?? DBNull.Value);
+    cmd.Parameters.AddWithValue(expectedVersion);
 
     await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
     if (!await reader.ReadAsync(cancellationToken))
@@ -388,7 +317,7 @@ returning
     return ReadRecord(reader);
   }
 
-  public async Task<bool> SoftDeleteAsync(string nummer, string? vestigingFilter, string? updatedBySub, CancellationToken cancellationToken)
+  public async Task<long?> SoftDeleteAsync(string nummer, long expectedVersion, string? vestigingFilter, string? updatedBySub, CancellationToken cancellationToken)
   {
     const string sql = @"
 update calculaties
@@ -400,16 +329,19 @@ set
   updated_by_sub = $3
 where nummer = $1
   and is_deleted = false
-  and ($2 is null or vestiging = $2);
+  and ($2 is null or vestiging = $2)
+  and version = $4
+returning version;
 ";
 
     await using var cmd = _dataSource.CreateCommand(sql);
     cmd.Parameters.AddWithValue(nummer);
-    cmd.Parameters.AddWithValue((object?)vestigingFilter ?? DBNull.Value);
+    cmd.Parameters.AddWithValue(NpgsqlDbType.Text, (object?)vestigingFilter ?? DBNull.Value);
     cmd.Parameters.AddWithValue((object?)updatedBySub ?? DBNull.Value);
+    cmd.Parameters.AddWithValue(expectedVersion);
 
-    var rows = await cmd.ExecuteNonQueryAsync(cancellationToken);
-    return rows > 0;
+    var obj = await cmd.ExecuteScalarAsync(cancellationToken);
+    return obj is null or DBNull ? null : Convert.ToInt64(obj);
   }
 
   private static async Task ReplaceArticlesAsync(

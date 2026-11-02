@@ -132,7 +132,7 @@ public sealed class ArtikelRepository(VsvkDbContext context)
     return (await GetByIdAsync(artikel.Id, includeInactive: true, cancellationToken))!;
   }
 
-  public async Task<ArtikelDto?> UpdateAsync(Guid id, ArtikelRequest request, CancellationToken cancellationToken)
+  public async Task<ArtikelDto?> UpdateAsync(Guid id, ArtikelRequest request, long expectedVersion, CancellationToken cancellationToken)
   {
     var artikel = await context.Artikelen.FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
     if (artikel is null)
@@ -146,22 +146,42 @@ public sealed class ArtikelRepository(VsvkDbContext context)
     artikel.TariefSoort = request.TariefSoort;
     artikel.Tarief = request.Tarief;
     artikel.Actief = request.Actief;
+    context.Entry(artikel).Property(item => item.Version).OriginalValue = expectedVersion;
+    artikel.Version++;
 
-    await context.SaveChangesAsync(cancellationToken);
+    try
+    {
+      await context.SaveChangesAsync(cancellationToken);
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+      return null;
+    }
+
     return await GetByIdAsync(id, includeInactive: true, cancellationToken);
   }
 
-  public async Task<bool> DeactivateAsync(Guid id, CancellationToken cancellationToken)
+  public async Task<ArtikelDto?> DeactivateAsync(Guid id, long expectedVersion, CancellationToken cancellationToken)
   {
     var artikel = await context.Artikelen.FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
     if (artikel is null)
     {
-      return false;
+      return null;
     }
 
     artikel.Actief = false;
-    await context.SaveChangesAsync(cancellationToken);
-    return true;
+    context.Entry(artikel).Property(item => item.Version).OriginalValue = expectedVersion;
+    artikel.Version++;
+    try
+    {
+      await context.SaveChangesAsync(cancellationToken);
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+      return null;
+    }
+
+    return await GetByIdAsync(id, includeInactive: true, cancellationToken);
   }
 
   public static bool IsUniqueViolation(Exception exception) =>

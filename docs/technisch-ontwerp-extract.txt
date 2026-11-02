@@ -862,3 +862,21 @@ aangevuld.
 Technische documentatie geraadpleegd op 29 oktober 2026: Microsoft over OIDC en BFF; PostgreSQL over beveiligingsbeleid per rij;
 Traefik over routering. Deze bronnen ondersteunen technische patronen, niet de voorgestelde VSVK-grenswaarden of
 productversiekeuze.
+
+Implementatiecontract: optimistic concurrency
+Voor alle updates en verwijderingen van bestaande records is If-Match verplicht. De API accepteert uitsluitend een
+strong ETag met een positief numeriek version-token, bijvoorbeeld If-Match: "12". Weak ETags, ontbrekende waarden,
+wildcards en lijsten met meerdere ETags worden niet als voorwaardeloze writes geaccepteerd. Ontbrekend geeft 428,
+ongeldig geeft 400, een verouderde versie geeft 412 en domeinconflicten zoals een dubbele artikelnaam geven 409.
+POST voor nieuwe records gebruikt geen If-Match.
+
+De actieve endpoints zijn PUT en DELETE /api/articles/{id}, PUT en PATCH /api/calculaties/{nummer}, DELETE
+/api/calculaties/{nummer} en PUT /api/instellingen/algemeen. Artikel-, calculatie- en instellingenrecords hebben een
+oplopende bigint-version. Calculatie en calculatie_artikelen worden in dezelfde transactie gewijzigd; de versiecheck
+wordt atomair uitgevoerd voordat de artikelregels worden vervangen. De custom database migrator voegt version toe
+aan bestaande artikelen en initialiseert bestaande rijen op versie 1.
+
+Detail-GETs en succesvolle mutaties sturen de strong ETag in de HTTP ETag-header. Collectieresponses bevatten per
+record ook een etag-veld zodat de SPA bij opslaan of verwijderen exact die waarde kan terugsturen in If-Match. Bij
+412 haalt de SPA de nieuwste versie op en bewaart de lokale invoer. De gebruiker kan versies vergelijken en moet
+expliciet kiezen voor opnieuw toepassen; de client voert geen automatische retry uit.

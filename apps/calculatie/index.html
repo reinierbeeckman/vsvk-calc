@@ -286,10 +286,34 @@ const eur=v=>EUR.format(v||0);
 const num=v=>{if(v===""||v==null)return null;const n=typeof v==="number"?v:parseFloat(String(v).replace(",","."));return isNaN(n)?null:n};
 const fdate=iso=>{if(!iso)return"";const d=new Date(iso+"T00:00:00");return isNaN(d)?"":d.toLocaleDateString("nl-NL",{day:"numeric",month:"long",year:"numeric"})};
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),1800)}
+async function showConcurrencyConflict({entity,local,loadLatest,reapply}){
+  let latest;
+  try{latest=await loadLatest()}catch{toast(`De nieuwste versie van ${entity} kon niet worden geladen.`);return false}
+  if(!latest||!latest.body||!latest.etag){toast(`De nieuwste versie van ${entity} kon niet worden vergeleken.`);return false}
+  const dlg=document.createElement("dialog");
+  dlg.style.cssText="max-width:min(900px,92vw);max-height:85vh;border:1px solid #999;padding:20px;color:#111;background:#fff";
+  const title=document.createElement("h2");title.textContent=`${entity} is gewijzigd door iemand anders`;
+  const explanation=document.createElement("p");explanation.textContent="De nieuwste databaseversie is opgehaald. Je invoer is bewaard. Vergelijk beide versies voordat je je wijziging opnieuw toepast.";
+  const compare=document.createElement("button");compare.className="btn";compare.textContent="Vergelijk versies";
+  const details=document.createElement("div");details.hidden=true;details.style.cssText="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-height:45vh;overflow:auto";
+  const makePanel=(label,value)=>{const section=document.createElement("section");const heading=document.createElement("h3");heading.textContent=label;const pre=document.createElement("pre");pre.style.cssText="white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;background:#f4f4f4;padding:10px";pre.textContent=JSON.stringify(value,null,2);section.append(heading,pre);return section};
+  details.append(makePanel("Jouw invoer",local),makePanel("Nieuwste versie",latest.body));
+  compare.addEventListener("click",()=>{details.hidden=!details.hidden;compare.textContent=details.hidden?"Vergelijk versies":"Verberg vergelijking"});
+  const reapplyButton=document.createElement("button");reapplyButton.className="btn primary";reapplyButton.textContent="Ververs en pas mijn wijziging opnieuw toe";
+  const close=document.createElement("button");close.className="btn";close.textContent="Sluiten en invoer bewaren";
+  const actions=document.createElement("div");actions.className="row";actions.style.marginTop="16px";actions.append(compare,reapplyButton,close);
+  dlg.append(title,explanation,details,actions);document.body.append(dlg);
+  return new Promise(resolve=>{
+    close.addEventListener("click",()=>{dlg.close();dlg.remove();resolve(false)});
+    reapplyButton.addEventListener("click",async()=>{dlg.close();dlg.remove();try{const applied=await reapply(latest);resolve(applied!==false)}catch{resolve(false)}});
+    dlg.addEventListener("cancel",event=>{event.preventDefault();dlg.close();dlg.remove();resolve(false)});
+    dlg.addEventListener("close",()=>dlg.remove());dlg.showModal();
+  });
+}
 
 /* rekenen */
 const art=name=>S.artikelen.find(a=>a.a===name);
-const articleFromDto=a=>({id:a.id,a:a.naam,c:a.categorie,categorieId:a.categorieId,e:a.eenheid,eenheidId:a.eenheidId,t:a.tariefSoort==="zie_prijs"?"zp":a.tarief,tariefSoort:a.tariefSoort,act:a.actief});
+const articleFromDto=a=>({id:a.id,a:a.naam,c:a.categorie,categorieId:a.categorieId,e:a.eenheid,eenheidId:a.eenheidId,t:a.tariefSoort==="zie_prijs"?"zp":a.tarief,tariefSoort:a.tariefSoort,act:a.actief,version:a.version,etag:a.etag});
 const articleRequest=a=>({naam:a.a,categorieId:ARTICLE_CATEGORIES.find(c=>c.naam===a.c)?.id||a.categorieId,eenheidId:ARTICLE_UNITS.find(u=>u.naam===a.e)?.id||a.eenheidId,tariefSoort:num(a.t)==null?"zie_prijs":"vast",tarief:num(a.t),actief:a.act!==false});
 function lineTotal(l){
   if(!l.artikel)return 0;const a=art(l.artikel);const own=(l.tarief!==""&&l.tarief!=null)?num(l.tarief):null;const tarief=own!=null?own:(a?num(a.t):null);if(tarief==null)return 0;
@@ -408,6 +432,7 @@ function findMede(name){const norm=x=>String(x||"").toLowerCase().replace(/\./g,
   const t=n.split(" ");const ini=t[0],rest=t.slice(1).join(" ");
   if(ini.length===1&&rest){const hit=S.medewerkers.filter(x=>{const u=norm(x.naam).split(" ");return u[0][0]===ini&&u.slice(1).join(" ")===rest});if(hit.length===1)return hit[0]}
   return{}}
+
 
 /* ===== Offerte ===== */
 function renderOfferte(){
@@ -608,9 +633,10 @@ let OV=[],ovReady=false,ovQ="",ovConfirm=null;
 function onOv(){if(tab==="overzicht")render()}
 const waitOv=async()=>{for(let i=0;i<60&&!ovReady;i++)await new Promise(r=>setTimeout(r,100))};
 function calcPart(){return{project:S.project,klant:S.klant,blocks:S.blocks,offerte:S.offerte,teksten:S.teksten,plan:S.plan||{},planning:S.planning||[],status:S.status||"Concept",...(S.afronding?{afronding:S.afronding}:{})}}
-function recordFrom(nr){const prev=OV.find(x=>x.nummer===nr);return{nummer:nr,projectnaam:S.project.naam||"",klant:S.klant.bedrijf||"",datum:S.project.datum||"",door:S.project.door||"",vestiging:S.project.vestiging||"",status:S.status||"Concept",bedrag:offerteModel().tot,bijgewerkt:new Date().toISOString(),data:JSON.stringify(calcPart()),version:prev&&prev.version!=null?prev.version:null}}
+function recordFrom(nr){return{nummer:nr,projectnaam:S.project.naam||"",klant:S.klant.bedrijf||"",datum:S.project.datum||"",door:S.project.door||"",vestiging:S.project.vestiging||"",status:S.status||"Concept",bedrag:offerteModel().tot,bijgewerkt:new Date().toISOString(),data:JSON.stringify(calcPart()),version:S.version!=null?S.version:null,etag:S.etag||null}}
 const isAuthFailure = r => r && r.status===401;
 const isAccessDenied = r => r && r.status===403;
+const responseEtag = (response,body) => response.headers.get("etag")||(body&&body.etag)||null;
 const redirectToLogin = () => {
   const returnUrl = encodeURIComponent(location.pathname + location.search + location.hash);
   location.href = `/bff/login?returnUrl=${returnUrl}`;
@@ -690,6 +716,7 @@ const store={db:null,_poll:null,
       }
       if(s.ok){
         const data=await s.json();
+        settingsEtag=responseEtag(s,data);
         applySettings({exists:true,data:()=>data,metadata:{hasPendingWrites:false}})
       }
 
@@ -743,11 +770,17 @@ const store={db:null,_poll:null,
   },
   async saveArticle(article){
     try{
-      const response=await this._json(`/api/articles/${encodeURIComponent(article.id)}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(articleRequest(article))});
+      if(!article.etag){toast("Artikelversie ontbreekt. Ververs de artikelcatalogus voordat je opslaat.");return false}
+      const response=await this._json(`/api/articles/${encodeURIComponent(article.id)}`,{method:"PUT",headers:{"Content-Type":"application/json","If-Match":article.etag},body:JSON.stringify(articleRequest(article))});
       if(isAuthFailure(response)){redirectToLogin();return false}
       if(response.status===403){toast("Je hebt geen rechten om artikelen te wijzigen.");return false}
       if(response.status===409){toast("Er bestaat al een artikel met deze naam.");return false}
+      if(response.status===412){
+        return await showConcurrencyConflict({entity:"het artikel",local:article,loadLatest:async()=>{const r=await this._json(`/api/articles/${encodeURIComponent(article.id)}`);if(!r.ok)throw new Error("article-latest");const body=await r.json();return{body,etag:responseEtag(r,body)}},reapply:async latest=>{article.etag=latest.etag;article.version=latest.body.version;return await this.saveArticle(article)}});
+      }
+      if(response.status===428||response.status===400){toast("Artikel opslaan vereist een geldige, actuele versie. Ververs de artikelcatalogus.");return false}
       if(!response.ok)throw new Error("article-save");
+      const saved=await response.json();article.version=saved.version;article.etag=responseEtag(response,saved);
       return true;
     }catch(error){toast("Artikel opslaan in PostgreSQL lukte niet.");return false}
   },
@@ -760,55 +793,81 @@ const store={db:null,_poll:null,
     return articleFromDto(await response.json());
   },
   async deactivateArticle(article){
-    const response=await this._json(`/api/articles/${encodeURIComponent(article.id)}`,{method:"DELETE"});
+    if(!article.etag){toast("Artikelversie ontbreekt. Ververs de artikelcatalogus voordat je deactiveert.");return false}
+    const response=await this._json(`/api/articles/${encodeURIComponent(article.id)}`,{method:"DELETE",headers:{"If-Match":article.etag}});
     if(isAuthFailure(response)){redirectToLogin();return false}
     if(response.status===403){toast("Je hebt geen rechten om artikelen te wijzigen.");return false}
+    if(response.status===412){
+      return await showConcurrencyConflict({entity:"het artikel",local:article,loadLatest:async()=>{const r=await this._json(`/api/articles/${encodeURIComponent(article.id)}`);if(!r.ok)throw new Error("article-latest");const body=await r.json();return{body,etag:responseEtag(r,body)}},reapply:async latest=>{article.etag=latest.etag;article.version=latest.body.version;return await this.deactivateArticle(article)}});
+    }
+    if(response.status===428||response.status===400){toast("Artikel deactiveren vereist een geldige, actuele versie.");return false}
+    if(response.ok){article.etag=responseEtag(response,{})||article.etag;article.version=(article.version||0)+1}
     return response.ok;
   },
   async save(rec){
     if(!this.db){toast("Geen databaseverbinding. Opslaan is nu niet mogelijk.");return}
     try{
+      if(!rec.etag){toast("Calculatieversie ontbreekt. Ververs het overzicht voordat je opslaat.");return}
       const headers={"Content-Type":"application/json"};
-      if(rec.version!=null)headers["If-Match"]=`W/"${rec.version}"`;
+      headers["If-Match"]=rec.etag;
       const r=await this._json(`/api/calculaties/${encodeURIComponent(rec.nummer)}`,{method:"PUT",headers,body:JSON.stringify(rec)});
       if(isAuthFailure(r)){redirectToLogin();return}
       if(isAccessDenied(r))return;
-      if(r.status===409){toast("Deze calculatie is intussen gewijzigd. Herlaad en probeer opnieuw.");await this._refreshOv().catch(()=>{});return}
+      if(r.status===412){
+        return await showConcurrencyConflict({entity:"de calculatie",local:rec,loadLatest:async()=>{const latest=await this._json(`/api/calculaties/${encodeURIComponent(rec.nummer)}`);if(!latest.ok)throw new Error("calculation-latest");const body=await latest.json();return{body,etag:responseEtag(latest,body)}},reapply:async latest=>{rec.etag=latest.etag;rec.version=latest.body.version;return await this.save(rec)}});
+      }
+      if(r.status===428||r.status===400){toast("Calculatie opslaan vereist een geldige, actuele versie. Ververs het overzicht.");return}
       if(!r.ok)throw new Error("save");
       const saved=await r.json();
       rec.version=saved&&saved.version!=null?saved.version:rec.version;
+      rec.etag=responseEtag(r,saved)||rec.etag;
+      saved.etag=rec.etag;
+      if(S.nummer===rec.nummer){S.version=rec.version;S.etag=rec.etag}
       const i=OV.findIndex(x=>x.nummer===rec.nummer);
       if(i>=0)OV[i]=saved;else OV.push(saved);
       ovReady=true;
       onOv();
     }catch(e){toast("Opslaan in de database lukte niet. Probeer opnieuw.")}
   },
-  async del(nr){
+  async del(nr,etagOverride){
     if(!this.db){toast("Geen databaseverbinding. Verwijderen is nu niet mogelijk.");return}
     try{
-      const r=await this._json(`/api/calculaties/${encodeURIComponent(nr)}`,{method:"DELETE"});
+      const rec=OV.find(x=>x.nummer===nr);
+      const etag=etagOverride||(rec&&rec.etag);
+      if(!etag){toast("Calculatieversie ontbreekt. Ververs het overzicht voordat je verwijdert.");return}
+      const r=await this._json(`/api/calculaties/${encodeURIComponent(nr)}`,{method:"DELETE",headers:{"If-Match":etag}});
       if(isAuthFailure(r)){redirectToLogin();return}
       if(r.status===403){toast("Je hebt geen rechten om te verwijderen.");return}
+      if(r.status===412){
+        return await showConcurrencyConflict({entity:"de calculatie",local:rec||{nummer:nr},loadLatest:async()=>{const latest=await this._json(`/api/calculaties/${encodeURIComponent(nr)}`);if(!latest.ok)throw new Error("calculation-latest");const body=await latest.json();return{body,etag:responseEtag(latest,body)}},reapply:latest=>this.del(nr,latest.etag)});
+      }
+      if(r.status===428||r.status===400){toast("Calculatie verwijderen vereist een geldige, actuele versie.");return}
       if(!r.ok)throw new Error("del");
       OV=OV.filter(x=>x.nummer!==nr);
       onOv();
+      return true;
     }catch(e){toast("Verwijderen uit de database lukte niet. Probeer het opnieuw.")}
   },
-  async setStatus(nr,st){
+  async setStatus(nr,st,etagOverride){
     if(!this.db){toast("Geen databaseverbinding. Status wijzigen is nu niet mogelijk.");return}
     const r0=OV.find(x=>x.nummer===nr);
     try{
-      const headers={"Content-Type":"application/json"};
-      if(r0&&r0.version!=null)headers["If-Match"]=`W/"${r0.version}"`;
+      const etag=etagOverride||(r0&&r0.etag);
+      if(!etag){toast("Calculatieversie ontbreekt. Ververs het overzicht voordat je de status wijzigt.");return}
+      const headers={"Content-Type":"application/json","If-Match":etag};
       const r=await this._json(`/api/calculaties/${encodeURIComponent(nr)}/status`,{method:"PATCH",headers,body:JSON.stringify({status:st})});
       if(isAuthFailure(r)){redirectToLogin();return}
       if(r.status===403){toast("Je hebt geen rechten om de status te wijzigen.");return}
-      if(r.status===409){toast("Status wijzigen lukte niet: er is net een nieuwere versie opgeslagen.");await this._refreshOv().catch(()=>{});return}
+      if(r.status===412){
+        return await showConcurrencyConflict({entity:"de calculatie",local:{nummer:nr,status:st},loadLatest:async()=>{const latest=await this._json(`/api/calculaties/${encodeURIComponent(nr)}`);if(!latest.ok)throw new Error("calculation-latest");const body=await latest.json();return{body,etag:responseEtag(latest,body)}},reapply:latest=>this.setStatus(nr,st,latest.etag)});
+      }
+      if(r.status===428||r.status===400){toast("Status wijzigen vereist een geldige, actuele versie.");return}
       if(!r.ok)throw new Error("status");
       const saved=await r.json();
+      saved.etag=responseEtag(r,saved)||etag;
       const i=OV.findIndex(x=>x.nummer===nr);
       if(i>=0)OV[i]=saved;else OV.push(saved);
-      if(S.nummer===nr){S.status=saved.status||st;save();render()}else onOv();
+      if(S.nummer===nr){S.version=saved.version;S.etag=saved.etag;S.status=saved.status||st;render()}else onOv();
     }catch(e){toast("Status wijzigen lukte niet.")}
   },
   async claim(){
@@ -823,6 +882,8 @@ const store={db:null,_poll:null,
       const ver=c.version;
       const rec=recordFrom(nr);
       rec.version=ver;
+      rec.etag=responseEtag(r,c);
+      S.version=ver;S.etag=rec.etag;
       const i=OV.findIndex(x=>x.nummer===nr);
       if(i>=0)OV[i]=rec;else OV.push(rec);
       ovReady=true;
@@ -831,7 +892,7 @@ const store={db:null,_poll:null,
     }catch(e){return null}
   }
 };
-let DEF_TEKSTEN=null,lastSet=null,setLoaded=false,setT,settingsVer=null;
+let DEF_TEKSTEN=null,lastSet=null,setLoaded=false,setT,settingsVer=null,settingsEtag=null;
 function settingsPart(){return{vestigingen:S.vestigingen,medewerkers:S.medewerkers,onderdelen:S.onderdelen,sugg:S.sugg,teksten:S.teksten,standaard:{btw:S.offerte.btw,website:S.offerte.website,geldig:S.offerte.geldig,betaal:S.offerte.betaal}}}
 function applySettings(sn){
   if(!sn.exists){if(!setLoaded){setLoaded=true;writeSettings()}return}
@@ -845,13 +906,18 @@ function applySettings(sn){
 }
 async function writeSettings(){if(!store.db)return;const body=Object.assign(settingsPart(),{bijgewerkt:new Date().toISOString()});const str=JSON.stringify(body);
   if(str.length>240000){toast("De instellingen zijn te groot om op te slaan (te veel of te grote handtekeningen).");return}
+  if(!settingsEtag){toast("Instellingenversie ontbreekt. Ververs de pagina voordat je instellingen wijzigt.");return}
   lastSet=JSON.stringify(settingsPart());
-  try{const headers={"Content-Type":"application/json"};if(settingsVer!=null)headers["If-Match"]=`W/"${settingsVer}"`;
+  try{const headers={"Content-Type":"application/json","If-Match":settingsEtag};
     const r=await store._json("/api/instellingen/algemeen",{method:"PUT",headers,body:str});
     if(r.status===403){toast("Je hebt geen rechten om instellingen op te slaan.");return}
-    if(r.status===409){toast("Instellingen zijn intussen gewijzigd. Herlaad de pagina.");return}
+    if(r.status===412){
+      await showConcurrencyConflict({entity:"de algemene instellingen",local:body,loadLatest:async()=>{const latest=await store._json("/api/instellingen/algemeen");if(!latest.ok)throw new Error("settings-latest");const current=await latest.json();return{body:current,etag:responseEtag(latest,current)}},reapply:async latest=>{settingsEtag=latest.etag;settingsVer=latest.body.version;await writeSettings()}});
+      return;
+    }
+    if(r.status===428||r.status===400){toast("Instellingen opslaan vereist een geldige, actuele versie. Ververs de pagina.");return}
     if(!r.ok)throw new Error("settings");
-    const saved=await r.json();if(saved&&saved.version!=null)settingsVer=saved.version;
+    const saved=await r.json();if(saved&&saved.version!=null)settingsVer=saved.version;settingsEtag=responseEtag(r,saved)||settingsEtag;
   }catch(e){toast("Instellingen opslaan in de database lukte niet. Probeer opnieuw.")}}
 function scheduleSettings(){if(!store.db||!setLoaded)return;const cur=JSON.stringify(settingsPart());if(cur===lastSet)return;clearTimeout(setT);setT=setTimeout(writeSettings,1500)}
 async function makeBackup(btn){
@@ -879,8 +945,8 @@ function openRecord(r,asCopy){
   let d={};try{d=JSON.parse(r.data||"{}")}catch(e){toast("Deze calculatie kon niet worden geopend.");return}
   const keepSet={artikelen:S.artikelen,vestigingen:S.vestigingen,medewerkers:S.medewerkers,onderdelen:S.onderdelen,sugg:S.sugg};
   const n=Object.assign(baseData(),keepSet,d);n.voorbeeld=false;n.plan=n.plan||{};n.planning=n.planning||[];
-  if(asCopy){n.nummer=null;n.project=Object.assign({},n.project,{datum:todayISO(),versie:"1",calcnr:"",offertenr:""});n.status="Concept";n.plan={};delete n.afronding;S=n;tab="calculatie";save();render();scrollTo({top:0});assignNumber()}
-  else{n.nummer=r.nummer;n.project.calcnr=r.nummer;n.project.offertenr=r.nummer;n.status=d.status||r.status||"Concept";S=n;tab="calculatie";render();scrollTo({top:0});toast(`Calculatie ${r.nummer} geopend`)}
+  if(asCopy){n.nummer=null;n.version=null;n.etag=null;n.project=Object.assign({},n.project,{datum:todayISO(),versie:"1",calcnr:"",offertenr:""});n.status="Concept";n.plan={};delete n.afronding;S=n;tab="calculatie";save();render();scrollTo({top:0});assignNumber()}
+  else{n.nummer=r.nummer;n.version=r.version;n.etag=r.etag;n.project.calcnr=r.nummer;n.project.offertenr=r.nummer;n.status=d.status||r.status||"Concept";S=n;tab="calculatie";render();scrollTo({top:0});toast(`Calculatie ${r.nummer} geopend`)}
 }
 function renderOverzicht(){
   const list=OV.slice().sort((a,b)=>String(b.nummer).localeCompare(String(a.nummer),"nl",{numeric:true}));
@@ -1165,7 +1231,7 @@ document.getElementById("main").addEventListener("click",e=>{
     case"copy":{const r=OV.find(x=>x.nummer===b.dataset.nr);if(!r)return;openRecord(r,true);return}
     case"del":ovConfirm=b.dataset.nr;render();return;
     case"delno":ovConfirm=null;render();return;
-    case"delyes":{const nr=ovConfirm;ovConfirm=null;if(S.nummer===nr){S.nummer=null;S.project.calcnr="";S.project.offertenr=""}store.del(nr).then(()=>toast(`Calculatie ${nr} verwijderd`));render();return}
+    case"delyes":{const nr=ovConfirm;ovConfirm=null;store.del(nr).then(ok=>{if(!ok)return;if(S.nummer===nr){S.nummer=null;S.project.calcnr="";S.project.offertenr="";save()}toast(`Calculatie ${nr} verwijderd`);render()});render();return}
     case"sample":ask("Huidige calculatie vervangen door het voorbeeld?",()=>{const catalog=S.artikelen;S=sampleData();S.artikelen=catalog;save();tab="calculatie"});return;
     case"yes":if(pending)pending();pending=null;break;
     case"no":pending=null;document.getElementById("confirm").hidden=true;return;

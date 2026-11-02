@@ -77,6 +77,7 @@ public sealed class VsvkDbContext : DbContext
     artikel.Property(item => item.TariefSoort).HasColumnName("tariefsoort").HasMaxLength(20).IsRequired();
     artikel.Property(item => item.Tarief).HasColumnName("tarief").HasPrecision(14, 4);
     artikel.Property(item => item.Actief).HasColumnName("actief");
+    artikel.Property(item => item.Version).HasColumnName("version").IsConcurrencyToken();
     artikel.HasIndex(item => item.Actief);
     artikel.HasOne(item => item.Categorie)
       .WithMany(categorie => categorie.Artikelen)

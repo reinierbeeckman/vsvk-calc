@@ -10,6 +10,7 @@ using Vsvk.Api.Auth;
 using Vsvk.Api.Db;
 using Vsvk.Api.DTOs;
 using Vsvk.Api.Endpoints;
+using Vsvk.Api.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -81,28 +82,18 @@ static string? GetUserSub(ClaimsPrincipal user)
 static string? GetUserVestiging(ClaimsPrincipal user)
   => VsvkRoles.GetVestiging(user);
 
-static long? ParseIfMatch(HttpRequest request)
+static IfMatchParseResult ReadIfMatch(HttpRequest request)
 {
   if (!request.Headers.TryGetValue("If-Match", out var values))
   {
-    return null;
+    return IfMatchParser.Parse(null);
   }
 
-  var raw = values.ToString().Trim();
-  if (raw.StartsWith("W/\"", StringComparison.OrdinalIgnoreCase) && raw.EndsWith("\"", StringComparison.Ordinal))
-  {
-    raw = raw[3..^1];
-  }
-  else if (raw.StartsWith('"') && raw.EndsWith('"'))
-  {
-    raw = raw[1..^1];
-  }
-
-  return long.TryParse(raw, out var v) ? v : null;
+  return IfMatchParser.Parse(values.ToString());
 }
 
 static void SetEtag(HttpResponse response, long version)
-  => response.Headers.ETag = $"W/\"{version}\"";
+  => response.Headers.ETag = StrongEtag.Format(version);
 
 static decimal RoundCurrency(decimal value)
   => decimal.Round(value, 2, MidpointRounding.AwayFromZero);
@@ -363,7 +354,8 @@ app.MapGet("/api/calculaties", async (HttpContext ctx, CalculatieRepository repo
       btwTarief = r.Totals.BtwTarief,
       btwBedrag = r.Totals.BtwBedrag,
       totaal = r.Totals.Totaal,
-      version = r.Version
+      version = r.Version,
+      etag = StrongEtag.Format(r.Version)
     });
 
     return Results.Json(result);
@@ -415,6 +407,13 @@ app.MapPut("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, C
       return Results.Forbid();
     }
 
+    var precondition = ReadIfMatch(ctx.Request);
+    if (!precondition.IsValid)
+    {
+      return Results.StatusCode(precondition.StatusCode);
+    }
+    var expectedVersion = precondition.Version!.Value;
+
     using var reader = new StreamReader(ctx.Request.Body);
     var body = await reader.ReadToEndAsync(ct);
 
@@ -427,8 +426,6 @@ app.MapPut("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, C
 
     decimal GetDec(string name)
       => root.TryGetProperty(name, out var p) && p.ValueKind == System.Text.Json.JsonValueKind.Number ? p.GetDecimal() : 0m;
-
-    var expectedVersion = ParseIfMatch(ctx.Request);
 
     var vestigingFilter = VsvkRoles.HasOrganizationWideAccess(ctx.User) ? null : GetUserVestiging(ctx.User);
 
@@ -487,13 +484,7 @@ app.MapPut("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, C
     var updated = await repo.UpsertAsync(rec, totals, selectedArticles, expectedVersion, vestigingFilter, GetUserSub(ctx.User), ct);
     if (updated is null)
     {
-      // Either not found / forbidden by vestiging / or version mismatch
-      if (expectedVersion is not null)
-      {
-        return Results.StatusCode(StatusCodes.Status409Conflict);
-      }
-
-      return Results.NotFound();
+      return Results.StatusCode(StatusCodes.Status412PreconditionFailed);
     }
 
     SetEtag(ctx.Response, updated.Version);
@@ -517,10 +508,21 @@ app.MapPut("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, C
       version = updated.Version
     });
   })
+  .Produces(StatusCodes.Status200OK)
+  .Produces(StatusCodes.Status400BadRequest)
+  .Produces(StatusCodes.Status412PreconditionFailed)
+  .Produces(StatusCodes.Status428PreconditionRequired)
   .RequireAuthorization(VsvkRoles.Default);
 
 app.MapPatch("/api/calculaties/{nummer}/status", async (HttpContext ctx, string nummer, CalculatieRepository repo, CancellationToken ct) =>
   {
+    var precondition = ReadIfMatch(ctx.Request);
+    if (!precondition.IsValid)
+    {
+      return Results.StatusCode(precondition.StatusCode);
+    }
+    var expectedVersion = precondition.Version!.Value;
+
     using var reader = new StreamReader(ctx.Request.Body);
     var body = await reader.ReadToEndAsync(ct);
     using var doc = System.Text.Json.JsonDocument.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
@@ -534,18 +536,12 @@ app.MapPatch("/api/calculaties/{nummer}/status", async (HttpContext ctx, string 
       return Results.BadRequest(new { error = "Missing status" });
     }
 
-    var expectedVersion = ParseIfMatch(ctx.Request);
     var vestigingFilter = VsvkRoles.HasOrganizationWideAccess(ctx.User) ? null : GetUserVestiging(ctx.User);
 
     var updated = await repo.SetStatusAsync(nummer, status, expectedVersion, vestigingFilter, GetUserSub(ctx.User), ct);
     if (updated is null)
     {
-      if (expectedVersion is not null)
-      {
-        return Results.StatusCode(StatusCodes.Status409Conflict);
-      }
-
-      return Results.NotFound();
+      return Results.StatusCode(StatusCodes.Status412PreconditionFailed);
     }
 
     SetEtag(ctx.Response, updated.Version);
@@ -569,15 +565,35 @@ app.MapPatch("/api/calculaties/{nummer}/status", async (HttpContext ctx, string 
       version = updated.Version
     });
   })
+  .Produces(StatusCodes.Status200OK)
+  .Produces(StatusCodes.Status400BadRequest)
+  .Produces(StatusCodes.Status412PreconditionFailed)
+  .Produces(StatusCodes.Status428PreconditionRequired)
   .RequireAuthorization("directie");
 
 app.MapDelete("/api/calculaties/{nummer}", async (HttpContext ctx, string nummer, CalculatieRepository repo, CancellationToken ct) =>
   {
+    var precondition = ReadIfMatch(ctx.Request);
+    if (!precondition.IsValid)
+    {
+      return Results.StatusCode(precondition.StatusCode);
+    }
+
     var vestigingFilter = VsvkRoles.HasOrganizationWideAccess(ctx.User) ? null : GetUserVestiging(ctx.User);
 
-    var ok = await repo.SoftDeleteAsync(nummer, vestigingFilter, GetUserSub(ctx.User), ct);
-    return ok ? Results.NoContent() : Results.NotFound();
+    var deletedVersion = await repo.SoftDeleteAsync(nummer, precondition.Version!.Value, vestigingFilter, GetUserSub(ctx.User), ct);
+    if (deletedVersion is null)
+    {
+      return Results.StatusCode(StatusCodes.Status412PreconditionFailed);
+    }
+
+    SetEtag(ctx.Response, deletedVersion.Value);
+    return Results.NoContent();
   })
+  .Produces(StatusCodes.Status204NoContent)
+  .Produces(StatusCodes.Status400BadRequest)
+  .Produces(StatusCodes.Status412PreconditionFailed)
+  .Produces(StatusCodes.Status428PreconditionRequired)
   .RequireAuthorization("directie");
 
 // === Instellingen (algemeen) ===
@@ -601,7 +617,12 @@ app.MapGet("/api/instellingen/algemeen", async Task<Results<Ok<InstellingenAlgem
 
 app.MapPut("/api/instellingen/algemeen", async (HttpContext ctx, InstellingenRepository repo, VestigingRepository vestigingRepo, CancellationToken ct) =>
   {
-    var expectedVersion = ParseIfMatch(ctx.Request);
+    var precondition = ReadIfMatch(ctx.Request);
+    if (!precondition.IsValid)
+    {
+      return Results.StatusCode(precondition.StatusCode);
+    }
+    var expectedVersion = precondition.Version!.Value;
 
     using var reader = new StreamReader(ctx.Request.Body);
     var body = await reader.ReadToEndAsync(ct);
@@ -611,12 +632,7 @@ app.MapPut("/api/instellingen/algemeen", async (HttpContext ctx, InstellingenRep
     var updated = await repo.PutAsync(doc.RootElement, expectedVersion, GetUserSub(ctx.User), ct);
     if (updated is null)
     {
-      if (expectedVersion is not null)
-      {
-        return Results.StatusCode(StatusCodes.Status409Conflict);
-      }
-
-      return Results.NotFound();
+      return Results.StatusCode(StatusCodes.Status412PreconditionFailed);
     }
 
     SetEtag(ctx.Response, updated.Version);
@@ -633,6 +649,10 @@ app.MapPut("/api/instellingen/algemeen", async (HttpContext ctx, InstellingenRep
       standaard = GetOrNull(updated.Data, "standaard")
     });
   })
+  .Produces(StatusCodes.Status200OK)
+  .Produces(StatusCodes.Status400BadRequest)
+  .Produces(StatusCodes.Status412PreconditionFailed)
+  .Produces(StatusCodes.Status428PreconditionRequired)
   .RequireAuthorization("directie");
 
 
@@ -666,7 +686,8 @@ app.MapGet("/api/calculations", async (HttpContext ctx, CalculatieRepository rep
       },
       updatedAt = r.Bijgewerkt.ToString("o"),
       data = r.DataJson,
-      version = r.Version
+      version = r.Version,
+      etag = StrongEtag.Format(r.Version)
     });
 
     return Results.Json(result);

@@ -31,7 +31,7 @@ public sealed class InstellingenRepository
       .FirstOrDefaultAsync(cancellationToken);
   }
 
-  public async Task<InstellingenAlgemeenStorageRecord?> PutAsync(JsonElement data, long? expectedVersion, string? updatedBySub, CancellationToken cancellationToken)
+  public async Task<InstellingenAlgemeenStorageRecord?> PutAsync(JsonElement data, long expectedVersion, string? updatedBySub, CancellationToken cancellationToken)
   {
     const string sqlWithCheck = @"
 update instellingen_algemeen
@@ -45,26 +45,12 @@ where id = 1
 returning data::text, version, updated_at;
 ";
 
-    const string sqlNoCheck = @"
-update instellingen_algemeen
-set
-  data = $1 - 'artikelen',
-  version = version + 1,
-  updated_at = now(),
-  updated_by_sub = $2
-where id = 1
-returning data::text, version, updated_at;
-";
-
-    await using var cmd = _dataSource.CreateCommand(expectedVersion is null ? sqlNoCheck : sqlWithCheck);
+    await using var cmd = _dataSource.CreateCommand(sqlWithCheck);
 
     var json = JsonSerializer.Serialize(data);
     cmd.Parameters.AddWithValue(NpgsqlDbType.Jsonb, json);
     cmd.Parameters.AddWithValue(NpgsqlDbType.Text, (object?)updatedBySub ?? DBNull.Value);
-    if (expectedVersion is not null)
-    {
-      cmd.Parameters.AddWithValue(NpgsqlDbType.Bigint, expectedVersion.Value);
-    }
+    cmd.Parameters.AddWithValue(NpgsqlDbType.Bigint, expectedVersion);
 
     await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
     if (!await reader.ReadAsync(cancellationToken))

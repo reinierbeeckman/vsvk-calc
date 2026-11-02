@@ -45,10 +45,16 @@ public static class ArtikelEndpoints
       .RequireAuthorization(VsvkRoles.Default);
 
     app.MapGet("/api/articles/{id:guid}", async Task<Results<Ok<ArtikelDto>, NotFound>> (
-      Guid id, ClaimsPrincipal user, ArtikelRepository repository, CancellationToken cancellationToken) =>
+      Guid id, HttpContext context, ClaimsPrincipal user, ArtikelRepository repository, CancellationToken cancellationToken) =>
       {
         var artikel = await repository.GetByIdAsync(id, user.IsInRole(VsvkRoles.Directie), cancellationToken);
-        return artikel is null ? TypedResults.NotFound() : TypedResults.Ok(artikel);
+        if (artikel is null)
+        {
+          return TypedResults.NotFound();
+        }
+
+        context.Response.Headers.ETag = artikel.ETag;
+        return TypedResults.Ok(artikel);
       })
       .WithName("GetArticleById")
       .WithSummary("Haalt één artikel op")
@@ -57,7 +63,7 @@ public static class ArtikelEndpoints
       .RequireAuthorization(VsvkRoles.Default);
 
     app.MapPost("/api/articles", async Task<Results<Created<ArtikelDto>, BadRequest<string>, Conflict<string>>> (
-      ArtikelRequest request, ArtikelRepository repository, CancellationToken cancellationToken) =>
+      HttpContext context, ArtikelRequest request, ArtikelRepository repository, CancellationToken cancellationToken) =>
       {
         var validationError = Validate(request);
         if (validationError is not null)
@@ -73,6 +79,7 @@ public static class ArtikelEndpoints
         try
         {
           var artikel = await repository.CreateAsync(request, cancellationToken);
+          context.Response.Headers.ETag = artikel.ETag;
           return TypedResults.Created($"/api/articles/{artikel.Id}", artikel);
         }
         catch (DbUpdateException exception) when (ArtikelRepository.IsUniqueViolation(exception))
@@ -87,9 +94,14 @@ public static class ArtikelEndpoints
       .Produces<string>(StatusCodes.Status409Conflict)
       .RequireAuthorization("directie");
 
-    app.MapPut("/api/articles/{id:guid}", async Task<Results<Ok<ArtikelDto>, NotFound, BadRequest<string>, Conflict<string>>> (
-      Guid id, ArtikelRequest request, ArtikelRepository repository, CancellationToken cancellationToken) =>
+    app.MapPut("/api/articles/{id:guid}", async Task<IResult> (HttpContext context, Guid id, ArtikelRequest request, ArtikelRepository repository, CancellationToken cancellationToken) =>
       {
+        var precondition = ReadIfMatch(context.Request);
+        if (!precondition.IsValid)
+        {
+          return TypedResults.StatusCode(precondition.StatusCode);
+        }
+
         var validationError = Validate(request);
         if (validationError is not null)
         {
@@ -103,8 +115,20 @@ public static class ArtikelEndpoints
 
         try
         {
-          var artikel = await repository.UpdateAsync(id, request, cancellationToken);
-          return artikel is null ? TypedResults.NotFound() : TypedResults.Ok(artikel);
+          var existing = await repository.GetByIdAsync(id, includeInactive: true, cancellationToken);
+          if (existing is null)
+          {
+            return TypedResults.NotFound();
+          }
+
+          var artikel = await repository.UpdateAsync(id, request, precondition.Version!.Value, cancellationToken);
+          if (artikel is null)
+          {
+            return TypedResults.StatusCode(StatusCodes.Status412PreconditionFailed);
+          }
+
+          context.Response.Headers.ETag = artikel.ETag;
+          return TypedResults.Ok(artikel);
         }
         catch (DbUpdateException exception) when (ArtikelRepository.IsUniqueViolation(exception))
         {
@@ -117,18 +141,53 @@ public static class ArtikelEndpoints
       .Produces(StatusCodes.Status404NotFound)
       .Produces<string>(StatusCodes.Status400BadRequest)
       .Produces<string>(StatusCodes.Status409Conflict)
+      .Produces(StatusCodes.Status412PreconditionFailed)
+      .Produces(StatusCodes.Status428PreconditionRequired)
       .RequireAuthorization("directie");
 
-    app.MapDelete("/api/articles/{id:guid}", async Task<Results<NoContent, NotFound>> (
-      Guid id, ArtikelRepository repository, CancellationToken cancellationToken) =>
-        await repository.DeactivateAsync(id, cancellationToken) ? TypedResults.NoContent() : TypedResults.NotFound())
+    app.MapDelete("/api/articles/{id:guid}", async Task<IResult> (HttpContext context, Guid id, ArtikelRepository repository, CancellationToken cancellationToken) =>
+      {
+        var precondition = ReadIfMatch(context.Request);
+        if (!precondition.IsValid)
+        {
+          return TypedResults.StatusCode(precondition.StatusCode);
+        }
+
+        var existing = await repository.GetByIdAsync(id, includeInactive: true, cancellationToken);
+        if (existing is null)
+        {
+          return TypedResults.NotFound();
+        }
+
+        var deactivated = await repository.DeactivateAsync(id, precondition.Version!.Value, cancellationToken);
+        if (deactivated is null)
+        {
+          return TypedResults.StatusCode(StatusCodes.Status412PreconditionFailed);
+        }
+
+        context.Response.Headers.ETag = deactivated.ETag;
+        return TypedResults.NoContent();
+      })
       .WithName("DeactivateArticle")
       .WithSummary("Deactiveert een artikel zonder historische calculaties te verwijderen")
       .Produces(StatusCodes.Status204NoContent)
       .Produces(StatusCodes.Status404NotFound)
+      .Produces(StatusCodes.Status400BadRequest)
+      .Produces(StatusCodes.Status412PreconditionFailed)
+      .Produces(StatusCodes.Status428PreconditionRequired)
       .RequireAuthorization("directie");
 
     return app;
+  }
+
+  private static Vsvk.Api.Http.IfMatchParseResult ReadIfMatch(HttpRequest request)
+  {
+    if (!request.Headers.TryGetValue("If-Match", out var values))
+    {
+      return Vsvk.Api.Http.IfMatchParser.Parse(null);
+    }
+
+    return Vsvk.Api.Http.IfMatchParser.Parse(values.ToString());
   }
 
   private static string? Validate(ArtikelRequest request)

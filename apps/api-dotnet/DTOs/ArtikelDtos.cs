@@ -13,7 +13,11 @@ public sealed record ArtikelDto(
   string Eenheid,
   string TariefSoort,
   decimal? Tarief,
-  bool Actief);
+  bool Actief,
+  long Version)
+{
+  public string ETag => Vsvk.Api.Http.StrongEtag.Format(Version);
+}
 
 /// <summary>Een actieve artikelcategorie uit de opzoektabel.</summary>
 public sealed record ArtikelCategorieDto(Guid Id, string Code, string Naam, int Sorteervolgorde, bool Actief);
@@ -51,5 +55,6 @@ public static class ArtikelProjections
     artikel.Eenheid.Naam,
     artikel.TariefSoort,
     artikel.Tarief,
-    artikel.Actief);
+    artikel.Actief,
+    artikel.Version);
 }

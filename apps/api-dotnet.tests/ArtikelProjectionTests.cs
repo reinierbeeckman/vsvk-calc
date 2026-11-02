@@ -19,7 +19,8 @@ public sealed class ArtikelProjectionTests
       Eenheid = new ArtikelEenheid { Id = Guid.Parse("44444444-4444-4444-4444-444444444444"), Code = "keer", Naam = "keer" },
       TariefSoort = "zie_prijs",
       Tarief = null,
-      Actief = true
+      Actief = true,
+      Version = 9
     };
 
     var result = ArtikelProjections.Response.Compile()(artikel);
@@ -28,5 +29,7 @@ public sealed class ArtikelProjectionTests
     Assert.Equal("keer", result.Eenheid);
     Assert.Equal("zie_prijs", result.TariefSoort);
     Assert.Null(result.Tarief);
+    Assert.Equal(9, result.Version);
+    Assert.Equal("\"9\"", result.ETag);
   }
 }

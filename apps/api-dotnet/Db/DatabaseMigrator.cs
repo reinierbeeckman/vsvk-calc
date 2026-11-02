@@ -165,11 +165,14 @@ create table if not exists artikelen (
   tariefsoort text not null check (tariefsoort in ('vast', 'zie_prijs')),
   tarief numeric(14,4) null,
   actief boolean not null default true,
+  version bigint not null default 1,
   constraint ck_artikelen_tariefsoort_tarief check (
     (tariefsoort = 'vast' and tarief is not null)
     or (tariefsoort = 'zie_prijs' and tarief is null)
   )
 );
+
+alter table artikelen add column if not exists version bigint not null default 1;
 
 create unique index if not exists ix_artikelen_naam_lower on artikelen (lower(naam));
 create index if not exists ix_artikelen_actief on artikelen (actief);

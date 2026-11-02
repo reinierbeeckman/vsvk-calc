@@ -11,4 +11,5 @@ public sealed class Artikel
   public string TariefSoort { get; set; } = "vast";
   public decimal? Tarief { get; set; }
   public bool Actief { get; set; } = true;
+  public long Version { get; set; } = 1;
 }
