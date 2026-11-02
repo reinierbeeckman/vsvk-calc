@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
@@ -11,6 +12,8 @@ using Vsvk.Api.Db;
 using Vsvk.Api.DTOs;
 using Vsvk.Api.Endpoints;
 using Vsvk.Api.Http;
+using Vsvk.Api.Middleware;
+using Vsvk.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,7 +31,17 @@ builder.Services.AddSingleton<CalculatieRepository>();
 builder.Services.AddScoped<InstellingenRepository>();
 builder.Services.AddScoped<VestigingRepository>();
 builder.Services.AddScoped<ArtikelRepository>();
+builder.Services.AddScoped<IUserProfileRepository, UserProfileRepository>();
+builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddSingleton<DatabaseMigrator>();
+builder.Services.Configure<FormOptions>(options =>
+{
+  options.MultipartBodyLengthLimit = UserProfileEndpoints.MaximumMultipartRequestBytes;
+  options.ValueLengthLimit = 4096;
+  options.ValueCountLimit = 8;
+});
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 
 builder.Services.AddTransient<IClaimsTransformation, KeycloakRealmRoleClaimsTransformation>();
 
@@ -68,6 +81,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+app.UseExceptionHandler();
 
 if (args.Contains("--migrate"))
 {
@@ -296,6 +310,7 @@ app.MapGet("/health", () => Results.Ok(new { ok = true }))
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapArtikelEndpoints();
+app.MapUserProfileEndpoints();
 
 // Example endpoint (stays for now)
 app.MapGet("/api/stamdata", async (StamdataRepository repo) =>

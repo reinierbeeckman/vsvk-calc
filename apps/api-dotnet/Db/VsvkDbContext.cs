@@ -13,6 +13,7 @@ public sealed class VsvkDbContext : DbContext
   public DbSet<ArtikelCategorie> ArtikelCategorieen => Set<ArtikelCategorie>();
   public DbSet<ArtikelEenheid> ArtikelEenheden => Set<ArtikelEenheid>();
   public DbSet<Artikel> Artikelen => Set<Artikel>();
+  public DbSet<UserInformation> UserInformation => Set<UserInformation>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
@@ -87,5 +88,25 @@ public sealed class VsvkDbContext : DbContext
       .WithMany(eenheid => eenheid.Artikelen)
       .HasForeignKey(item => item.EenheidId)
       .OnDelete(DeleteBehavior.Restrict);
+
+    var userInformation = modelBuilder.Entity<UserInformation>();
+    userInformation.ToTable("user_information", table =>
+    {
+      table.HasCheckConstraint(
+        "ck_user_information_signature_size",
+        "digital_signature is null or octet_length(digital_signature) <= 1048576");
+      table.HasCheckConstraint(
+        "ck_user_information_signature_content_type",
+        "(digital_signature is null) = (digital_signature_media_type is null)");
+    });
+    userInformation.HasKey(profile => profile.KeycloakSubject);
+    userInformation.Property(profile => profile.KeycloakSubject).HasColumnName("keycloak_sub");
+    userInformation.Property(profile => profile.PhoneNumber).HasColumnName("phone_number").HasMaxLength(32);
+    userInformation.Property(profile => profile.AlternativeEmail).HasColumnName("alternative_email").HasMaxLength(254);
+    userInformation.Property(profile => profile.DigitalSignature).HasColumnName("digital_signature").HasColumnType("bytea");
+    userInformation.Property(profile => profile.DigitalSignatureContentType).HasColumnName("digital_signature_media_type").HasMaxLength(32);
+    userInformation.Property(profile => profile.Version).HasColumnName("version").IsConcurrencyToken();
+    userInformation.Property(profile => profile.CreatedAt).HasColumnName("created_at");
+    userInformation.Property(profile => profile.UpdatedAt).HasColumnName("updated_at");
   }
 }

@@ -196,7 +196,7 @@ td.ro{color:var(--muted);font-size:13px;padding:3px 8px;white-space:nowrap}
 "use strict";
 const KEY="vsvk-calc-2027";
 const LOGO=document.querySelector(".brand .logo-svg").outerHTML;
-const TABS=[["overzicht","Overzicht"],["calculatie","Calculatie"],["offerte","Offerte"],["teksten","Offerteteksten"],["planning","Planning"],["artikelen","Artikelen"],["vestigingen","Vestigingen"],["opslaan","Opslaan / laden"]];
+const TABS=[["overzicht","Overzicht"],["calculatie","Calculatie"],["offerte","Offerte"],["teksten","Offerteteksten"],["planning","Planning"],["artikelen","Artikelen"],["vestigingen","Vestigingen"],["opslaan","Opslaan / laden"],["profiel","Mijn profiel"]];
 let CATS=[],EENHEDEN=[],ARTICLE_CATEGORIES=[],ARTICLE_UNITS=[];
 const TOESLAGEN=[1,1.25,1.35,1.5,1.75,2];
 const HOOFDSTUKKEN=["Planning","Uitgangspunten","Niet inbegrepen","Voorwaarden"];
@@ -275,9 +275,10 @@ function sampleData(){
   return d;
 }
 
-let S=baseData(),tab="calculatie";
-try{const t=localStorage.getItem(KEY+"-tab");if(t&&TABS.some(x=>x[0]===t))tab=t}catch(e){}
-if(location.hash&&TABS.some(x=>x[0]===location.hash.slice(1)))tab=location.hash.slice(1);
+let S=baseData(),tab="profiel",requestedTab="calculatie";
+try{const t=localStorage.getItem(KEY+"-tab");if(t&&TABS.some(x=>x[0]===t))requestedTab=t}catch(e){}
+if(location.hash&&TABS.some(x=>x[0]===location.hash.slice(1)))requestedTab=location.hash.slice(1);
+let profileChecking=true,profileRequired=true,profileError="",currentUserProfile=null,userProfileEtag=null;
 
 let saveT;function save(){clearTimeout(saveT);saveT=setTimeout(()=>{},250);scheduleCloud();scheduleSettings()}
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -706,6 +707,16 @@ const store={db:null,_poll:null,
   async init(){
     try{
       if(await ensureAuthenticated()===false){redirectToLogin();return}
+      const profileResponse=await this._json("/api/user/profile");
+      if(isAuthFailure(profileResponse)){redirectToLogin();return}
+      if(!profileResponse.ok)throw new Error("profile");
+      currentUserProfile=await profileResponse.json();
+      userProfileEtag=responseEtag(profileResponse,currentUserProfile);
+      profileChecking=false;profileError="";
+      if(!currentUserProfile.isComplete){
+        profileRequired=true;tab="profiel";history.replaceState(null,"","#profiel");render();return;
+      }
+      profileRequired=false;tab=requestedTab;
       const s=await this._json("/api/instellingen/algemeen");
       if(isAuthFailure(s)){redirectToLogin();return}
       if(isAccessDenied(s)){
@@ -742,6 +753,9 @@ const store={db:null,_poll:null,
         })
       },10000)
     }catch(e){
+      if(e&&e.message==="profile"){
+        profileChecking=false;profileRequired=true;profileError="Je profiel kon niet worden geladen. Controleer de verbinding en probeer het opnieuw.";tab="profiel";render();return;
+      }
       if(e&&e.message==="forbidden"){
         this.db=null;
         ovReady=true;
@@ -754,6 +768,34 @@ const store={db:null,_poll:null,
       onOv();
       toast("Database niet bereikbaar. Herlaad of log opnieuw in.");
     }
+  },
+  async saveProfile(formData){
+    if(!userProfileEtag){toast("De profielversie ontbreekt. Herlaad de pagina voordat je opslaat.");return false}
+    const signature=formData.get("signature");
+    const local={
+      phoneNumber:String(formData.get("phoneNumber")||""),
+      alternativeEmail:String(formData.get("alternativeEmail")||""),
+      signature:signature instanceof File&&signature.size?signature.name:null,
+      removeSignature:formData.get("removeSignature")==="true"
+    };
+    try{
+      const response=await this._json("/api/user/profile",{method:"PUT",headers:{"If-Match":userProfileEtag},body:formData});
+      if(isAuthFailure(response)){redirectToLogin();return false}
+      if(response.status===412){
+        return await showConcurrencyConflict({entity:"je profiel",local,loadLatest:async()=>{const r=await this._json("/api/user/profile");if(!r.ok)throw new Error("profile-latest");const body=await r.json();return{body,etag:responseEtag(r,body)}},reapply:async latest=>{currentUserProfile=latest.body;userProfileEtag=latest.etag;return await this.saveProfile(formData)}});
+      }
+      if(response.status===428||response.status===400){toast("Controleer je verplichte contactgegevens en probeer opnieuw.");return false}
+      if(response.status===413){toast("De handtekening is te groot. Kies een afbeelding van maximaal 1 MB.");return false}
+      if(response.status===503){toast("De database is tijdelijk niet beschikbaar. Probeer het later opnieuw.");return false}
+      if(!response.ok)throw new Error("profile-save");
+      currentUserProfile=await response.json();
+      userProfileEtag=responseEtag(response,currentUserProfile);
+      if(!currentUserProfile.isComplete){toast("Vul je telefoonnummer en alternatieve e-mailadres in.");return false}
+      toast("Profiel opgeslagen");
+      history.replaceState(null,"","#overzicht");
+      location.reload();
+      return true;
+    }catch(error){toast("Profiel opslaan lukte niet. Controleer je verbinding en probeer opnieuw.");return false}
   },
   async _refreshArticleCatalog(){
     const responses=await Promise.all(["/api/articles","/api/article-categories","/api/article-units"].map(url=>this._json(url)));
@@ -1055,19 +1097,36 @@ async function makePdf(btn){
   finally{pdfBusy=false;if(btn&&document.body.contains(btn)){btn.textContent=lab;btn.disabled=false}}
 }
 
+/* ===== Profiel ===== */
+function renderProfile(){
+  if(profileChecking)return `<section class="panel"><h2>Profiel controleren</h2><p class="hint">We controleren of je profiel compleet is.</p></section>`;
+  if(profileError)return `<section class="panel"><h2>Profiel niet beschikbaar</h2><p class="hint" role="alert">${esc(profileError)}</p><button class="btn primary" data-act="profileretry">Opnieuw proberen</button></section>`;
+  const p=currentUserProfile||{};
+  return `<section class="panel"><h2>Mijn profiel</h2>
+  <p class="hint">${profileRequired?"Vul eerst je contactgegevens in om de applicatie te gebruiken.":"Werk je contactgegevens bij. Je alternatieve e-mailadres staat los van je Keycloak-inlogadres."}</p>
+  <p class="hint">Ingelogd als <b>${esc(p.displayName||p.userName||AUTH.userName)}</b>${p.primaryEmail?` (${esc(p.primaryEmail)})`:""}.</p>
+  <form id="user-profile-form" enctype="multipart/form-data" style="display:grid;gap:14px;max-width:560px">
+    <label>Telefoonnummer *<input name="phoneNumber" type="tel" autocomplete="tel" maxlength="32" required value="${esc(p.phoneNumber||"")}" style="display:block;width:100%;margin-top:5px"></label>
+    <label>Alternatief e-mailadres *<input name="alternativeEmail" type="email" autocomplete="email" maxlength="254" required value="${esc(p.alternativeEmail||"")}" style="display:block;width:100%;margin-top:5px"></label>
+    <div><label for="profile-signature">Digitale handtekening (optioneel)</label><input id="profile-signature" name="signature" type="file" accept="image/png,image/jpeg" style="display:block;margin-top:6px"><p class="hint">PNG of JPEG, maximaal 1 MB.</p></div>
+    ${p.hasSignature?`<label class="row"><input type="checkbox" name="removeSignature" value="true"> Bestaande handtekening verwijderen</label>`:""}
+    <div class="row"><button class="btn primary" type="submit">${profileRequired?"Profiel opslaan en doorgaan":"Wijzigingen opslaan"}</button></div>
+  </form></section>`;
+}
+
 /* ===== render ===== */
-const HEADS={overzicht:["Overzicht","Alle calculaties en offertes met hun nummer, status en bedrag."],calculatie:["Calculatie","Project, klant en de opbouw van de prijs per onderdeel."],offerte:["Offerte","Automatisch opgebouwd uit de calculatie, klaar om te versturen."],teksten:["Offerteteksten","Planning, uitgangspunten, niet inbegrepen en voorwaarden."],planning:["Planning","Wanneer elk werkonderdeel wordt uitgevoerd."],artikelen:["Artikelen","Tarieven voor arbeid, materieel, materiaal en logistiek."],vestigingen:["Vestigingen","Vestigingen en medewerkers voor keuzelijsten en de offerte."],opslaan:["Opslaan & laden","Calculaties bewaren en meenemen."]};
+const HEADS={profiel:["Mijn profiel","Je contactgegevens voor de applicatie."],overzicht:["Overzicht","Alle calculaties en offertes met hun nummer, status en bedrag."],calculatie:["Calculatie","Project, klant en de opbouw van de prijs per onderdeel."],offerte:["Offerte","Automatisch opgebouwd uit de calculatie, klaar om te versturen."],teksten:["Offerteteksten","Planning, uitgangspunten, niet inbegrepen en voorwaarden."],planning:["Planning","Wanneer elk werkonderdeel wordt uitgevoerd."],artikelen:["Artikelen","Tarieven voor arbeid, materieel, materiaal en logistiek."],vestigingen:["Vestigingen","Vestigingen en medewerkers voor keuzelijsten en de offerte."],opslaan:["Opslaan & laden","Calculaties bewaren en meenemen."]};
 const headHTML=()=>{let [t,d]=HEADS[tab];if(S.nummer&&/^(calculatie|offerte|planning|teksten)$/.test(tab))d=`Nr. ${S.nummer}${S.project.naam?" · "+S.project.naam:""}`;else if(S.voorbeeld&&/^(calculatie|offerte|planning)$/.test(tab))d="Voorbeeldcalculatie";return `<div class="pagehead"><h1>${esc(t)}</h1><p>${esc(d)}</p></div>`};
-function renderTabs(){document.getElementById("tabs").innerHTML=TABS.map(([k,l])=>`<button role="tab" aria-selected="${k===tab}" data-tab="${k}">${l}</button>`).join("")}
+function renderTabs(){const tabs=profileRequired||profileChecking?TABS.filter(([k])=>k==="profiel"):TABS;document.getElementById("tabs").innerHTML=tabs.map(([k,l])=>`<button role="tab" aria-selected="${k===tab}" data-tab="${k}">${l}</button>`).join("")}
 function render(){
   const m=document.getElementById("main");const f=document.activeElement?.id;
-  m.innerHTML=headHTML()+{overzicht:renderOverzicht,calculatie:renderCalc,offerte:renderOfferte,teksten:renderTeksten,planning:renderPlanning,artikelen:renderArtikelen,vestigingen:renderVest,opslaan:renderOpslaan}[tab]();
+  m.innerHTML=headHTML()+{profiel:renderProfile,overzicht:renderOverzicht,calculatie:renderCalc,offerte:renderOfferte,teksten:renderTeksten,planning:renderPlanning,artikelen:renderArtikelen,vestigingen:renderVest,opslaan:renderOpslaan}[tab]();
   if(tab==="offerte"){const g=document.getElementById("offgrid");if(g&&innerWidth<900)g.style.gridTemplateColumns="minmax(0,1fr)"}
   if(f){const el=document.getElementById(f);if(el)el.focus()}
   updateTotals();renderTabs();
 }
 
-document.getElementById("tabs").addEventListener("click",e=>{const b=e.target.closest("[data-tab]");if(!b)return;if(tab==="artikelen"&&b.dataset.tab!=="artikelen"){if(!artLocked)toast("Artikelen weer vergrendeld");artLocked=true;artAsk=false}if(tab==="teksten"&&b.dataset.tab!=="teksten"){if(!txLocked)toast("Offerteteksten weer vergrendeld");txLocked=true;txAsk=false}if(tab==="vestigingen"&&b.dataset.tab!=="vestigingen"){if(!vestLocked)toast("Vestigingen weer vergrendeld");vestLocked=true;vestAsk=false}tab=b.dataset.tab;try{localStorage.setItem(KEY+"-tab",tab)}catch(x){}render();scrollTo({top:0})});
+document.getElementById("tabs").addEventListener("click",e=>{const b=e.target.closest("[data-tab]");if(!b)return;if(profileRequired&&b.dataset.tab!=="profiel")return;if(tab==="artikelen"&&b.dataset.tab!=="artikelen"){if(!artLocked)toast("Artikelen weer vergrendeld");artLocked=true;artAsk=false}if(tab==="teksten"&&b.dataset.tab!=="teksten"){if(!txLocked)toast("Offerteteksten weer vergrendeld");txLocked=true;txAsk=false}if(tab==="vestigingen"&&b.dataset.tab!=="vestigingen"){if(!vestLocked)toast("Vestigingen weer vergrendeld");vestLocked=true;vestAsk=false}tab=b.dataset.tab;try{localStorage.setItem(KEY+"-tab",tab)}catch(x){}render();scrollTo({top:0})});
 
 function onField(e,final){
   const el=e.target;
@@ -1172,6 +1231,12 @@ document.getElementById("main").addEventListener("change",e=>{
   if(e.target.id==="filein"){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{document.getElementById("jsonbox").value=r.result;doImport()};r.readAsText(f);return}
   onField(e,true)});
 
+document.getElementById("main").addEventListener("submit",e=>{
+  if(e.target.id!=="user-profile-form")return;
+  e.preventDefault();
+  store.saveProfile(new FormData(e.target));
+});
+
 let pending=null,pendingBackup=null;
 function ask(txt,fn){pending=fn;const c=document.getElementById("confirm");if(c){document.getElementById("confirmtxt").textContent=txt;c.hidden=false}else{tab="opslaan";render();ask(txt,fn)}}
 function doImport(){const box=document.getElementById("jsonbox");let d;try{d=JSON.parse(box.value)}catch(x){d=null}if(d&&d.type==="vsvk-backup"){pendingBackup=d;ask(`Back-up van ${String(d.gemaakt||"").slice(0,10)} terugzetten? ${(d.calculaties||[]).length} calculaties en de instellingen worden overschreven als ze hetzelfde nummer hebben.`,()=>restoreBackup(pendingBackup));return}try{if(!d.project||!d.blocks)throw 0;S=Object.assign(baseData(),{artikelen:S.artikelen},d);if(!S.nummer)S.voorbeeld=false;save();toast("Calculatie geladen");tab="calculatie";render();assignNumber()}catch(x){toast("Dit is geen geldige calculatiecode. Kopieer de volledige code en probeer opnieuw.")}}
@@ -1181,6 +1246,7 @@ document.getElementById("main").addEventListener("click",e=>{
   const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,i=+b.dataset.i,bi=+b.dataset.b;
   const keep=()=>({artikelen:S.artikelen,teksten:JSON.parse(JSON.stringify(DEF_TEKSTEN||S.teksten)),vestigingen:S.vestigingen,medewerkers:S.medewerkers,onderdelen:S.onderdelen,sugg:S.sugg,offerte:{...baseData().offerte,btw:S.offerte.btw,website:S.offerte.website,geldig:S.offerte.geldig,betaal:S.offerte.betaal}});
   switch(a){
+    case"profileretry":profileChecking=true;profileError="";render();store.init();return;
     case"addblock":S.blocks.push({id:id(),onderdeel:"",lines:[line(),line(),line()]});break;
     case"delblock":delBlockId=S.blocks[bi]&&S.blocks[bi].id;render();return;
     case"delblockno":delBlockId=null;render();return;

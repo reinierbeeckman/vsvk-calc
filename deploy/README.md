@@ -39,9 +39,11 @@ docker compose `
   --profile migrate run --rm migrate
 ```
 
-De migratie maakt relationele tabellen voor artikelen, artikelcategorieën en artikeleenheden. Bestaande artikelen worden eenmalig uit `instellingen_algemeen.data.artikelen` overgezet; als daar nog geen artikelcatalogus staat, wordt de huidige catalogus als startdata geladen. De oude JSONB-sleutel wordt na een geslaagde import verwijderd. De migratie is versie-geregistreerd en veilig opnieuw uit te voeren.
+De migratie maakt relationele tabellen voor artikelen, artikelcategorieën en artikeleenheden en maakt de tabel `user_information` voor profielgegevens. Bestaande artikelen worden eenmalig uit `instellingen_algemeen.data.artikelen` overgezet; als daar nog geen artikelcatalogus staat, wordt de huidige catalogus als startdata geladen. De oude JSONB-sleutel wordt na een geslaagde import verwijderd. De migratie is versie-geregistreerd en veilig opnieuw uit te voeren.
 
 De SPA leest de catalogus via `GET /api/articles`, `GET /api/article-categories` en `GET /api/article-units`. Alleen `directie` kan artikelen aanpassen of deactiveren; categorieën en eenheden worden als referentiedata via hun eigen opzoektabellen geleverd.
+
+Bij de eerste aanmelding maakt `GET /api/user/profile` een leeg profiel aan met de UUID uit het gevalideerde Keycloak-token. De SPA stuurt gebruikers met een onvolledig profiel direct naar **Mijn profiel** en laat de overige tabbladen pas zien nadat het telefoonnummer en alternatieve e-mailadres zijn opgeslagen. Een digitale handtekening is optioneel. Profielwijzigingen gebruiken een strong ETag en vereisen `If-Match`, net als andere updates van bestaande gegevens.
 
 Open daarna:
 

@@ -286,6 +286,7 @@ where id = 1
     await using var cmd = _dataSource.CreateCommand(sql);
     await cmd.ExecuteNonQueryAsync(cancellationToken);
     await ImportArticleCatalogAsync(cancellationToken);
+    await MigrateUserInformationAsync(cancellationToken);
   }
 
   private async Task ImportArticleCatalogAsync(CancellationToken cancellationToken)
@@ -442,6 +443,50 @@ where id = 1 and coalesce(data, '{}'::jsonb) ? 'artikelen';
         import.Parameters.AddWithValue(NpgsqlDbType.Jsonb, seedJson);
       }
       await import.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    await transaction.CommitAsync(cancellationToken);
+  }
+
+  private async Task MigrateUserInformationAsync(CancellationToken cancellationToken)
+  {
+    const string migrationId = "20261102_user_information_v1";
+    const string migrationSql = """
+      create table user_information (
+        keycloak_sub uuid primary key,
+        phone_number varchar(32) null,
+        alternative_email varchar(254) null,
+        digital_signature bytea null,
+        digital_signature_media_type varchar(32) null,
+        version bigint not null default 1,
+        created_at timestamptz not null default now(),
+        updated_at timestamptz not null default now(),
+        constraint ck_user_information_signature_size
+          check (digital_signature is null or octet_length(digital_signature) <= 1048576),
+        constraint ck_user_information_signature_content_type
+          check ((digital_signature is null) = (digital_signature_media_type is null))
+      )
+      """;
+
+    await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+    await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+    await using (var marker = new NpgsqlCommand(
+      "insert into vsvk_schema_migrations(migration_id) values ($1) on conflict do nothing returning migration_id",
+      connection,
+      transaction))
+    {
+      marker.Parameters.AddWithValue(migrationId);
+      if (await marker.ExecuteScalarAsync(cancellationToken) is null)
+      {
+        await transaction.CommitAsync(cancellationToken);
+        return;
+      }
+    }
+
+    await using (var create = new NpgsqlCommand(migrationSql, connection, transaction))
+    {
+      await create.ExecuteNonQueryAsync(cancellationToken);
     }
 
     await transaction.CommitAsync(cancellationToken);
