@@ -14,6 +14,9 @@ public sealed class VsvkDbContext : DbContext
   public DbSet<ArtikelEenheid> ArtikelEenheden => Set<ArtikelEenheid>();
   public DbSet<Artikel> Artikelen => Set<Artikel>();
   public DbSet<UserInformation> UserInformation => Set<UserInformation>();
+  public DbSet<UserSkill> Skills => Set<UserSkill>();
+  public DbSet<Materieel> MaterieelItems => Set<Materieel>();
+  public DbSet<MaterieelGroep> MaterieelGroepen => Set<MaterieelGroep>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
@@ -101,12 +104,80 @@ public sealed class VsvkDbContext : DbContext
     });
     userInformation.HasKey(profile => profile.KeycloakSubject);
     userInformation.Property(profile => profile.KeycloakSubject).HasColumnName("keycloak_sub");
+    userInformation.Property(profile => profile.EmployeeNumber).HasColumnName("employee_number").HasMaxLength(50);
+    userInformation.Property(profile => profile.DisplayName).HasColumnName("display_name").HasMaxLength(200);
+    userInformation.Property(profile => profile.JobTitle).HasColumnName("job_title").HasMaxLength(200);
     userInformation.Property(profile => profile.PhoneNumber).HasColumnName("phone_number").HasMaxLength(32);
+    userInformation.Property(profile => profile.EmailAddress).HasColumnName("email_address").HasMaxLength(254);
+    userInformation.Property(profile => profile.VestigingId).HasColumnName("vestiging_id");
     userInformation.Property(profile => profile.AlternativeEmail).HasColumnName("alternative_email").HasMaxLength(254);
     userInformation.Property(profile => profile.DigitalSignature).HasColumnName("digital_signature").HasColumnType("bytea");
     userInformation.Property(profile => profile.DigitalSignatureContentType).HasColumnName("digital_signature_media_type").HasMaxLength(32);
     userInformation.Property(profile => profile.Version).HasColumnName("version").IsConcurrencyToken();
     userInformation.Property(profile => profile.CreatedAt).HasColumnName("created_at");
     userInformation.Property(profile => profile.UpdatedAt).HasColumnName("updated_at");
+    userInformation.HasOne(profile => profile.Vestiging)
+      .WithMany()
+      .HasForeignKey(profile => profile.VestigingId)
+      .OnDelete(DeleteBehavior.Restrict);
+
+    var userSkill = modelBuilder.Entity<UserSkill>();
+    userSkill.ToTable("skills", table => table.HasCheckConstraint(
+      "ck_skills_name_not_empty",
+      "btrim(name) <> ''"));
+    userSkill.HasKey(skill => skill.Id);
+    userSkill.Property(skill => skill.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+    userSkill.Property(skill => skill.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+    userSkill.HasIndex(skill => skill.Name).IsUnique();
+
+    var userInformationSkill = modelBuilder.Entity<UserInformationSkill>();
+    userInformationSkill.ToTable("user_skills");
+    userInformationSkill.HasKey(skill => new { skill.KeycloakSubject, skill.SkillId });
+    userInformationSkill.Property(skill => skill.KeycloakSubject).HasColumnName("keycloak_sub");
+    userInformationSkill.Property(skill => skill.SkillId).HasColumnName("skill_id");
+    userInformationSkill.Property(skill => skill.DiplomaOn).HasColumnName("diploma_on").HasColumnType("date");
+    userInformationSkill.Property(skill => skill.ValidUntil).HasColumnName("valid_until").HasColumnType("date");
+    userInformationSkill.HasOne(skill => skill.UserInformation)
+      .WithMany(profile => profile.Skills)
+      .HasForeignKey(skill => skill.KeycloakSubject)
+      .OnDelete(DeleteBehavior.Cascade);
+    userInformationSkill.HasOne(skill => skill.Skill)
+      .WithMany(item => item.UserInformationSkills)
+      .HasForeignKey(skill => skill.SkillId)
+      .OnDelete(DeleteBehavior.Cascade);
+    userInformationSkill.HasIndex(skill => skill.SkillId)
+      .HasDatabaseName("ix_user_skills_skill_id");
+
+    var materieelGroep = modelBuilder.Entity<MaterieelGroep>();
+    materieelGroep.ToTable("materieelgroep", table => table.HasCheckConstraint(
+      "ck_materieelgroep_omschrijving_not_empty",
+      "btrim(omschrijving) <> ''"));
+    materieelGroep.HasKey(group => group.Id);
+    materieelGroep.Property(group => group.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+    materieelGroep.Property(group => group.Omschrijving).HasColumnName("omschrijving").IsRequired();
+    materieelGroep.Property(group => group.Version).HasColumnName("version").IsConcurrencyToken();
+
+    var materieel = modelBuilder.Entity<Materieel>();
+    materieel.ToTable("materieel");
+    materieel.HasKey(item => item.Id);
+    materieel.Property(item => item.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+    materieel.Property(item => item.Kenteken).HasColumnName("kenteken");
+    materieel.Property(item => item.Omschrijving).HasColumnName("omschrijving");
+    materieel.Property(item => item.StandplaatsId).HasColumnName("standplaats_id");
+    materieel.Property(item => item.Merk).HasColumnName("merk");
+    materieel.Property(item => item.Zoeknaam).HasColumnName("zoeknaam");
+    materieel.Property(item => item.Serienummer).HasColumnName("serienummer");
+    materieel.Property(item => item.MaterieelGroepId).HasColumnName("materieelgroep_id");
+    materieel.Property(item => item.Version).HasColumnName("version").IsConcurrencyToken();
+    materieel.HasIndex(item => item.StandplaatsId);
+    materieel.HasIndex(item => item.MaterieelGroepId);
+    materieel.HasOne(item => item.Standplaats)
+      .WithMany()
+      .HasForeignKey(item => item.StandplaatsId)
+      .OnDelete(DeleteBehavior.Restrict);
+    materieel.HasOne(item => item.MaterieelGroep)
+      .WithMany(group => group.MaterieelItems)
+      .HasForeignKey(item => item.MaterieelGroepId)
+      .OnDelete(DeleteBehavior.Restrict);
   }
 }

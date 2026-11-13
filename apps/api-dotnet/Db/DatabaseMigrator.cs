@@ -287,6 +287,13 @@ where id = 1
     await cmd.ExecuteNonQueryAsync(cancellationToken);
     await ImportArticleCatalogAsync(cancellationToken);
     await MigrateUserInformationAsync(cancellationToken);
+    await MigrateUserInformationEmployeeFieldsAsync(cancellationToken);
+    await MigrateUserInformationRelationsAsync(cancellationToken);
+    await MigrateUserSkillLinkTableAsync(cancellationToken);
+    await MigrateUserSkillDiplomaDatesAsync(cancellationToken);
+    await MigrateSkillsNormalizedNameUniquenessAsync(cancellationToken);
+    await MigrateMaterieelAsync(cancellationToken);
+    await MigrateRemoveMaterieelImportStateAsync(cancellationToken);
   }
 
   private async Task ImportArticleCatalogAsync(CancellationToken cancellationToken)
@@ -487,6 +494,341 @@ where id = 1 and coalesce(data, '{}'::jsonb) ? 'artikelen';
     await using (var create = new NpgsqlCommand(migrationSql, connection, transaction))
     {
       await create.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    await transaction.CommitAsync(cancellationToken);
+  }
+
+  private async Task MigrateUserInformationEmployeeFieldsAsync(CancellationToken cancellationToken)
+  {
+    const string migrationId = "20261113_user_information_employee_fields_v1";
+    const string migrationSql = """
+      alter table user_information
+        add column if not exists employee_number varchar(50) null,
+        add column if not exists display_name varchar(200) null,
+        add column if not exists job_title varchar(200) null,
+        add column if not exists email_address varchar(254) null,
+        add column if not exists branch_name varchar(200) null,
+        add column if not exists skills text null,
+        add column if not exists is_active boolean null;
+
+      create unique index if not exists ux_user_information_employee_number
+        on user_information (employee_number)
+        where employee_number is not null;
+      """;
+
+    await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+    await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+    await using (var marker = new NpgsqlCommand(
+      "insert into vsvk_schema_migrations(migration_id) values ($1) on conflict do nothing returning migration_id",
+      connection,
+      transaction))
+    {
+      marker.Parameters.AddWithValue(migrationId);
+      if (await marker.ExecuteScalarAsync(cancellationToken) is null)
+      {
+        await transaction.CommitAsync(cancellationToken);
+        return;
+      }
+    }
+
+    await using (var alter = new NpgsqlCommand(migrationSql, connection, transaction))
+    {
+      await alter.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    await transaction.CommitAsync(cancellationToken);
+  }
+
+  private async Task MigrateUserInformationRelationsAsync(CancellationToken cancellationToken)
+  {
+    const string migrationId = "20261113_user_information_relations_v1";
+    const string migrationSql = """
+      create table if not exists user_skills (
+        id uuid primary key default gen_random_uuid(),
+        name varchar(200) not null unique,
+        constraint ck_user_skills_name_not_empty check (btrim(name) <> '')
+      );
+
+      create table if not exists user_information_skills (
+        keycloak_sub uuid not null references user_information(keycloak_sub) on delete cascade,
+        skill_id uuid not null references user_skills(id) on delete cascade,
+        primary key (keycloak_sub, skill_id)
+      );
+
+      create index if not exists ix_user_information_skills_skill_id
+        on user_information_skills(skill_id);
+
+      alter table user_information
+        add column if not exists vestiging_id uuid null;
+
+      do $$
+      begin
+        if not exists (
+          select 1 from pg_constraint
+          where conname = 'fk_user_information_vestigingen'
+            and conrelid = 'user_information'::regclass
+        ) then
+          alter table user_information
+            add constraint fk_user_information_vestigingen
+            foreign key (vestiging_id) references vestigingen(id) on delete restrict;
+        end if;
+      end $$;
+
+      do $$
+      begin
+        if exists (
+          select 1
+          from user_information profile
+          where nullif(btrim(profile.branch_name), '') is not null
+            and (
+              select count(*)
+              from vestigingen branch
+              where lower(btrim(branch.naam)) = lower(btrim(profile.branch_name))
+            ) <> 1
+        ) then
+          raise exception 'Existing branch names in user_information must each match exactly one vestiging before migration.';
+        end if;
+      end $$;
+
+      update user_information profile
+      set vestiging_id = branch.id
+      from vestigingen branch
+      where profile.vestiging_id is null
+        and nullif(btrim(profile.branch_name), '') is not null
+        and lower(btrim(branch.naam)) = lower(btrim(profile.branch_name));
+
+      insert into user_skills(name)
+      select distinct btrim(source.skill_name)
+      from user_information profile
+      cross join lateral unnest(string_to_array(coalesce(profile.skills, ''), ',')) as source(skill_name)
+      where btrim(source.skill_name) <> ''
+      on conflict (name) do nothing;
+
+      insert into user_information_skills(keycloak_sub, skill_id)
+      select distinct profile.keycloak_sub, skill.id
+      from user_information profile
+      cross join lateral unnest(string_to_array(coalesce(profile.skills, ''), ',')) as source(skill_name)
+      join user_skills skill on skill.name = btrim(source.skill_name)
+      where btrim(source.skill_name) <> ''
+      on conflict do nothing;
+
+      alter table user_information drop column if exists branch_name;
+      alter table user_information drop column if exists skills;
+      alter table user_information drop column if exists is_active;
+      """;
+
+    await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+    await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+    await using (var marker = new NpgsqlCommand(
+      "insert into vsvk_schema_migrations(migration_id) values ($1) on conflict do nothing returning migration_id",
+      connection,
+      transaction))
+    {
+      marker.Parameters.AddWithValue(migrationId);
+      if (await marker.ExecuteScalarAsync(cancellationToken) is null)
+      {
+        await transaction.CommitAsync(cancellationToken);
+        return;
+      }
+    }
+
+    await using (var alter = new NpgsqlCommand(migrationSql, connection, transaction))
+    {
+      await alter.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    await transaction.CommitAsync(cancellationToken);
+  }
+
+  private async Task MigrateUserSkillLinkTableAsync(CancellationToken cancellationToken)
+  {
+    const string migrationId = "20261113_user_skills_link_table_v1";
+    const string migrationSql = """
+      alter table user_skills rename to skills;
+      alter table skills rename constraint user_skills_pkey to skills_pkey;
+      alter table skills rename constraint user_skills_name_key to skills_name_key;
+      alter table skills rename constraint ck_user_skills_name_not_empty to ck_skills_name_not_empty;
+
+      alter table user_information_skills rename to user_skills;
+      alter table user_skills rename constraint user_information_skills_pkey to user_skills_pkey;
+      alter table user_skills rename constraint user_information_skills_keycloak_sub_fkey to user_skills_keycloak_sub_fkey;
+      alter table user_skills rename constraint user_information_skills_skill_id_fkey to user_skills_skill_id_fkey;
+      alter index ix_user_information_skills_skill_id rename to ix_user_skills_skill_id;
+      """;
+
+    await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+    await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+    await using (var marker = new NpgsqlCommand(
+      "insert into vsvk_schema_migrations(migration_id) values ($1) on conflict do nothing returning migration_id",
+      connection,
+      transaction))
+    {
+      marker.Parameters.AddWithValue(migrationId);
+      if (await marker.ExecuteScalarAsync(cancellationToken) is null)
+      {
+        await transaction.CommitAsync(cancellationToken);
+        return;
+      }
+    }
+
+    await using (var rename = new NpgsqlCommand(migrationSql, connection, transaction))
+    {
+      await rename.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    await transaction.CommitAsync(cancellationToken);
+  }
+
+  private async Task MigrateUserSkillDiplomaDatesAsync(CancellationToken cancellationToken)
+  {
+    const string migrationId = "20261113_user_skills_diploma_dates_v1";
+    const string migrationSql = """
+      alter table user_skills
+        add column if not exists diploma_on date null,
+        add column if not exists valid_until date null;
+      """;
+
+    await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+    await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+    await using (var marker = new NpgsqlCommand(
+      "insert into vsvk_schema_migrations(migration_id) values ($1) on conflict do nothing returning migration_id",
+      connection,
+      transaction))
+    {
+      marker.Parameters.AddWithValue(migrationId);
+      if (await marker.ExecuteScalarAsync(cancellationToken) is null)
+      {
+        await transaction.CommitAsync(cancellationToken);
+        return;
+      }
+    }
+
+    await using (var addColumns = new NpgsqlCommand(migrationSql, connection, transaction))
+    {
+      await addColumns.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    await transaction.CommitAsync(cancellationToken);
+  }
+
+  private async Task MigrateSkillsNormalizedNameUniquenessAsync(CancellationToken cancellationToken)
+  {
+    const string migrationId = "20261113_skills_normalized_name_unique_v1";
+    const string migrationSql = """
+      create unique index if not exists ux_skills_name_normalized
+        on skills (lower(btrim(name)));
+      """;
+
+    await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+    await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+    await using (var marker = new NpgsqlCommand(
+      "insert into vsvk_schema_migrations(migration_id) values ($1) on conflict do nothing returning migration_id",
+      connection,
+      transaction))
+    {
+      marker.Parameters.AddWithValue(migrationId);
+      if (await marker.ExecuteScalarAsync(cancellationToken) is null)
+      {
+        await transaction.CommitAsync(cancellationToken);
+        return;
+      }
+    }
+
+    await using (var createIndex = new NpgsqlCommand(migrationSql, connection, transaction))
+    {
+      await createIndex.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    await transaction.CommitAsync(cancellationToken);
+  }
+
+  private async Task MigrateMaterieelAsync(CancellationToken cancellationToken)
+  {
+    const string migrationId = "20261113_materieel_and_groups_v1";
+    const string migrationSql = """
+      create table if not exists materieelgroep (
+        id uuid primary key default gen_random_uuid(),
+        omschrijving text not null,
+        version bigint not null default 1,
+        constraint ck_materieelgroep_omschrijving_not_empty check (btrim(omschrijving) <> '')
+      );
+
+      create unique index if not exists ux_materieelgroep_omschrijving_normalized
+        on materieelgroep (lower(btrim(omschrijving)));
+
+      create table if not exists materieel (
+        id uuid primary key default gen_random_uuid(),
+        kenteken text null,
+        omschrijving text null,
+        standplaats_id uuid null references vestigingen(id) on delete restrict,
+        merk text null,
+        zoeknaam text null,
+        serienummer text null,
+        materieelgroep_id uuid null references materieelgroep(id) on delete restrict,
+        version bigint not null default 1
+      );
+
+      create index if not exists ix_materieel_standplaats_id on materieel(standplaats_id);
+      create index if not exists ix_materieel_materieelgroep_id on materieel(materieelgroep_id);
+
+      """;
+
+    await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+    await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+    await using (var marker = new NpgsqlCommand(
+      "insert into vsvk_schema_migrations(migration_id) values ($1) on conflict do nothing returning migration_id",
+      connection,
+      transaction))
+    {
+      marker.Parameters.AddWithValue(migrationId);
+      if (await marker.ExecuteScalarAsync(cancellationToken) is null)
+      {
+        await transaction.CommitAsync(cancellationToken);
+        return;
+      }
+    }
+
+    await using (var create = new NpgsqlCommand(migrationSql, connection, transaction))
+    {
+      await create.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    await transaction.CommitAsync(cancellationToken);
+  }
+
+  private async Task MigrateRemoveMaterieelImportStateAsync(CancellationToken cancellationToken)
+  {
+    const string migrationId = "20261113_remove_materieel_import_state_v1";
+
+    await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+    await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+    await using (var marker = new NpgsqlCommand(
+      "insert into vsvk_schema_migrations(migration_id) values ($1) on conflict do nothing returning migration_id",
+      connection,
+      transaction))
+    {
+      marker.Parameters.AddWithValue(migrationId);
+      if (await marker.ExecuteScalarAsync(cancellationToken) is null)
+      {
+        await transaction.CommitAsync(cancellationToken);
+        return;
+      }
+    }
+
+    await using (var drop = new NpgsqlCommand(
+      "drop table if exists public.materieel_import_state",
+      connection,
+      transaction))
+    {
+      await drop.ExecuteNonQueryAsync(cancellationToken);
     }
 
     await transaction.CommitAsync(cancellationToken);

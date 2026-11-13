@@ -3,7 +3,14 @@ namespace Vsvk.Api.Db;
 public sealed class UserInformation
 {
   public Guid KeycloakSubject { get; set; }
+  public string? EmployeeNumber { get; set; }
+  public string? DisplayName { get; set; }
+  public string? JobTitle { get; set; }
   public string? PhoneNumber { get; set; }
+  public string? EmailAddress { get; set; }
+  public Guid? VestigingId { get; set; }
+  public Vestiging? Vestiging { get; set; }
+  public ICollection<UserInformationSkill> Skills { get; set; } = new List<UserInformationSkill>();
   public string? AlternativeEmail { get; set; }
   public byte[]? DigitalSignature { get; set; }
   public string? DigitalSignatureContentType { get; set; }
