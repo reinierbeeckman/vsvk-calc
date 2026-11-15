@@ -2,6 +2,10 @@ header.top{--head:#fff;--head-ink:#1a1a1a;--head-muted:#5b5b5b;--header-line:#db
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) header.top{--head:#1a1a1a;--head-ink:#fff;--head-muted:#a8a6a1;--header-line:#34322e;--logo-ink:#fff}}
 :root[data-theme="dark"] header.top{--head:#1a1a1a;--head-ink:#fff;--head-muted:#a8a6a1;--header-line:#34322e;--logo-ink:#fff}
 .wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1500px;margin:0 auto}
+:root{--list-row-hover:#ffe3d6}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--list-row-hover:#50301f}}
+:root[data-theme="dark"]{--list-row-hover:#50301f}
+main .scroll > table:not(.price):not(.plan) > tbody > tr:not(.confirm-row):hover > td{background:var(--list-row-hover)}
 header.top .bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px 28px;padding-block:14px 8px}
 header.top .brand{display:flex;align-items:center;gap:16px}
 header.top .logo-svg{display:block;height:30px;width:auto;max-width:100%}

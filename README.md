@@ -66,6 +66,8 @@ Meer deployment-details: `deploy/README.md`.
 
 Gebruik voor nieuwe applicaties de gedeelde `/shared/layout.css` en `/shared/header.js`. Plaats een element met `data-vsvk-header`, `data-application` en `data-title` vóór het headerscript en zet de applicatienavigatie daarin als `nav.tabs`. Voeg applicaties en hun URL toe aan de applicatiewisselaar in het gedeelde headerscript. De header haalt de ingelogde gebruiker via de BFF op; applicaties met een eigen authenticatie-initialisatie kunnen `data-account="external"` gebruiken. Plaats algemene headeropmaak in de gedeelde stylesheet en schermspecifieke opmaak in een afzonderlijke stylesheet van de applicatie.
 
+Lijsten met een `table` direct binnen `.scroll` krijgen automatisch de gedeelde hoverkleur. Offerteprijstabellen (`.price`), planningstabellen (`.plan`) en bevestigingsregels (`.confirm-row`) zijn hiervan uitgezonderd.
+
 `npm run dev` serveert de statische bestanden voor ontwikkeling; voor authenticatie en databasegegevens is de BFF-stack nodig. Controleer de gedeelde header met `npm test`.
 
 ## Planning-lijsten

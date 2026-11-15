@@ -91,3 +91,11 @@ test('inhoud sluit direct aan op de header', () => {
     assert.match(css, /main\{[^}]*padding-block:\s*0\s+60px/);
   }
 });
+
+test('lijstregels gebruiken een gedeelde hoverkleur in lichte en donkere modus', () => {
+  const layout = fs.readFileSync(path.join(root, 'apps/shared/layout.css'), 'utf8');
+  assert.match(layout, /:root\{[^}]*--list-row-hover:/);
+  assert.match(layout, /prefers-color-scheme:dark[\s\S]*--list-row-hover:/);
+  assert.match(layout, /:root\[data-theme="dark"\]\{[^}]*--list-row-hover:/);
+  assert.match(layout, /table:not\(\.price\):not\(\.plan\)\s*>\s*tbody\s*>\s*tr:not\(\.confirm-row\):hover\s*>\s*td\{background:var\(--list-row-hover\)\}/);
+});
