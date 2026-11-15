@@ -109,6 +109,7 @@ public sealed class VsvkDbContext : DbContext
     userInformation.Property(profile => profile.JobTitle).HasColumnName("job_title").HasMaxLength(200);
     userInformation.Property(profile => profile.PhoneNumber).HasColumnName("phone_number").HasMaxLength(32);
     userInformation.Property(profile => profile.EmailAddress).HasColumnName("email_address").HasMaxLength(254);
+    userInformation.Property(profile => profile.IsActive).HasColumnName("is_active");
     userInformation.Property(profile => profile.VestigingId).HasColumnName("vestiging_id");
     userInformation.Property(profile => profile.AlternativeEmail).HasColumnName("alternative_email").HasMaxLength(254);
     userInformation.Property(profile => profile.DigitalSignature).HasColumnName("digital_signature").HasColumnType("bytea");

@@ -26,6 +26,18 @@ public sealed class VsvkRolesTests
     Assert.True(VsvkRoles.IsApplicationUser(CreateUser(VsvkRoles.Default)));
   }
 
+  [Theory]
+  [InlineData("planning", true)]
+  [InlineData("directie", true)]
+  [InlineData("finance", false)]
+  [InlineData("operationeel", false)]
+  [InlineData("unknown", false)]
+  public void PlanningListsRequirePlanningOrDirectieAndDefaultRole(string role, bool expected)
+  {
+    Assert.Equal(expected, VsvkRoles.CanManagePlanning(CreateUser(VsvkRoles.Default, role)));
+    Assert.False(VsvkRoles.CanManagePlanning(CreateUser(role)));
+  }
+
   [Fact]
   public void DefaultRoleInKeycloakRealmAccessClaimGrantsApplicationAccess()
   {

@@ -289,6 +289,7 @@ where id = 1
     await MigrateUserInformationAsync(cancellationToken);
     await MigrateUserInformationEmployeeFieldsAsync(cancellationToken);
     await MigrateUserInformationRelationsAsync(cancellationToken);
+    await MigratePlanningEmployeeActiveAsync(cancellationToken);
     await MigrateUserSkillLinkTableAsync(cancellationToken);
     await MigrateUserSkillDiplomaDatesAsync(cancellationToken);
     await MigrateSkillsNormalizedNameUniquenessAsync(cancellationToken);
@@ -831,6 +832,28 @@ where id = 1 and coalesce(data, '{}'::jsonb) ? 'artikelen';
       await drop.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    await transaction.CommitAsync(cancellationToken);
+  }
+
+  private async Task MigratePlanningEmployeeActiveAsync(CancellationToken cancellationToken)
+  {
+    const string migrationId = "20261115_planning_employee_active_v1";
+    await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+    await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+    await using var marker = new NpgsqlCommand(
+      "insert into vsvk_schema_migrations(migration_id) values ($1) on conflict do nothing returning migration_id",
+      connection, transaction);
+    marker.Parameters.AddWithValue(migrationId);
+    if (await marker.ExecuteScalarAsync(cancellationToken) is not null)
+    {
+      await using var alter = new NpgsqlCommand("""
+        alter table user_information add column if not exists is_active boolean;
+        update user_information set is_active = true where is_active is null;
+        alter table user_information alter column is_active set default true,
+          alter column is_active set not null;
+        """, connection, transaction);
+      await alter.ExecuteNonQueryAsync(cancellationToken);
+    }
     await transaction.CommitAsync(cancellationToken);
   }
 

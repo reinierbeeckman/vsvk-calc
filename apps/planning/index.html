@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>VSVK Planning</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Overpass:wght@400;600;700&family=Overpass+Mono:wght@500;600&display=swap">
+  <link rel="stylesheet" href="/shared/layout.css">
+  <link rel="stylesheet" href="/planning/planning.css">
+</head>
+<body>
+  <div data-vsvk-header data-application="planning" data-title="Planning mensen &amp; materieel"><nav class="tabs" aria-label="Planning onderdelen"><button type="button" data-section="Overzicht">Overzicht</button><button type="button" data-section="Werkopdrachten">Werkopdrachten</button><button type="button" data-section="Planbord">Planbord</button><button type="button" data-section="Werkbonnen">Werkbonnen</button><button type="button" data-section="Team">Team</button><button type="button" data-section="Lijsten" aria-selected="true">Lijsten</button></nav></div>
+  <script src="/shared/header.js"></script>
+  <main class="wrap">
+    <div class="pagehead"><h1 id="title">Medewerkers</h1><p id="description"></p></div>
+    <nav class="subnav" id="list-nav" aria-label="Lijsten"><button type="button" data-list="medewerkers">Medewerkers</button><button type="button" data-list="klanten">Klanten</button><button type="button" data-list="materieel">Materieel</button><button type="button" data-list="artikelen">Artikelen</button><button type="button" data-list="ordernummers">Ordernummers</button><button type="button" data-list="tarieven">Tarieven</button><button type="button" data-list="leveranciers">Leveranciers</button><button type="button" data-list="instellingen">Instellingen</button><button type="button" data-list="huisstijl">Huisstijl</button><button type="button" data-list="rollen">Rollen &amp; rechten</button></nav>
+    <section class="panel" id="list-panel">
+      <div class="ltool"><button class="btn primary" id="add" type="button" disabled title="Nog niet beschikbaar">+ Medewerker</button><button class="btn" type="button" disabled title="Nog niet beschikbaar">Importeren</button><button class="btn" type="button" disabled title="Nog niet beschikbaar">Exporteren</button><input type="search" id="search" aria-label="Zoeken in lijst" placeholder="Zoeken in medewerkers…"><span class="hint lcount" id="count"></span></div>
+      <p class="hint">Nieuwe records, import en export zijn nog niet beschikbaar.</p><p id="message" role="status" aria-live="polite"></p>
+      <div class="scroll"><table class="list std"><thead id="head"></thead><tbody id="body"></tbody></table></div><div id="empty" class="empty" hidden></div>
+    </section>
+    <section class="panel" id="unavailable" hidden><div class="empty">Dit onderdeel is nog niet beschikbaar.</div></section>
+  </main>
+  <dialog id="detail" aria-labelledby="detail-title"><div class="mbox"><div class="mhead"><div><h2 id="detail-title"></h2><p class="hint" id="detail-subtitle"></p></div><button class="btn ghost" type="button" data-close aria-label="Sluiten">✕</button></div><div class="mbody" id="detail-body"></div><div class="mfoot"><button class="btn" type="button" data-close>Sluiten</button></div></div></dialog>
+  <script src="/planning/planning.js"></script>
+</body>
+</html>

@@ -1,0 +1,1124 @@
+
+(function(){
+"use strict";
+const KEY="vsvk-calc-2027";
+const LOGO=document.querySelector(".brand .logo-svg").outerHTML;
+const TABS=[["overzicht","Overzicht"],["calculatie","Calculatie"],["offerte","Offerte"],["teksten","Offerteteksten"],["planning","Planning"],["artikelen","Artikelen"],["vestigingen","Vestigingen"],["opslaan","Opslaan / laden"],["profiel","Mijn profiel"]];
+let CATS=[],EENHEDEN=[],ARTICLE_CATEGORIES=[],ARTICLE_UNITS=[];
+const TOESLAGEN=[1,1.25,1.35,1.5,1.75,2];
+const HOOFDSTUKKEN=["Planning","Uitgangspunten","Niet inbegrepen","Voorwaarden"];
+let uid=Date.now();const id=()=>(uid++).toString(36);
+
+const ONDERDELEN=["Voorbereiding","Opslag, transport en logistiek","Reinigen van de huidige installatie","Demontage","Montage","Afvoer","Oplevering","Reistijd","Overig","Aansluiten","Aanbrengen van bekabeling","Montage van armaturen","Reinigen van de te demonteren installatie","Verwijderen installatie tunnelwand noord en zuid","Verwijderen installatie tunnelplafond noord en zuid","Buitengebied west","Buitengebied oost"];
+const SUGG=[["Voorbereiding","Het schouwen in de tunnel"],["Voorbereiding","Het maken van een intern plan van aanpak"],["Voorbereiding","Het deelnemen aan werkoverleggen"],["Voorbereiding","Het voorbereiden van de werkzaamheden"],["Voorbereiding","Het opzetten van de planning"]];
+const TEKSTEN=[
+["Uitgangspunten","De offerte is gebaseerd op uitvoering op werkdagen binnen reguliere werktijden, tenzij anders vermeld.",1],
+["Uitgangspunten","Vrijgekomen materialen worden op verantwoorde wijze afgevoerd en aangetoond middels afvalstroomnummers en zijn verrekend in deze aanbieding.",1],
+["Uitgangspunten","Voorzieningen zoals schaftkeet, toiletten en handwasgelegenheid zijn inbegrepen.",0],
+["Uitgangspunten","Tijdens de uitvoering van de werkzaamheden is de werklocatie volledig voor VSVK beschikbaar. Werkzaamheden van derden kunnen alleen in overleg met en zonder beperking voor VSVK worden uitgevoerd.",0],
+["Uitgangspunten","Het ontvangen, opslaan, overslaan en transporteren van de materialen bestemd voor de montage, voor een periode van 4 aaneengesloten maanden.",0],
+["Uitgangspunten","Uitzetten van ankerpunten en maatvoering door VSVK; opdrachtgever levert hiervoor een tekening aan en gezamenlijk worden de eerste referentiepunten bepaald.",0],
+["Uitgangspunten","Boorwerkzaamheden worden stofvrij en ergonomisch uitgevoerd.",0],
+["Uitgangspunten","Het toepassen van boormallen is onderdeel van de maatvoering en wordt door VSVK verzorgd.",0],
+["Uitgangspunten","Het aanpassen van de boorwijze bij het stuiten op wapening komt voor risico en kosten van de opdrachtgever.",0],
+["Uitgangspunten","Verbruiksmaterialen zoals bouten, moeren, ankers en spiraalboren worden geleverd door opdrachtgever.",0],
+["Uitgangspunten","De werkzaamheden in de tunnel worden volledig elektrisch uitgevoerd.",1],
+["Uitgangspunten","De benodigde stroompunten worden door opdrachtgever verzorgd.",0],
+["Uitgangspunten","Deze aanbieding is gebaseerd op een ongedeelde opdracht van alle hierboven genoemde onderdelen.",1],
+["Uitgangspunten","Deze offerte is geldig tot 3 maanden na het opstellen.",1],
+["Uitgangspunten","De werklocatie is voorzien van verkeersmaatregelen door opdrachtgever.",1],
+["Uitgangspunten","De materialen die bestemd zijn voor hergebruik vervoeren wij naar een opslaglocatie.",1],
+["Niet inbegrepen","Werkzaamheden die niet in deze offerte staan omschreven.",1],
+["Niet inbegrepen","Vergunningen, leges en verkeersbesluiten.",1],
+["Niet inbegrepen","Leveren van (verbruiks)materialen, zoals bouten, moeren, ankers, spiraalboren e.d.",0],
+["Voorwaarden","Alle genoemde prijzen zijn in euro's en exclusief 21% btw.",1],
+["Voorwaarden","Meerwerk wordt in overleg met en na akkoord van opdrachtgever uitgevoerd en separaat gefactureerd.",1],
+["Voorwaarden","Op al onze offertes en overeenkomsten zijn onze algemene voorwaarden van toepassing.",1],
+["Voorwaarden","Opdrachtgever verstrekt vooraf de benodigde documenten en opdrachtnummers die voor de eigen administratie van belang zijn om de factuur van VSVK in het eigen systeem te kunnen ontvangen.",1],
+["Voorwaarden","VSVK hanteert een facturatieschema in termijnen; de termijnen lopen gelijk met het gereedkomen van de deelwerkzaamheden. De laatste termijn wordt gefactureerd na oplevering van de werkzaamheden.",1],
+["Voorwaarden","De betalingstermijn is 30 dagen na factuurdatum.",1]];
+const SIG_PVK="data:image/png;base64,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";
+const MEDE=[["Peter van Kester","","VSVK Pijnacker BV","06-55300902","petervankester@vsvk.nl"],["John Wubben","","VSVK Pijnacker BV","06-20199798","johnwubben@vsvk.nl"],["Frank Burks","","VSVK Rilland BV","06-51623937","frankburks@vsvk.nl"],["Daniel Pals","","VSVK Rilland BV","06-25248172","danielpals@vsvk.nl"],["Mark van Dun","","VSVK Wamel BV","06-31798479","markvandun@vsvk.nl"]];
+
+const todayISO=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
+const line=(o={})=>Object.assign({id:id(),tekst:"",omschr:"",artikel:"",aantal:"",dagen:"",uren:"",toeslag:""},o);
+
+function baseData(){return{
+  voorbeeld:false,
+  project:{datum:todayISO(),naam:"",calcnr:"",akwr:0.05,versie:"1",offertenr:"",vestiging:"VSVK Pijnacker BV",door:""},
+  klant:{bedrijf:"",adres:"",postcode:"",plaats:"",contact:"",email:"",tel:""},
+  blocks:[{id:id(),onderdeel:"",lines:[line(),line(),line()]}],
+  offerte:{aanhef:"heer/mevrouw",achternaam:"",geldig:90,betaal:30,btw:0.21,website:"www.vsvk.nl",omschrijving:""},
+  teksten:TEKSTEN.map(t=>({id:id(),h:t[0],t:t[1],on:!!t[2]})),
+  planning:[],
+  plan:{},
+  artikelen:[],
+  onderdelen:ONDERDELEN.slice(),
+  sugg:SUGG.map(s=>({id:id(),o:s[0],t:s[1]})),
+  vestigingen:[],
+  medewerkers:MEDE.map(m=>({id:id(),naam:m[0],functie:m[1],vest:m[2],tel:m[3],email:m[4],sig:m[0]==="Peter van Kester"?SIG_PVK:""}))
+}}
+function sampleData(){
+  const d=baseData();d.voorbeeld=true;
+  Object.assign(d.project,{naam:"Vervangen tunnelverlichting Noordtunnel",calcnr:"Voorbeeld",offertenr:"Voorbeeld",door:"Peter van Kester"});
+  Object.assign(d.klant,{bedrijf:"Voorbeeld Infra BV",adres:"Havenstraat 12",postcode:"3011 AB",plaats:"Rotterdam",contact:"mevr. J. de Vries",email:"j.devries@voorbeeld.nl",tel:"010-1234567"});
+  d.offerte.aanhef="mevrouw";d.offerte.achternaam="De Vries";
+  d.offerte.omschrijving="Het demonteren van de bestaande verlichting in de Noordtunnel en het monteren van nieuwe LED-armaturen, inclusief voorbereiding, verkeersmaatregelen en afvoer van vrijgekomen materialen.";
+  d.blocks=[
+    {id:id(),onderdeel:"Voorbereiding",lines:[line({tekst:"Het schouwen in de tunnel",omschr:"Schouw met opdrachtgever",artikel:"Uitvoerder",aantal:1,dagen:1,uren:8}),line({tekst:"Het opzetten van de planning",omschr:"Planning en plan van aanpak",artikel:"Werkvoorbereider",aantal:1,dagen:3,uren:8})]},
+    {id:id(),onderdeel:"Demontage",lines:[line({tekst:"Demonteren bestaande armaturen",omschr:"Monteurs nachtwerk",artikel:"Monteur E&M",aantal:2,dagen:5,uren:8,toeslag:1.35}),line({omschr:"Hoogwerker",artikel:"Elektrische hoogwerker met werkhoogte ≤ 11 meter",aantal:1,dagen:5,uren:8}),line({omschr:"Botsabsorber nacht",artikel:"Botsabsorber met bediening nacht 18-06u & zaterdag 00-24u",aantal:1,dagen:5,uren:8})]},
+    {id:id(),onderdeel:"Montage van armaturen",lines:[line({tekst:"Monteren nieuwe LED-armaturen",omschr:"Monteurs nachtwerk",artikel:"Monteur E&M",aantal:2,dagen:8,uren:8,toeslag:1.35}),line({omschr:"Voorman",artikel:"Voorman",aantal:1,dagen:8,uren:8,toeslag:1.35}),line({omschr:"Gereedschap",artikel:"Gereedschap (slagtol en handgereedschap)",aantal:2,dagen:8,uren:8})]},
+    {id:id(),onderdeel:"Afvoer",lines:[line({tekst:"Afvoeren vrijgekomen materialen",omschr:"Containers afvoer",artikel:"Afvoeren vuil",aantal:3})]}
+  ];
+  const s=new Date();s.setDate(s.getDate()+7);while(s.getDay()!==1)s.setDate(s.getDate()+1);
+  const iso=x=>{const y=new Date(x);y.setMinutes(y.getMinutes()-y.getTimezoneOffset());return y.toISOString().slice(0,10)};
+  const add=(x,n)=>{const y=new Date(x);y.setDate(y.getDate()+n);return y};
+  const set=(bi,t,a,b)=>{d.plan[t==null?d.blocks[bi].id:d.blocks[bi].id+"|"+t]={start:iso(add(s,a)),eind:iso(add(s,b))}};
+  set(0,"Het schouwen in de tunnel",0,0);set(0,"Het opzetten van de planning",1,3);
+  set(1,"Demonteren bestaande armaturen",7,11);
+  set(2,"Monteren nieuwe LED-armaturen",14,25);
+  set(3,"Afvoeren vrijgekomen materialen",28,29);
+  d.planning=[{id:id(),naam:"Oplevering en schouw",start:iso(add(s,30)),eind:iso(add(s,30)),opm:""}];
+  return d;
+}
+
+let S=baseData(),tab="profiel",requestedTab="calculatie";
+try{const t=localStorage.getItem(KEY+"-tab");if(t&&TABS.some(x=>x[0]===t))requestedTab=t}catch(e){}
+if(location.hash&&TABS.some(x=>x[0]===location.hash.slice(1)))requestedTab=location.hash.slice(1);
+let profileChecking=true,profileRequired=true,profileError="",currentUserProfile=null,userProfileEtag=null;
+
+let saveT;function save(){clearTimeout(saveT);saveT=setTimeout(()=>{},250);scheduleCloud();scheduleSettings()}
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const EUR=new Intl.NumberFormat("nl-NL",{style:"currency",currency:"EUR"});
+const eur=v=>EUR.format(v||0);
+const num=v=>{if(v===""||v==null)return null;const n=typeof v==="number"?v:parseFloat(String(v).replace(",","."));return isNaN(n)?null:n};
+const fdate=iso=>{if(!iso)return"";const d=new Date(iso+"T00:00:00");return isNaN(d)?"":d.toLocaleDateString("nl-NL",{day:"numeric",month:"long",year:"numeric"})};
+function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),1800)}
+async function showConcurrencyConflict({entity,local,loadLatest,reapply}){
+  let latest;
+  try{latest=await loadLatest()}catch{toast(`De nieuwste versie van ${entity} kon niet worden geladen.`);return false}
+  if(!latest||!latest.body||!latest.etag){toast(`De nieuwste versie van ${entity} kon niet worden vergeleken.`);return false}
+  const dlg=document.createElement("dialog");
+  dlg.className="conflict-dialog";
+  const title=document.createElement("h2");title.textContent=`${entity} is gewijzigd door iemand anders`;
+  const explanation=document.createElement("p");explanation.textContent="De nieuwste databaseversie is opgehaald. Je invoer is bewaard. Vergelijk beide versies voordat je je wijziging opnieuw toepast.";
+  const compare=document.createElement("button");compare.className="btn";compare.textContent="Vergelijk versies";
+  const details=document.createElement("div");details.hidden=true;details.className="conflict-details";
+  const makePanel=(label,value)=>{const section=document.createElement("section");const heading=document.createElement("h3");heading.textContent=label;const pre=document.createElement("pre");pre.className="conflict-value";pre.textContent=JSON.stringify(value,null,2);section.append(heading,pre);return section};
+  details.append(makePanel("Jouw invoer",local),makePanel("Nieuwste versie",latest.body));
+  compare.addEventListener("click",()=>{details.hidden=!details.hidden;compare.textContent=details.hidden?"Vergelijk versies":"Verberg vergelijking"});
+  const reapplyButton=document.createElement("button");reapplyButton.className="btn primary";reapplyButton.textContent="Ververs en pas mijn wijziging opnieuw toe";
+  const close=document.createElement("button");close.className="btn";close.textContent="Sluiten en invoer bewaren";
+  const actions=document.createElement("div");actions.className="row conflict-actions";actions.append(compare,reapplyButton,close);
+  dlg.append(title,explanation,details,actions);document.body.append(dlg);
+  return new Promise(resolve=>{
+    close.addEventListener("click",()=>{dlg.close();dlg.remove();resolve(false)});
+    reapplyButton.addEventListener("click",async()=>{dlg.close();dlg.remove();try{const applied=await reapply(latest);resolve(applied!==false)}catch{resolve(false)}});
+    dlg.addEventListener("cancel",event=>{event.preventDefault();dlg.close();dlg.remove();resolve(false)});
+    dlg.addEventListener("close",()=>dlg.remove());dlg.showModal();
+  });
+}
+
+/* rekenen */
+const art=name=>S.artikelen.find(a=>a.a===name);
+const articleFromDto=a=>({id:a.id,a:a.naam,c:a.categorie,categorieId:a.categorieId,e:a.eenheid,eenheidId:a.eenheidId,t:a.tariefSoort==="zie_prijs"?"zp":a.tarief,tariefSoort:a.tariefSoort,act:a.actief,version:a.version,etag:a.etag});
+const articleRequest=a=>({naam:a.a,categorieId:ARTICLE_CATEGORIES.find(c=>c.naam===a.c)?.id||a.categorieId,eenheidId:ARTICLE_UNITS.find(u=>u.naam===a.e)?.id||a.eenheidId,tariefSoort:num(a.t)==null?"zie_prijs":"vast",tarief:num(a.t),actief:a.act!==false});
+function lineTotal(l){
+  if(!l.artikel)return 0;const a=art(l.artikel);const own=(l.tarief!==""&&l.tarief!=null)?num(l.tarief):null;const tarief=own!=null?own:(a?num(a.t):null);if(tarief==null)return 0;
+  const f=[l.aantal,l.dagen,l.uren].map(num).filter(v=>v!=null);
+  const prod=f.length?f.reduce((x,y)=>x*y,1):0;
+  const t=num(l.toeslag);return prod*tarief*(t==null?1:t);
+}
+const blockTotal=b=>b.lines.reduce((s,l)=>s+lineTotal(l),0);
+function calc(){
+  const ak=num(S.project.akwr)||0;const sub=S.blocks.reduce((s,b)=>s+blockTotal(b),0);
+  const perCat={};CATS.forEach(c=>perCat[c]=0);
+  S.blocks.forEach(b=>b.lines.forEach(l=>{const a=art(l.artikel);if(a){const c=CATS.includes(a.c)?a.c:(CATS.at(-1)||"");if(c)perCat[c]+=lineTotal(l)}}));
+  const perOnd={};S.blocks.forEach(b=>{const k=b.onderdeel||"(geen onderdeel)";perOnd[k]=(perOnd[k]||0)+blockTotal(b)});
+  return{sub,ak,akBedrag:sub*ak,tot:sub*(1+ak),perCat,perOnd};
+}
+function updateTotals(){
+  const c=calc();
+  document.querySelectorAll("[data-t]").forEach(el=>{const k=el.dataset.t;
+    if(k==="sub")el.textContent=eur(c.sub);else if(k==="ak")el.textContent=eur(c.akBedrag);else if(k==="tot")el.textContent=eur(c.tot);
+    else if(k.startsWith("line:")){const [,bi,li]=k.split(":");const l=S.blocks[bi]?.lines[li];if(l)el.textContent=eur(lineTotal(l))}
+    else if(k.startsWith("block:")){const b=S.blocks[k.split(":")[1]];if(b)el.textContent=eur(blockTotal(b))}
+  });
+  const ov=document.getElementById("overzicht");if(ov)ov.innerHTML=overzichtHTML(c);
+}
+
+/* binding */
+function getPath(p){return p.split(".").reduce((o,k)=>o?.[k],S)}
+function setPath(p,v){const ks=p.split(".");const last=ks.pop();const o=ks.reduce((o,k)=>o[k],S);o[last]=v}
+const inp=(p,o={})=>{const v=getPath(p);return `<input id="i-${p.replace(/\./g,"-")}" data-bind="${p}" ${o.num?'data-num="1" inputmode="decimal" class="num"':""} type="${o.type||"text"}" value="${esc(v)}" ${o.list?`list="${o.list}"`:""} ${o.ph?`placeholder="${esc(o.ph)}"`:""} ${o.aria?`aria-label="${esc(o.aria)}"`:""}>`};
+const sel=(p,opts,o={})=>{const v=getPath(p);const has=opts.some(x=>String(Array.isArray(x)?x[0]:x)===String(v));
+  return `<select id="s-${p.replace(/\./g,"-")}" data-bind="${p}" ${o.num?'data-num="1"':""} ${o.rerender?'data-rr="1"':""} ${o.aria?`aria-label="${esc(o.aria)}"`:""}>${o.blank!==false?`<option value="">${esc(o.blank||"—")}</option>`:""}${!has&&v!==""&&v!=null?`<option selected>${esc(v)}</option>`:""}${opts.map(x=>{const [val,lab]=Array.isArray(x)?x:[x,x];return `<option value="${esc(val)}" ${String(val)===String(v)?"selected":""}>${esc(lab)}</option>`}).join("")}</select>`};
+const fld=(lab,html)=>`<label class="f">${lab}${html}</label>`;
+
+/* ===== Calculatie ===== */
+function overzichtHTML(c){
+  const ak=1+(num(S.project.akwr)||0);
+  const ond=Object.entries(c.perOnd).filter(([k,v])=>v||k!=="(geen onderdeel)");
+  return `<div class="grid2">
+   <div class="scroll"><table class="sumtable"><thead><tr><th>Onderdeel</th><th class="n">Totaal</th><th class="n">Incl. AK + W&amp;R</th></tr></thead><tbody>
+   ${ond.length?ond.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="n">${eur(v)}</td><td class="n">${eur(v*ak)}</td></tr>`).join(""):`<tr><td colspan="3" class="ro">Nog geen onderdelen gekozen.</td></tr>`}
+   <tr class="total"><td>Totaal</td><td class="n">${eur(c.sub)}</td><td class="n">${eur(c.tot)}</td></tr></tbody></table></div>
+   <div class="scroll"><table class="sumtable"><thead><tr><th>Categorie</th><th class="n">Totaal</th><th class="n">Incl. AK + W&amp;R</th></tr></thead><tbody>
+   ${CATS.map(k=>`<tr><td>${k}</td><td class="n">${eur(c.perCat[k])}</td><td class="n">${eur(c.perCat[k]*ak)}</td></tr>`).join("")}
+   <tr class="total"><td>Totaal</td><td class="n">${eur(c.sub)}</td><td class="n">${eur(c.tot)}</td></tr></tbody></table></div></div>`;
+}
+function renderCalc(){
+  const act=S.artikelen.filter(a=>a.act&&a.a);
+  const vest=S.vestigingen.map(v=>v.naam).filter(Boolean);
+  const mede=S.medewerkers.map(m=>m.naam).filter(Boolean);
+  const blocks=S.blocks.map((b,bi)=>{
+    const sug=S.sugg.filter(s=>s.o===b.onderdeel).map(s=>s.t);
+    return `<div class="block">
+    <div class="block-head">${inp(`blocks.${bi}.onderdeel`,{list:"ondlist",ph:"Kies of typ werkonderdeel…",aria:"Werkonderdeel"}).replace("<input ",'<input class="ond" data-rr="1" autocomplete="off" ')}
+      <datalist id="sug-${bi}">${sug.map(s=>`<option value="${esc(s)}">`).join("")}</datalist>
+      <button class="btn" data-act="addline" data-b="${bi}">+ Regel</button>
+      ${delBlockId===b.id?`<span class="confirm-del" role="alert"><span>Weet u het zeker? Het blok${b.onderdeel?" <b>"+esc(b.onderdeel)+"</b>":""} met ${b.lines.filter(l=>l.artikel||l.tekst).length} regels wordt verwijderd.</span><button class="btn danger" data-act="delblockyes" data-b="${bi}">Ja, verwijderen</button><button class="btn" data-act="delblockno">Annuleren</button></span>`:`<button class="btn ghost" data-act="delblock" data-b="${bi}" aria-label="Blok verwijderen">Blok verwijderen</button>`}
+      <span class="sum" data-t="block:${bi}">${eur(blockTotal(b))}</span></div>
+    <div class="scroll"><table class="calc-table"><thead><tr>
+      <th data-layout="width-30pct">Offertetekst</th><th data-layout="width-12pct">Omschrijving</th><th data-layout="width-18pct">Artikel</th><th>Eenheid</th><th class="n" data-layout="width-6pct">Aantal</th><th class="n" data-layout="width-6pct">Dagen</th><th class="n" data-layout="width-6pct">Uren</th><th class="n">Tarief</th><th data-layout="width-6pct">Toeslag</th><th class="n">Regeltotaal</th><th></th></tr></thead><tbody>
+    ${b.lines.map((l,li)=>{const a=art(l.artikel);const p=`blocks.${bi}.lines.${li}`;return `<tr>
+      <td>${txCell(p,l,bi,sug)}</td>
+      <td>${inp(p+".omschr",{aria:"Omschrijving"})}</td>
+      <td>${inp(p+".artikel",{aria:"Artikel",ph:"Zoek artikel…"}).replace("<input ",`<input class="artin${l.artikel&&!a?" unknown":""}" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" ${l.artikel&&!a?'title="Onbekend artikel: kies een artikel uit de lijst"':""} `)}</td>
+      <td data-layout="width-112px-min-width-112px">${unitSel(l,a,bi,li)}</td>
+      <td>${inp(p+".aantal",{num:1,aria:"Aantal"})}</td>
+      <td>${inp(p+".dagen",{num:1,aria:"Dagen"})}</td>
+      <td>${inp(p+".uren",{num:1,aria:"Uren"})}</td>
+      <td data-layout="width-96px-min-width-96px"><input id="i-${p.replace(/\./g,"-")}-tarief" data-bind="${p}.tarief" data-num="1" inputmode="decimal" class="num" data-money="1" data-r="${bi}:${li}" value="${esc(money(l.tarief))}" placeholder="${a?esc(money(a.t)):""}" aria-label="Tarief"></td>
+      <td>${sel(p+".toeslag",TOESLAGEN.map(t=>[t,String(t).replace(".",",")]),{num:1,blank:"1",aria:"Toeslag"})}</td>
+      <td class="n"><span data-t="line:${bi}:${li}">${eur(lineTotal(l))}</span></td>
+      <td><button class="btn ghost" data-act="delline" data-b="${bi}" data-l="${li}" aria-label="Regel verwijderen">✕</button></td></tr>${delLineId===l.id?`<tr class="confirm-row"><td colspan="11"><span class="confirm-del" role="alert"><span>Weet u het zeker? De regel${(l.artikel||l.tekst||l.omschr)?" <b>"+esc(l.artikel||l.tekst||l.omschr)+"</b>":""}${lineTotal(l)?" ("+eur(lineTotal(l))+")":""} wordt verwijderd.</span><button class="btn danger" data-act="dellineyes" data-b="${bi}" data-l="${li}">Ja, verwijderen</button><button class="btn" data-act="dellineno">Annuleren</button></span></td></tr>`:""}`}).join("")}
+    </tbody></table></div></div>`}).join("");
+  return `${S.voorbeeld?`<div class="notice"><span>Dit is een <b>voorbeeldcalculatie</b> zodat je ziet hoe het werkt. Begin met een lege calculatie als je je eigen project wilt invullen.</span><button class="btn primary" data-act="new">Nieuwe lege calculatie</button></div>`:""}
+  <div class="grid2">
+   <section class="panel"><h2>Projectgegevens</h2><div class="fields">
+    ${fld("Datum",inp("project.datum",{type:"date"}))}${fld("Projectnaam",inp("project.naam"))}${fld("Calculatie- / offertenummer",`<input id="i-nummer" readonly value="${esc(S.nummer||"")}" placeholder="${S.voorbeeld?"Voorbeeld":"Wordt automatisch toegekend"}" data-layout="font-weight-700">`)}
+    ${fld("AK + W&amp;R (%)",`<input id="i-akwr" class="num" inputmode="decimal" data-pct="project.akwr" value="${esc(+(num(S.project.akwr)*100).toFixed(2))}">`)}
+    ${fld("Versie",inp("project.versie"))}${fld("Status",sel("status",STATUSES,{blank:false}))}
+    ${fld("Vestiging",sel("project.vestiging",vest))}${fld("Calculatie door",sel("project.door",mede))}
+   </div></section>
+   <section class="panel"><h2>Klantgegevens</h2><div class="fields">
+    ${fld("Bedrijfsnaam",inp("klant.bedrijf"))}${fld("Adres",inp("klant.adres"))}${fld("Postcode",inp("klant.postcode"))}${fld("Plaats",inp("klant.plaats"))}
+    ${fld("Contactpersoon",inp("klant.contact"))}${fld("E-mail",inp("klant.email",{type:"email"}))}${fld("Telefoon",inp("klant.tel",{type:"tel"}))}
+   </div></section>
+  </div>
+  <section class="panel">
+   <div class="row" data-layout="justify-content-space-between"><h2>Calculatie</h2><button class="btn primary" data-act="addblock">+ Onderdeel toevoegen</button></div>
+   <p class="hint">Kies per blok het werkonderdeel in het oranje vak, of typ zelf een naam, en vul de regels in. Eenheid en tarief komen uit het tabblad Artikelen. Regeltotaal = aantal × dagen × uren × tarief × toeslag; lege velden tellen niet mee.</p>
+   <p class="hint"><b>Toetsenbord:</b> met de pijltjestoetsen ga je door de calculatie, Enter gaat een regel omlaag. Met Alt + ↓ open je een keuzelijst. Bij Artikel typ je een paar letters of woorden (bijv. "hoog 22" of "trekker e") en kies je met ↑ ↓ en Enter.</p>
+   <datalist id="ondlist">${S.onderdelen.filter(Boolean).map(o=>`<option value="${esc(o)}">`).join("")}</datalist>
+   <datalist id="artlist">${act.map(a=>`<option value="${esc(a.a)}">${esc(a.c)} · ${esc(a.e)}</option>`).join("")}</datalist>
+   ${blocks||'<p class="hint">Nog geen onderdelen. Voeg er een toe.</p>'}
+  </section>
+  <section class="panel"><h2>Overzicht</h2><div id="overzicht">${overzichtHTML(calc())}</div></section>`;
+}
+
+const money=v=>{if(v===""||v==null)return"";const n=num(v);return n==null?String(v):n.toLocaleString("nl-NL",{minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:false})};
+const UNITS=["uur","dag","keer","stuk","kilometer","m2","m3"];
+function mapUnit(a){if(!a)return"";const e=String(a.e||"").toLowerCase();if(e==="uur")return"uur";if(e==="per dag"||e==="dag")return"dag";if(e==="keer")return"keer";if(e==="stuk"||e==="per stuk")return"stuk";if(e==="per km"||e==="km"||e==="kilometer")return"kilometer";if(e==="m2"||e==="m²")return"m2";if(e==="m3"||e==="m³")return"m3";return a.e}
+function unitSel(l,a,bi,li){const v=l.eenheid||mapUnit(a);const opts=UNITS.slice();if(v&&!opts.includes(v))opts.push(v);
+  return `<select id="u-${bi}-${li}" data-bind="blocks.${bi}.lines.${li}.eenheid" data-u="${bi}:${li}" aria-label="Eenheid"><option value="">—</option>${opts.map(o=>`<option value="${esc(o)}"${o===v?" selected":""}>${esc(o)}</option>`).join("")}</select>`}
+
+function txCell(p,l,bi,sug){const t=l.tekst||"";
+  if(t.length>90||t.includes("\n")){const rows=Math.min(14,t.split("\n").reduce((n,x)=>n+Math.max(1,Math.ceil(x.length/55)),0));
+    return `<textarea class="txa" id="i-${p.replace(/\./g,"-")}-tekst" data-bind="${p}.tekst" rows="${rows}" aria-label="Offertetekst">${esc(t)}</textarea>`}
+  return inp(p+".tekst",{list:`sug-${bi}`,aria:"Offertetekst",ph:sug.length?"Kies of typ…":"Tekst op de offerte"}).replace("<input ",'<input autocomplete="off" ')}
+const up=v=>Math.ceil(Math.round((v||0)*100)/100);
+const rnd=(v,mode)=>mode==="normaal"?Math.round(Math.round((v||0)*100)/100):up(v);
+const eur0=v=>"€ "+Math.round(v||0).toLocaleString("nl-NL")+",-";
+function totFromRecord(r){try{const d=JSON.parse(r.data||"{}");const ak=1+(num(d.project&&d.project.akwr)||0);const g={};(d.blocks||[]).forEach(b=>{const t=b.lines.reduce((s,l)=>s+lineTotal(l),0);if(!t&&!b.onderdeel)return;const k=b.onderdeel||"Overig";g[k]=(g[k]||0)+t*ak});return Object.values(g).reduce((s,x)=>s+rnd(x,d.afronding),0)}catch(e){return r.bedrag||0}}
+function txHTML(t){return t.includes("\n")||t.length>140?`<p class="subp">${esc(t).replace(/\n/g,"<br>")}</p>`:`<ul><li>${esc(t)}</li></ul>`}
+function closingText(p,m){return `Wij vertrouwen erop u hiermee een passende aanbieding te hebben gedaan. Heeft u vragen over deze offerte, neem dan gerust contact op met ${p.door||"ons"}${m.tel?" via "+m.tel:""}${m.email?" of "+m.email:""}. Voor akkoord kunt u deze offerte ondertekend aan ons retourneren.`}
+
+function findMede(name){const norm=x=>String(x||"").toLowerCase().replace(/\./g," ").replace(/\s+/g," ").trim();const n=norm(name);if(!n)return{};
+  const exact=S.medewerkers.find(x=>norm(x.naam)===n);if(exact)return exact;
+  const t=n.split(" ");const ini=t[0],rest=t.slice(1).join(" ");
+  if(ini.length===1&&rest){const hit=S.medewerkers.filter(x=>{const u=norm(x.naam).split(" ");return u[0][0]===ini&&u.slice(1).join(" ")===rest});if(hit.length===1)return hit[0]}
+  return{}}
+
+
+/* ===== Offerte ===== */
+function renderOfferte(){
+  const c=calc();const ak=1+(num(S.project.akwr)||0);const o=S.offerte,p=S.project,k=S.klant;
+  const v=S.vestigingen.find(x=>x.naam===p.vestiging)||{};const m=findMede(p.door);
+  const geldig=p.datum?(()=>{const d=new Date(p.datum+"T00:00:00");d.setDate(d.getDate()+(num(o.geldig)||0));return d.toLocaleDateString("nl-NL",{day:"numeric",month:"long",year:"numeric"})})():"";
+  const groups=[];S.blocks.forEach(b=>{const t=blockTotal(b);if(!t&&!b.onderdeel)return;const name=b.onderdeel||"Overig";let g=groups.find(x=>x.n===name);if(!g){g={n:name,t:0,tx:[]};groups.push(g)}g.t+=t*ak;b.lines.forEach(l=>{if(l.tekst&&!g.tx.includes(l.tekst))g.tx.push(l.tekst)})});groups.forEach(g=>g.t=rnd(g.t,S.afronding));
+  const gTot=groups.reduce((s,g)=>s+g.t,0);const ok=Math.abs(gTot-c.tot)<=groups.length+0.01;
+  const btw=num(o.btw)||0;
+  const hs=h=>S.teksten.filter(t=>t.h===h&&t.on&&t.t.trim());
+  const sec=(h,title)=>{const r=hs(h);return r.length?`<h4>${title}</h4><ul>${r.map(t=>`<li>${esc(t.t)}</li>`).join("")}</ul>`:""};
+  const aanhef=`Geachte ${esc(o.aanhef)}${o.achternaam?" "+esc(o.achternaam):""},`;
+  return `<div class="grid2" data-layout="grid-template-columns-minmax-0-320px-minmax-0-1fr-align-items-start" id="offgrid">
+   <section class="panel"><h2>Instellingen</h2><p class="hint">Deze velden komen niet op de offerte zelf. Project- en klantgegevens vul je in op het tabblad Calculatie.</p>
+    <div class="fields" data-layout="grid-template-columns-1fr">
+     ${fld("Aanhef",sel("offerte.aanhef",["heer/mevrouw","heer","mevrouw"],{blank:false,rerender:1}))}
+     ${fld("Achternaam contactpersoon klant",inp("offerte.achternaam"))}
+     ${fld("Geldigheid offerte (dagen)",inp("offerte.geldig",{num:1}))}
+     ${fld("Betalingstermijn (dagen)",inp("offerte.betaal",{num:1}))}
+     ${fld("Btw (%)",`<input id="i-btw" class="num" inputmode="decimal" data-pct="offerte.btw" value="${esc(+(btw*100).toFixed(2))}">`)}
+     ${fld("Website",inp("offerte.website"))}
+     ${fld("Projectomschrijving",`<textarea id="t-omschr" data-bind="offerte.omschrijving" rows="5">${esc(o.omschrijving)}</textarea>`)}
+    </div>
+    <div class="row"><span>Controle calculatie = offerte:</span><span class="${ok?"status-ok":"status-bad"}">${ok?"OK":"Verschil "+eur(c.tot-gTot)}</span></div>
+    <div class="row"><button class="btn primary" data-act="pdf">Offerte als PDF opslaan</button><button class="btn" data-act="copyoff">Tekst kopiëren</button></div>
+   </section>
+   <article class="paper" id="paper">
+    <div class="band"><h1>Offerte</h1><div class="logo">${LOGO}</div></div>
+    <div class="lh"><div>${esc(k.bedrijf)||'<span class="empty">Bedrijfsnaam klant</span>'}<br>${k.contact?"T.a.v. "+esc(k.contact)+"<br>":""}${esc(k.adres)}<br>${esc((k.postcode+"  "+k.plaats).trim())}</div>
+     <div class="meta"><span>Offertenummer</span><span>${esc(p.offertenr)||"—"}</span><span>Datum</span><span>${fdate(p.datum)||"—"}</span><span>Geldig tot</span><span>${geldig||"—"}</span><span>Project</span><span>${esc(p.naam)||"—"}</span><span>Contactpersoon</span><span>${esc(p.door)||"—"}</span></div></div>
+    <p>${aanhef}</p>
+    <p>Hartelijk dank voor uw aanvraag. Met genoegen bieden wij u hierbij onze offerte aan voor het project ${esc(p.naam)||"…"}. Hieronder vindt u een korte omschrijving van de werkzaamheden en het prijsoverzicht.</p>
+    <h4>Projectomschrijving</h4><p>${o.omschrijving?esc(o.omschrijving).replace(/\n/g,"<br>"):'<span class="empty">Vul links een projectomschrijving in.</span>'}</p>
+    <h4>Prijsoverzicht</h4>
+    <div class="scroll"><table class="price"><tbody>
+     ${groups.length?groups.map(g=>`<tr><td><b>${esc(g.n)}</b>${g.tx.length?`<div class="sub">${g.tx.map(txHTML).join("")}</div>`:""}</td><td class="n">${eur0(g.t)}</td></tr>`).join(""):`<tr><td class="empty" colspan="2">Nog geen bedragen in de calculatie.</td></tr>`}
+     <tr class="tot"><td>Totaal excl. btw</td><td class="n">${eur0(gTot)}</td></tr>
+     <tr><td>Btw ${String(+(btw*100).toFixed(2)).replace(".",",")}%</td><td class="n">${eur0(rnd(gTot*btw,S.afronding))}</td></tr>
+     <tr class="tot"><td>Totaal incl. btw</td><td class="n">${eur0(gTot+rnd(gTot*btw,S.afronding))}</td></tr>
+    </tbody></table></div>
+    ${sec("Planning","Planning")}${sec("Uitgangspunten","Uitgangspunten")}${sec("Niet inbegrepen","Niet inbegrepen in deze offerte")}${sec("Voorwaarden","Voorwaarden")}
+    <p data-layout="margin-top-22px">${esc(closingText(p,m))}</p>
+    <div class="sign"><div>Met vriendelijke groet,<br><b>${esc(v.naam||"VSVK")}</b>${m.sig?`<img class="sigimg" src="${m.sig}" alt="Handtekening ${esc(p.door)}">`:"<br><br>"}<br>${esc(p.door)}${m.tel?`<br><span data-layout="color-paper-muted">${esc(m.tel)}</span>`:""}${m.email?`<br><span data-layout="color-paper-muted">${esc(m.email)}</span>`:""}</div>
+     <div><b>Voor akkoord opdrachtgever</b><div data-layout="display-grid-grid-template-columns-auto-1fr-gap-4px-10px-margin-top-6px-align-items-end"><span>Naam</span><div class="line"></div><span>Handtekening</span><div class="line"></div><span>Datum</span><div class="line"></div></div></div></div>
+    <div class="foot"><div class="fl"><span>${esc(v.naam||"VSVK")}</span><span>${esc(v.adres||"")} ${esc(v.pc||"")} ${esc(v.plaats||"")}</span><span>T ${esc(v.tel||"")}</span><span>${esc(v.email||"")}</span><span>${esc(o.website)}</span></div><div class="fl"><span>KvK ${esc(v.kvk||"")}</span><span>Btw ${esc(v.btw||"")}</span><span>IBAN ${esc(v.iban||"")}</span></div></div>
+   </article></div>`;
+}
+
+/* ===== Offerteteksten ===== */
+function txLockBar(){if(!AUTH.canManageSettings)return `<div class="lockbar">Alleen gebruikers met de rol directie kunnen instellingen wijzigen.</div>`;return txLocked?(txAsk?`<div class="confirm-del" role="alert" data-layout="justify-content-space-between"><span><b>Weet u het zeker?</b> Wijzigingen in offerteteksten, voorstellen en onderdelen komen direct op de offerte en in de keuzelijsten van de calculatie.</span><span class="row"><button class="btn danger" data-act="txunlockyes">Ja, wijzigen toestaan</button><button class="btn" data-act="txunlockno">Annuleren</button></span></div>`
+    :`<div class="lockbar"><span><b>🔒 Vergrendeld.</b> Offerteteksten, voorstellen en onderdelen kunnen niet per ongeluk worden gewijzigd.</span><button class="btn" data-act="txunlock">Wijzigen toestaan</button></div>`)
+   :`<div class="lockbar open"><span><b>Bewerken staat aan.</b> Wijzigingen worden direct opgeslagen. Vergrendel weer als je klaar bent.</span><button class="btn primary" data-act="txlock">Vergrendelen</button></div>`}
+function lockHTML(h){return h.replace(/<button class="btn[^"]*"[^>]*data-act="(addtekst|deltekst|addsugg|delsugg|addond|delond)"[^>]*>[^<]*<\/button>/g,"").replace(/<input /g,'<input readonly tabindex="-1" ').replace(/<select /g,'<select disabled ')}
+function renderTeksten(){const h=renderTekstenInner();return !AUTH.canManageSettings||txLocked?lockHTML(h):h}
+function renderTekstenInner(){
+  return `<section class="panel"><h2>Offerteteksten</h2>__TXBAR__<p class="hint">Zet een tekst op Nee om hem niet op de offerte te tonen, zonder hem te verwijderen. Teksten verschijnen per hoofdstuk in de offerte.</p>
+  ${HOOFDSTUKKEN.map(h=>{const rows=S.teksten.map((t,i)=>[t,i]).filter(([t])=>t.h===h);const on=rows.filter(([t])=>t.on&&t.t.trim()).length;
+   return `<div class="block"><div class="block-head"><h3 data-layout="color-ink">${h}</h3><span class="chip">${on} op offerte</span><button class="btn" data-layout="margin-left-auto" data-act="addtekst" data-h="${h}">+ Tekst</button></div>
+   <div class="scroll"><table><tbody>${rows.length?rows.map(([t,i])=>`<tr><td data-layout="width-100pct"><input id="tx-${t.id}" data-bind="teksten.${i}.t" value="${esc(t.t)}" aria-label="Tekst"></td><td>${sel(`teksten.${i}.on`,[["true","Ja"],["false","Nee"]],{blank:false,aria:"Opnemen"}).replace(/value="(true|false)"( selected)?/g,(m,v)=>`value="${v}"${String(t.on)===v?" selected":""}`)}</td><td><button class="btn ghost" data-act="deltekst" data-i="${i}" aria-label="Tekst verwijderen">✕</button></td></tr>`).join(""):`<tr><td class="ro">Nog geen teksten in dit hoofdstuk.</td></tr>`}</tbody></table></div></div>`}).join("")}
+  </section>
+  <section class="panel"><h2>Offertetekst-voorstellen per onderdeel</h2><p class="hint">Deze voorstellen verschijnen in de calculatie bij het veld Offertetekst als je dat onderdeel kiest.</p>
+   <div class="scroll"><table data-layout="min-width-600px"><thead><tr><th>Onderdeel</th><th>Offertetekst</th><th></th></tr></thead><tbody>
+   ${S.sugg.map((s,i)=>`<tr><td data-layout="width-35pct">${sel(`sugg.${i}.o`,S.onderdelen)}</td><td>${inp(`sugg.${i}.t`)}</td><td><button class="btn ghost" data-act="delsugg" data-i="${i}" aria-label="Verwijderen">✕</button></td></tr>`).join("")}
+   </tbody></table></div><div class="row"><button class="btn" data-act="addsugg">+ Voorstel</button></div>
+  </section>
+  <section class="panel"><h2>Onderdelen</h2><p class="hint">De keuzelijst voor onderdelen in de calculatie.</p>
+   <div class="fields">${S.onderdelen.map((o,i)=>`<div class="row" data-layout="flex-wrap-nowrap"><input id="ond-${i}" data-bind="onderdelen.${i}" value="${esc(o)}" aria-label="Onderdeel"><button class="btn ghost" data-act="delond" data-i="${i}" aria-label="Verwijderen">✕</button></div>`).join("")}</div>
+   <div class="row"><button class="btn" data-act="addond">+ Onderdeel</button></div></section>`.replace("__TXBAR__",txLockBar());
+}
+
+/* ===== Planning ===== */
+const addDays=(iso,n)=>{const d=new Date(iso+"T00:00:00");d.setDate(d.getDate()+n);return d};
+const isoOf=d=>{const y=new Date(d);y.setMinutes(y.getMinutes()-y.getTimezoneOffset());return y.toISOString().slice(0,10)};
+const planKey=(b,t)=>t==null?b.id:b.id+"|"+t;
+function workdays(a,b){if(!a||!b||b<a)return"";let n=0;for(let d=new Date(a+"T00:00:00"),e=new Date(b+"T00:00:00");d<=e;d.setDate(d.getDate()+1)){const w=d.getDay();if(w%6)n++}return n}
+function planRows(){
+  const rows=[];
+  S.blocks.forEach(b=>{
+    const subs=[...new Set(b.lines.map(l=>(l.tekst||"").trim()).filter(Boolean))];
+    if(!b.onderdeel&&!subs.length)return;
+    const sub=subs.map(t=>{const v=S.plan[planKey(b,t)]||{};return{kind:"sub",key:planKey(b,t),naam:t,start:v.start||"",eind:v.eind||""}});
+    const dated=sub.filter(r=>r.start);
+    const v=S.plan[b.id]||{};
+    const main={kind:"main",key:b.id,naam:b.onderdeel||"(zonder werkonderdeel)",start:v.start||"",eind:v.eind||"",derived:dated.length>0};
+    if(main.derived){main.start=dated.map(r=>r.start).sort()[0];main.eind=dated.map(r=>r.eind||r.start).sort().pop()}
+    rows.push(main,...sub);
+  });
+  S.planning.forEach((r,i)=>rows.push({kind:"extra",i,naam:r.naam,start:r.start||"",eind:r.eind||""}));
+  return rows;
+}
+function renderPlanning(){
+  const rows=planRows();
+  const dates=rows.flatMap(r=>[r.start,r.eind]).filter(Boolean).sort();
+  let begin=dates[0]||S.project.datum||todayISO();
+  const bd=new Date(begin+"T00:00:00");bd.setDate(bd.getDate()-((bd.getDay()+6)%7));begin=isoOf(bd);
+  const end=dates[dates.length-1]||begin;
+  let span=Math.max(35,Math.round((new Date(end+"T00:00:00")-new Date(begin+"T00:00:00"))/864e5)+8);span=Math.min(400,Math.ceil(span/7)*7);
+  const days=[...Array(span)].map((_,i)=>isoOf(addDays(begin,i)));const tIso=todayISO();
+  const months=[];days.forEach(x=>{const k=new Date(x+"T00:00:00").toLocaleDateString("nl-NL",{month:"short",year:"2-digit"}).toUpperCase();const l=months[months.length-1];if(l&&l.k===k)l.n++;else months.push({k,n:1})});
+  const DL=["Z","M","D","W","D","V","Z"];
+  const dateIn=(r,f)=>r.kind==="extra"?`<input type="date" id="pl-x${r.i}-${f}" data-bind="planning.${r.i}.${f}" value="${esc(r[f])}" aria-label="${f}">`:`<input type="date" id="pl-${r.key.replace(/[^a-z0-9]/gi,"_")}-${f}" data-plan="${esc(r.key)}" data-f="${f}" value="${esc(r[f])}" aria-label="${f==="start"?"Startdatum":"Einddatum"} ${esc(r.naam)}">`;
+  const body=rows.map(r=>{
+    const name=r.kind==="extra"?`<input class="nmi" id="pl-x${r.i}-naam" data-bind="planning.${r.i}.naam" value="${esc(r.naam)}" placeholder="Overige werkzaamheid" aria-label="Werkzaamheid">`:`<span class="nm" title="${esc(r.naam)}">${esc(r.naam)}</span>`;
+    const dcells=r.kind==="main"&&r.derived?`<td class="c-start"><span class="derived">${fdateShort(r.start)}</span></td><td class="c-eind"><span class="derived">${fdateShort(r.eind)}</span></td>`:`<td class="c-start">${dateIn(r,"start")}</td><td class="c-eind">${dateIn(r,"eind")}</td>`;
+    const st=r.start,en=r.eind||r.start;
+    const cells=days.map(x=>{const we=new Date(x+"T00:00:00").getDay()%6===0;const on=st&&x>=st&&x<=en;return `<td class="d${we?" we":""}${x===tIso?" today":""}${on&&x===st?" first":""}${on&&x===en?" last":""}">${on?'<div class="bc"></div>':""}</td>`}).join("");
+    const del=r.kind==="extra"?`<button class="btn ghost" data-act="delplan" data-i="${r.i}" aria-label="Verwijderen" data-layout="margin-left-4px">✕</button>`:"";
+    return `<tr class="${r.kind}"><td class="c-naam"><div data-layout="display-flex-align-items-center">${name}${del}</div></td>${dcells}<td class="c-wd">${workdays(st,en)}</td>${cells}</tr>`}).join("");
+  return `<section class="panel"><div class="row" data-layout="justify-content-space-between"><h2>Planning werkzaamheden</h2><button class="btn" data-act="addplan">+ Overige werkzaamheid</button></div>
+  <p class="hint">De werkonderdelen en offerteteksten komen automatisch uit de calculatie. Vul per offertetekst een start- en einddatum in; de periode van het werkonderdeel wordt daaruit berekend. Heeft een werkonderdeel geen offerteteksten, dan vul je de data op de hoofdregel in. De kolom WD telt de werkdagen (ma–vr).</p>
+  ${rows.length?`<div class="scroll"><table class="plan"><thead>
+   <tr><th class="c-naam"></th><th class="c-start"></th><th class="c-eind"></th><th class="c-wd" data-layout="border-right-2px-solid-line"></th>${months.map(m=>`<th class="m" colspan="${m.n}">${m.k}</th>`).join("")}</tr>
+   <tr><th class="c-naam">Werkonderdeel / offertetekst</th><th class="c-start">Start</th><th class="c-eind">Eind</th><th class="c-wd" data-layout="text-align-right">WD</th>${days.map(x=>{const d=new Date(x+"T00:00:00");return `<th class="d${d.getDay()%6===0?" we":""}${x===tIso?" today":""}">${DL[d.getDay()]}<br>${d.getDate()}</th>`}).join("")}</tr>
+  </thead><tbody>${body}</tbody></table></div>`:`<div class="plan-empty">Nog niets te plannen. Kies eerst werkonderdelen en offerteteksten op het tabblad Calculatie.</div>`}
+  </section>`;
+}
+const fdateShort=iso=>iso?new Date(iso+"T00:00:00").toLocaleDateString("nl-NL",{weekday:"short",day:"numeric",month:"short"}):"—";
+/* ===== Artikelen ===== */
+function lockRow(h){if(AUTH.canManageSettings&&!artLocked)return h;return h.replace(/<input /g,'<input readonly tabindex="-1" ').replace(/<select /g,'<select disabled ').replace(/<button class="btn ghost" data-act="delart"[^>]*>✕<\/button>/,"")}
+function renderArtikelen(){
+  return `<section class="panel"><div class="row" data-layout="justify-content-space-between"><h2>Artikelen</h2><div class="row"><input id="artsearch" placeholder="Zoek artikel…" data-layout="width-220px" value="${esc(artQ)}" aria-label="Zoek artikel">${AUTH.canManageSettings&&!artLocked?`<button class="btn primary" data-act="addart">+ Artikel</button>`:""}</div></div>
+  ${!AUTH.canManageSettings?`<div class="lockbar">Alleen gebruikers met de rol directie kunnen instellingen wijzigen.</div>`:artLocked?(artAsk?`<div class="confirm-del" role="alert" data-layout="justify-content-space-between"><span><b>Weet u het zeker?</b> Wijzigingen in artikelen en tarieven gelden voor alle nieuwe regels in de calculaties, ook bij collega's.</span><span class="row"><button class="btn danger" data-act="artunlockyes">Ja, wijzigen toestaan</button><button class="btn" data-act="artunlockno">Annuleren</button></span></div>`
+    :`<div class="lockbar"><span><b>🔒 Vergrendeld.</b> Artikelen en tarieven kunnen niet per ongeluk worden gewijzigd.</span><button class="btn" data-act="artunlock">Wijzigen toestaan</button></div>`)
+   :`<div class="lockbar open"><span><b>Bewerken staat aan.</b> Wijzigingen worden direct opgeslagen. Vergrendel weer als je klaar bent.</span><button class="btn primary" data-act="artlock">Vergrendelen</button></div>`}
+  <p class="hint">Zet Actief op Nee om een artikel uit de keuzelijst te halen zonder het te verwijderen. Tarief "zp" (zie prijs) telt in de calculatie als € 0.</p>
+  <div class="scroll"><table data-layout="min-width-760px"><thead><tr><th>Artikel</th><th>Categorie</th><th>Eenheid</th><th class="n">Tarief (€)</th><th>Actief</th><th></th></tr></thead><tbody id="artbody">
+  ${S.artikelen.map((a,i)=>lockRow(`<tr data-name="${esc(a.a.toLowerCase())}" ${artQ&&!a.a.toLowerCase().includes(artQ.toLowerCase())?"hidden":""}><td data-layout="width-44pct">${inp(`artikelen.${i}.a`,{aria:"Artikel"})}</td><td>${sel(`artikelen.${i}.c`,CATS,{blank:false,aria:"Categorie"})}</td><td>${sel(`artikelen.${i}.e`,EENHEDEN,{blank:false,aria:"Eenheid"})}</td><td data-layout="width-100px">${inp(`artikelen.${i}.t`,{num:1,aria:"Tarief"}).replace("<input ","<input data-money=\"1\" ").replace(/value="([^"]*)"/,(x,v)=>`value="${esc(money(a.t))}"`)}</td><td>${sel(`artikelen.${i}.act`,[["true","Ja"],["false","Nee"]],{blank:false,aria:"Actief"}).replace(/value="(true|false)"( selected)?/g,(m,v)=>`value="${v}"${String(a.act)===v?" selected":""}`)}</td><td><button class="btn ghost" data-act="delart" data-i="${i}" aria-label="Verwijderen">✕</button></td></tr>`)).join("")}
+  </tbody></table></div></section>`;
+}
+let artLocked=true,artAsk=false,txLocked=true,txAsk=false,vestLocked=true,vestAsk=false,artQ="",delBlockId=null,delLineId=null;
+const articleSaveTimers=new Map(),articleSaveChains=new Map();
+function scheduleArticleSave(index){
+  const article=S.artikelen[index];if(!article||!article.id)return;
+  clearTimeout(articleSaveTimers.get(article.id));
+  articleSaveTimers.set(article.id,setTimeout(()=>{
+    const previous=articleSaveChains.get(article.id)||Promise.resolve();
+    const pending=previous.then(()=>{const current=S.artikelen.find(item=>item.id===article.id);return current?store.saveArticle(current):false});
+    articleSaveChains.set(article.id,pending.catch(()=>{}));
+  },600));
+}
+
+/* ===== Vestigingen ===== */
+function vLock(h){if(AUTH.canManageSettings&&!vestLocked)return h;return h.replace(/<input id="sig-[^>]*>/,"").replace(/<label class="btn" for="sig-[^"]*"[^>]*>Toevoegen<\/label>/,'<span class="ro">—</span>').replace(/<input /g,'<input readonly tabindex="-1" ').replace(/<select /g,'<select disabled ').replace(/<button class="btn ghost" data-act="(delvest|delmede|delsig)"[^>]*>✕<\/button>/g,"")}
+function vestLockBar(){if(!AUTH.canManageSettings)return `<div class="lockbar">Alleen gebruikers met de rol directie kunnen instellingen wijzigen.</div>`;return vestLocked?(vestAsk?`<div class="confirm-del" role="alert" data-layout="justify-content-space-between"><span><b>Weet u het zeker?</b> Wijzigingen in vestigingen, medewerkers en handtekeningen komen op alle offertes die je daarna maakt of opent, ook bij collega's.</span><span class="row"><button class="btn danger" data-act="vestunlockyes">Ja, wijzigen toestaan</button><button class="btn" data-act="vestunlockno">Annuleren</button></span></div>`
+    :`<div class="lockbar"><span><b>🔒 Vergrendeld.</b> Vestigingen, medewerkers en handtekeningen kunnen niet per ongeluk worden gewijzigd.</span><button class="btn" data-act="vestunlock">Wijzigen toestaan</button></div>`)
+   :`<div class="lockbar open"><span><b>Bewerken staat aan.</b> Wijzigingen worden direct opgeslagen. Vergrendel weer als je klaar bent.</span><button class="btn primary" data-act="vestlock">Vergrendelen</button></div>`}
+function renderVest(){
+  const showSensitive=AUTH.canViewSensitiveData;
+  const vcols=[["naam","Vestiging"],["adres","Adres"],["pc","Postcode"],["plaats","Plaats"],["tel","Telefoon"],["email","E-mail"],["kvk","KvK-nummer"]];
+  if(showSensitive){vcols.push(["btw","Btw-nummer"],["iban","IBAN"])}
+  const vest=S.vestigingen.map(v=>v.naam).filter(Boolean);
+  return `<section class="panel"><div class="row" data-layout="justify-content-space-between"><h2>Vestigingen</h2>${AUTH.canManageSettings&&!vestLocked?`<button class="btn" data-act="addvest">+ Vestiging</button>`:""}</div>
+  ${vestLockBar()}
+  <p class="hint">Deze gegevens worden gebruikt in de keuzelijsten van de calculatie en onderaan de offerte.</p>
+  ${showSensitive?"":`<p class="hint">IBAN en btw-nummer zijn alleen zichtbaar voor gebruikers met de rol directie of finance.</p>`}
+  <div class="scroll"><table data-layout="${showSensitive?"min-width-1300px":"min-width-1020px"}"><thead><tr>${vcols.map(c=>`<th>${c[1]}</th>`).join("")}<th></th></tr></thead><tbody>
+  ${S.vestigingen.map((v,i)=>vLock(`<tr>${vcols.map(c=>`<td>${inp(`vestigingen.${i}.${c[0]}`,{aria:c[1]})}</td>`).join("")}<td><button class="btn ghost" data-act="delvest" data-i="${i}" aria-label="Verwijderen">✕</button></td></tr>`)).join("")}
+  </tbody></table></div></section>
+  <section class="panel"><div class="row" data-layout="justify-content-space-between"><h2>Medewerkers</h2>${AUTH.canManageSettings&&!vestLocked?`<button class="btn" data-act="addmede">+ Medewerker</button>`:""}</div>
+  <div class="scroll"><table data-layout="min-width-820px"><thead><tr><th>Naam</th><th>Functie</th><th>Vestiging</th><th>Telefoon</th><th>E-mail</th><th>Handtekening</th><th></th></tr></thead><tbody>
+  ${S.medewerkers.map((m,i)=>vLock(`<tr><td>${inp(`medewerkers.${i}.naam`,{aria:"Naam"})}</td><td>${inp(`medewerkers.${i}.functie`,{aria:"Functie"})}</td><td>${sel(`medewerkers.${i}.vest`,vest,{aria:"Vestiging"})}</td><td>${inp(`medewerkers.${i}.tel`,{aria:"Telefoon"})}</td><td>${inp(`medewerkers.${i}.email`,{aria:"E-mail"})}</td><td data-layout="white-space-nowrap">${m.sig?`<img src="${m.sig}" alt="Handtekening" data-layout="height-28px-vertical-align-middle-background-fff-padding-2px-4px-border-1px-solid-line"> <button class="btn ghost" data-act="delsig" data-i="${i}" aria-label="Handtekening verwijderen">✕</button>`:`<label class="btn" for="sig-${i}" data-layout="cursor-pointer">Toevoegen</label>`}<input id="sig-${i}" type="file" accept="image/png,image/jpeg" data-sig="${i}" hidden></td><td><button class="btn ghost" data-act="delmede" data-i="${i}" aria-label="Verwijderen">✕</button></td></tr>`)).join("")}
+  </tbody></table></div></section>`;
+}
+
+/* ===== Opslaan ===== */
+function renderOpslaan(){
+  return `<section class="panel"><h2>IT- &amp; Applicatievisie</h2>
+  <p class="hint">Bekijk de strategische directievisie: de toekomstbestendige on-premise applicatiearchitectuur via AI-driven development en 100% datasoevereiniteit.</p>
+  <div class="row"><a class="btn primary" href="visie.html" target="_blank" data-layout="text-decoration-none">IT- &amp; Applicatievisie openen &rarr;</a></div></section>
+  <section class="panel"><h2>Waar staat je werk?</h2>
+  <p class="hint">${store.db?"Calculaties én instellingen (artikelen, tarieven, vestigingen, medewerkers, handtekeningen en offerteteksten) worden automatisch opgeslagen in de database van deze app. Ze blijven bewaard als je je browser leegmaakt en zijn op elke computer hetzelfde.":"Deze app kan nu geen verbinding maken met de database. Log opnieuw in via /bff/login of controleer je netwerk."}</p>
+  <h3 data-layout="margin-top-6px">Back-up</h3>
+  <p class="hint">Download af en toe een back-up naar je eigen computer of netwerkmap. Het bestand bevat alle calculaties en instellingen. Een back-up terugzetten doe je met "Bestand openen…" hieronder.</p>
+  <div class="row"><button class="btn primary" data-act="backup">Back-up downloaden</button><span class="hint" data-layout="margin-0">${OV.length} calculaties in het overzicht</span></div>
+  </section>
+  <section class="panel"><h2>Eén calculatie als code</h2>
+  <p class="hint">Om één calculatie los te bewaren of door te sturen: toon de code, kopieer hem en sla hem op in een tekstbestand. Plak later zo'n code (of een back-upbestand) terug en klik op Laden.</p>
+  <textarea id="jsonbox" rows="10" data-layout="font-family-f-mono-font-size-12px" aria-label="Calculatie als code"></textarea>
+  <div class="row">
+   <button class="btn primary" data-act="export">Huidige calculatie tonen</button>
+   <button class="btn" data-act="copyjson">Kopiëren</button>
+   <button class="btn" data-act="import">Laden uit tekstvak</button>
+   <label class="btn" for="filein" data-layout="cursor-pointer">Bestand openen…</label><input id="filein" type="file" accept=".json,.txt,application/json" hidden>
+  </div></section>
+  <section class="panel"><h2>Offerte als PDF</h2>
+  <p class="hint">Maak een A4-PDF van de offerte met logo, prijsoverzicht en voorwaarden, en sla die op je computer op. Je krijgt eerst een venster om het opslaan te bevestigen.</p>
+  <div class="row"><button class="btn primary" data-act="pdf">Offerte als PDF opslaan</button></div></section>
+  <section class="panel"><h2>Opnieuw beginnen</h2>
+  <p class="hint">Een nieuwe calculatie wist project, klant, regels en planning. Artikelen, teksten en vestigingen blijven staan.</p>
+  <div class="row"><button class="btn" data-act="new">Nieuwe lege calculatie</button><button class="btn" data-act="sample">Voorbeeld laden</button>
+  <span id="confirm" hidden class="row"><span id="confirmtxt"></span><button class="btn primary" data-act="yes">Ja, doorgaan</button><button class="btn" data-act="no">Annuleren</button></span></div></section>`;
+}
+
+/* ===== Overzicht / opslag ===== */
+const HOLDER="tab-"+Math.random().toString(36).slice(2);
+const STATUSES=["Concept","Verstuurd","Opdracht","Vervallen"];
+let OV=[],ovReady=false,ovQ="",ovConfirm=null;
+function onOv(){if(tab==="overzicht")render()}
+const waitOv=async()=>{for(let i=0;i<60&&!ovReady;i++)await new Promise(r=>setTimeout(r,100))};
+function calcPart(){return{project:S.project,klant:S.klant,blocks:S.blocks,offerte:S.offerte,teksten:S.teksten,plan:S.plan||{},planning:S.planning||[],status:S.status||"Concept",...(S.afronding?{afronding:S.afronding}:{})}}
+function recordFrom(nr){return{nummer:nr,projectnaam:S.project.naam||"",klant:S.klant.bedrijf||"",datum:S.project.datum||"",door:S.project.door||"",vestiging:S.project.vestiging||"",status:S.status||"Concept",bedrag:offerteModel().tot,bijgewerkt:new Date().toISOString(),data:JSON.stringify(calcPart()),version:S.version!=null?S.version:null,etag:S.etag||null}}
+const isAuthFailure = r => r && r.status===401;
+const isAccessDenied = r => r && r.status===403;
+const responseEtag = (response,body) => response.headers.get("etag")||(body&&body.etag)||null;
+const redirectToLogin = () => {
+  const returnUrl = encodeURIComponent(location.pathname + location.search + location.hash);
+  location.href = `/bff/login?returnUrl=${returnUrl}`;
+};
+const APPLICATION_ROLES=new Set(["default-roles-vsvk","development","directie","finance","operationeel","planning"]);
+const AUTH={roles:[],userName:"",canViewSensitiveData:false,canManageSettings:false};
+function applyUserClaims(payload){
+  const claims=Array.isArray(payload&&payload.claims)?payload.claims:[];
+  const usernameClaim=claims.find(c=>["preferred_username","username"].includes(String(c&&c.type||"").toLowerCase()));
+  AUTH.userName=String((usernameClaim&&usernameClaim.value)||payload&&payload.username||payload&&payload.name||"Ingelogde gebruiker");
+  const claimRoles=claims.flatMap(c=>{
+    const values=[String(c&&c.value||"")];
+    if(c&&c.type==="realm_access"){
+      try{values.push(...(JSON.parse(c.value||"{}").roles||[]))}catch{}
+    }
+    return values;
+  });
+  const tokenRoles=Array.isArray(payload&&payload.roles)?payload.roles:[];
+  const roles=[...tokenRoles,...claimRoles]
+    .map(v=>String(v).toLowerCase().trim())
+    .filter(v=>APPLICATION_ROLES.has(v));
+  AUTH.roles=[...new Set(roles)];
+  AUTH.canViewSensitiveData=AUTH.roles.includes("directie")||AUTH.roles.includes("finance");
+  AUTH.canManageSettings=AUTH.roles.includes("directie");
+  const account=document.getElementById("account");
+  const accountName=document.getElementById("account-name");
+  const accountRoles=document.getElementById("account-roles");
+  if(account&&accountName&&accountRoles){
+    accountName.textContent=AUTH.userName;
+    accountRoles.textContent=AUTH.roles.length?`Rollen: ${AUTH.roles.join(", ")}`:"Rollen: geen applicatierol gevonden";
+    account.hidden=false;
+  }
+}
+const ensureAuthenticated = async () => {
+  try{
+    const r = await fetch("/bff/user",{credentials:"include"});
+    if(r.ok){
+      const payload=await r.json();
+      applyUserClaims(payload);
+    }
+    return r.ok;
+  }catch(e){
+    return false;
+  }
+};
+
+const store={db:null,_poll:null,
+  async _json(url,opt){
+    const r=await fetch(url,Object.assign({credentials:"include"},opt||{}));
+    const apiCall=typeof url==="string"&&url.startsWith("/api/");
+    const ct=(r.headers.get("content-type")||"").toLowerCase();
+    const redirectedToAuth=r.redirected&&/\/protocol\/openid-connect\/auth/i.test(r.url||"");
+    const htmlInsteadOfJson=apiCall&&r.ok&&ct.includes("text/html");
+    if(redirectedToAuth||htmlInsteadOfJson){redirectToLogin();throw new Error("auth")}
+    return r
+  },
+  async _refreshOv(){
+    const r=await this._json("/api/calculaties");
+    if(isAuthFailure(r)){redirectToLogin();throw new Error("auth")}
+    if(isAccessDenied(r))throw new Error("forbidden");
+    if(!r.ok)throw new Error("ov");
+    const list=await r.json();
+    OV=(list||[]).filter(x=>x&&x.nummer);
+    ovReady=true;
+    onOv();
+  },
+  async init(){
+    try{
+      if(await ensureAuthenticated()===false){redirectToLogin();return}
+      const profileResponse=await this._json("/api/user/profile");
+      if(isAuthFailure(profileResponse)){redirectToLogin();return}
+      if(!profileResponse.ok)throw new Error("profile");
+      currentUserProfile=await profileResponse.json();
+      userProfileEtag=responseEtag(profileResponse,currentUserProfile);
+      profileChecking=false;profileError="";
+      if(!currentUserProfile.isComplete){
+        profileRequired=true;tab="profiel";history.replaceState(null,"","#profiel");render();return;
+      }
+      profileRequired=false;tab=requestedTab;
+      const s=await this._json("/api/instellingen/algemeen");
+      if(isAuthFailure(s)){redirectToLogin();return}
+      if(isAccessDenied(s)){
+        this.db=null;
+        ovReady=true;
+        onOv();
+        return;
+      }
+      if(s.ok){
+        const data=await s.json();
+        settingsEtag=responseEtag(s,data);
+        applySettings({exists:true,data:()=>data,metadata:{hasPendingWrites:false}})
+      }
+
+      await this._refreshArticleCatalog();
+
+      await this._refreshOv();
+      this.db={kind:"http"};
+      if(this._poll)clearInterval(this._poll);
+      this._poll=setInterval(()=>{
+        this._refreshOv().catch(async error=>{
+          if(error&&error.message==="forbidden"){
+            if(this._poll)clearInterval(this._poll);
+            this._poll=null;
+            this.db=null;
+            return;
+          }
+          if(!this.db)return;
+          if(await ensureAuthenticated()===false){redirectToLogin();return}
+          if(this._poll)clearInterval(this._poll);
+          this._poll=null;
+          this.db=null;
+          toast("Verbinding met de database verloren. Herlaad de pagina.");
+        })
+      },10000)
+    }catch(e){
+      if(e&&e.message==="profile"){
+        profileChecking=false;profileRequired=true;profileError="Je profiel kon niet worden geladen. Controleer de verbinding en probeer het opnieuw.";tab="profiel";render();return;
+      }
+      if(e&&e.message==="forbidden"){
+        this.db=null;
+        ovReady=true;
+        onOv();
+        return;
+      }
+      if(await ensureAuthenticated()===false){redirectToLogin();return}
+      this.db=null;
+      ovReady=true;
+      onOv();
+      toast("Database niet bereikbaar. Herlaad of log opnieuw in.");
+    }
+  },
+  async saveProfile(formData){
+    if(!userProfileEtag){toast("De profielversie ontbreekt. Herlaad de pagina voordat je opslaat.");return false}
+    const signature=formData.get("signature");
+    const local={
+      phoneNumber:String(formData.get("phoneNumber")||""),
+      alternativeEmail:String(formData.get("alternativeEmail")||""),
+      signature:signature instanceof File&&signature.size?signature.name:null,
+      removeSignature:formData.get("removeSignature")==="true"
+    };
+    try{
+      const response=await this._json("/api/user/profile",{method:"PUT",headers:{"If-Match":userProfileEtag},body:formData});
+      if(isAuthFailure(response)){redirectToLogin();return false}
+      if(response.status===412){
+        return await showConcurrencyConflict({entity:"je profiel",local,loadLatest:async()=>{const r=await this._json("/api/user/profile");if(!r.ok)throw new Error("profile-latest");const body=await r.json();return{body,etag:responseEtag(r,body)}},reapply:async latest=>{currentUserProfile=latest.body;userProfileEtag=latest.etag;return await this.saveProfile(formData)}});
+      }
+      if(response.status===428||response.status===400){toast("Controleer je verplichte contactgegevens en probeer opnieuw.");return false}
+      if(response.status===413){toast("De handtekening is te groot. Kies een afbeelding van maximaal 1 MB.");return false}
+      if(response.status===503){toast("De database is tijdelijk niet beschikbaar. Probeer het later opnieuw.");return false}
+      if(!response.ok)throw new Error("profile-save");
+      currentUserProfile=await response.json();
+      userProfileEtag=responseEtag(response,currentUserProfile);
+      if(!currentUserProfile.isComplete){toast("Vul je telefoonnummer en alternatieve e-mailadres in.");return false}
+      toast("Profiel opgeslagen");
+      history.replaceState(null,"","#overzicht");
+      location.reload();
+      return true;
+    }catch(error){toast("Profiel opslaan lukte niet. Controleer je verbinding en probeer opnieuw.");return false}
+  },
+  async _refreshArticleCatalog(){
+    const responses=await Promise.all(["/api/articles","/api/article-categories","/api/article-units"].map(url=>this._json(url)));
+    if(responses.some(isAuthFailure)){redirectToLogin();throw new Error("auth")}
+    if(responses.some(isAccessDenied))throw new Error("forbidden");
+    if(responses.some(response=>!response.ok))throw new Error("article-catalog");
+    const [articles,categories,units]=await Promise.all(responses.map(response=>response.json()));
+    S.artikelen=(articles||[]).map(articleFromDto);
+    ARTICLE_CATEGORIES=categories||[];
+    ARTICLE_UNITS=units||[];
+    CATS=ARTICLE_CATEGORIES.map(category=>category.naam);
+    EENHEDEN=ARTICLE_UNITS.map(unit=>unit.naam);
+    render();
+  },
+  async saveArticle(article){
+    try{
+      if(!article.etag){toast("Artikelversie ontbreekt. Ververs de artikelcatalogus voordat je opslaat.");return false}
+      const response=await this._json(`/api/articles/${encodeURIComponent(article.id)}`,{method:"PUT",headers:{"Content-Type":"application/json","If-Match":article.etag},body:JSON.stringify(articleRequest(article))});
+      if(isAuthFailure(response)){redirectToLogin();return false}
+      if(response.status===403){toast("Je hebt geen rechten om artikelen te wijzigen.");return false}
+      if(response.status===409){toast("Er bestaat al een artikel met deze naam.");return false}
+      if(response.status===412){
+        return await showConcurrencyConflict({entity:"het artikel",local:article,loadLatest:async()=>{const r=await this._json(`/api/articles/${encodeURIComponent(article.id)}`);if(!r.ok)throw new Error("article-latest");const body=await r.json();return{body,etag:responseEtag(r,body)}},reapply:async latest=>{article.etag=latest.etag;article.version=latest.body.version;return await this.saveArticle(article)}});
+      }
+      if(response.status===428||response.status===400){toast("Artikel opslaan vereist een geldige, actuele versie. Ververs de artikelcatalogus.");return false}
+      if(!response.ok)throw new Error("article-save");
+      const saved=await response.json();article.version=saved.version;article.etag=responseEtag(response,saved);
+      return true;
+    }catch(error){toast("Artikel opslaan in PostgreSQL lukte niet.");return false}
+  },
+  async createArticle(article){
+    const response=await this._json("/api/articles",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(articleRequest(article))});
+    if(isAuthFailure(response)){redirectToLogin();return null}
+    if(response.status===403){toast("Je hebt geen rechten om artikelen toe te voegen.");return null}
+    if(response.status===409){toast("Er bestaat al een artikel met deze naam.");return null}
+    if(!response.ok)throw new Error("article-create");
+    return articleFromDto(await response.json());
+  },
+  async deactivateArticle(article){
+    if(!article.etag){toast("Artikelversie ontbreekt. Ververs de artikelcatalogus voordat je deactiveert.");return false}
+    const response=await this._json(`/api/articles/${encodeURIComponent(article.id)}`,{method:"DELETE",headers:{"If-Match":article.etag}});
+    if(isAuthFailure(response)){redirectToLogin();return false}
+    if(response.status===403){toast("Je hebt geen rechten om artikelen te wijzigen.");return false}
+    if(response.status===412){
+      return await showConcurrencyConflict({entity:"het artikel",local:article,loadLatest:async()=>{const r=await this._json(`/api/articles/${encodeURIComponent(article.id)}`);if(!r.ok)throw new Error("article-latest");const body=await r.json();return{body,etag:responseEtag(r,body)}},reapply:async latest=>{article.etag=latest.etag;article.version=latest.body.version;return await this.deactivateArticle(article)}});
+    }
+    if(response.status===428||response.status===400){toast("Artikel deactiveren vereist een geldige, actuele versie.");return false}
+    if(response.ok){article.etag=responseEtag(response,{})||article.etag;article.version=(article.version||0)+1}
+    return response.ok;
+  },
+  async save(rec){
+    if(!this.db){toast("Geen databaseverbinding. Opslaan is nu niet mogelijk.");return}
+    try{
+      if(!rec.etag){toast("Calculatieversie ontbreekt. Ververs het overzicht voordat je opslaat.");return}
+      const headers={"Content-Type":"application/json"};
+      headers["If-Match"]=rec.etag;
+      const r=await this._json(`/api/calculaties/${encodeURIComponent(rec.nummer)}`,{method:"PUT",headers,body:JSON.stringify(rec)});
+      if(isAuthFailure(r)){redirectToLogin();return}
+      if(isAccessDenied(r))return;
+      if(r.status===412){
+        return await showConcurrencyConflict({entity:"de calculatie",local:rec,loadLatest:async()=>{const latest=await this._json(`/api/calculaties/${encodeURIComponent(rec.nummer)}`);if(!latest.ok)throw new Error("calculation-latest");const body=await latest.json();return{body,etag:responseEtag(latest,body)}},reapply:async latest=>{rec.etag=latest.etag;rec.version=latest.body.version;return await this.save(rec)}});
+      }
+      if(r.status===428||r.status===400){toast("Calculatie opslaan vereist een geldige, actuele versie. Ververs het overzicht.");return}
+      if(!r.ok)throw new Error("save");
+      const saved=await r.json();
+      rec.version=saved&&saved.version!=null?saved.version:rec.version;
+      rec.etag=responseEtag(r,saved)||rec.etag;
+      saved.etag=rec.etag;
+      if(S.nummer===rec.nummer){S.version=rec.version;S.etag=rec.etag}
+      const i=OV.findIndex(x=>x.nummer===rec.nummer);
+      if(i>=0)OV[i]=saved;else OV.push(saved);
+      ovReady=true;
+      onOv();
+    }catch(e){toast("Opslaan in de database lukte niet. Probeer opnieuw.")}
+  },
+  async del(nr,etagOverride){
+    if(!this.db){toast("Geen databaseverbinding. Verwijderen is nu niet mogelijk.");return}
+    try{
+      const rec=OV.find(x=>x.nummer===nr);
+      const etag=etagOverride||(rec&&rec.etag);
+      if(!etag){toast("Calculatieversie ontbreekt. Ververs het overzicht voordat je verwijdert.");return}
+      const r=await this._json(`/api/calculaties/${encodeURIComponent(nr)}`,{method:"DELETE",headers:{"If-Match":etag}});
+      if(isAuthFailure(r)){redirectToLogin();return}
+      if(r.status===403){toast("Je hebt geen rechten om te verwijderen.");return}
+      if(r.status===412){
+        return await showConcurrencyConflict({entity:"de calculatie",local:rec||{nummer:nr},loadLatest:async()=>{const latest=await this._json(`/api/calculaties/${encodeURIComponent(nr)}`);if(!latest.ok)throw new Error("calculation-latest");const body=await latest.json();return{body,etag:responseEtag(latest,body)}},reapply:latest=>this.del(nr,latest.etag)});
+      }
+      if(r.status===428||r.status===400){toast("Calculatie verwijderen vereist een geldige, actuele versie.");return}
+      if(!r.ok)throw new Error("del");
+      OV=OV.filter(x=>x.nummer!==nr);
+      onOv();
+      return true;
+    }catch(e){toast("Verwijderen uit de database lukte niet. Probeer het opnieuw.")}
+  },
+  async setStatus(nr,st,etagOverride){
+    if(!this.db){toast("Geen databaseverbinding. Status wijzigen is nu niet mogelijk.");return}
+    const r0=OV.find(x=>x.nummer===nr);
+    try{
+      const etag=etagOverride||(r0&&r0.etag);
+      if(!etag){toast("Calculatieversie ontbreekt. Ververs het overzicht voordat je de status wijzigt.");return}
+      const headers={"Content-Type":"application/json","If-Match":etag};
+      const r=await this._json(`/api/calculaties/${encodeURIComponent(nr)}/status`,{method:"PATCH",headers,body:JSON.stringify({status:st})});
+      if(isAuthFailure(r)){redirectToLogin();return}
+      if(r.status===403){toast("Je hebt geen rechten om de status te wijzigen.");return}
+      if(r.status===412){
+        return await showConcurrencyConflict({entity:"de calculatie",local:{nummer:nr,status:st},loadLatest:async()=>{const latest=await this._json(`/api/calculaties/${encodeURIComponent(nr)}`);if(!latest.ok)throw new Error("calculation-latest");const body=await latest.json();return{body,etag:responseEtag(latest,body)}},reapply:latest=>this.setStatus(nr,st,latest.etag)});
+      }
+      if(r.status===428||r.status===400){toast("Status wijzigen vereist een geldige, actuele versie.");return}
+      if(!r.ok)throw new Error("status");
+      const saved=await r.json();
+      saved.etag=responseEtag(r,saved)||etag;
+      const i=OV.findIndex(x=>x.nummer===nr);
+      if(i>=0)OV[i]=saved;else OV.push(saved);
+      if(S.nummer===nr){S.version=saved.version;S.etag=saved.etag;S.status=saved.status||st;render()}else onOv();
+    }catch(e){toast("Status wijzigen lukte niet.")}
+  },
+  async claim(){
+    await waitOv();
+    if(!this.db)return null;
+    try{
+      const r=await this._json("/api/calculaties",{method:"POST"});
+      if(isAuthFailure(r)){redirectToLogin();return null}
+      if(!r.ok)throw new Error("claim");
+      const c=await r.json();
+      const nr=c.nummer;
+      const ver=c.version;
+      const rec=recordFrom(nr);
+      rec.version=ver;
+      rec.etag=responseEtag(r,c);
+      S.version=ver;S.etag=rec.etag;
+      const i=OV.findIndex(x=>x.nummer===nr);
+      if(i>=0)OV[i]=rec;else OV.push(rec);
+      ovReady=true;
+      onOv();
+      return nr;
+    }catch(e){return null}
+  }
+};
+let DEF_TEKSTEN=null,lastSet=null,setLoaded=false,setT,settingsVer=null,settingsEtag=null;
+function settingsPart(){return{vestigingen:S.vestigingen,medewerkers:S.medewerkers,onderdelen:S.onderdelen,sugg:S.sugg,teksten:S.teksten,standaard:{btw:S.offerte.btw,website:S.offerte.website,geldig:S.offerte.geldig,betaal:S.offerte.betaal}}}
+function applySettings(sn){
+  if(!sn.exists){if(!setLoaded){setLoaded=true;writeSettings()}return}
+  if(sn.metadata&&sn.metadata.hasPendingWrites)return;
+  const d=sn.data()||{};setLoaded=true;if(d&&d.version!=null)settingsVer=d.version;if(Array.isArray(d.teksten))DEF_TEKSTEN=d.teksten;
+  const pick=x=>JSON.stringify([x.vestigingen,x.medewerkers,x.onderdelen,x.sugg]);
+  if(pick(d)!==pick(S)){["vestigingen","medewerkers","onderdelen","sugg"].forEach(k=>{if(Array.isArray(d[k]))S[k]=d[k]});
+    if(S.voorbeeld||!S.nummer){if(d.teksten)S.teksten=d.teksten}
+    if(document.activeElement&&document.activeElement.matches("input,select,textarea")&&tab==="vestigingen"){}else render()}
+  lastSet=JSON.stringify(settingsPart());
+}
+async function writeSettings(){if(!store.db)return;const body=Object.assign(settingsPart(),{bijgewerkt:new Date().toISOString()});const str=JSON.stringify(body);
+  if(str.length>240000){toast("De instellingen zijn te groot om op te slaan (te veel of te grote handtekeningen).");return}
+  if(!settingsEtag){toast("Instellingenversie ontbreekt. Ververs de pagina voordat je instellingen wijzigt.");return}
+  lastSet=JSON.stringify(settingsPart());
+  try{const headers={"Content-Type":"application/json","If-Match":settingsEtag};
+    const r=await store._json("/api/instellingen/algemeen",{method:"PUT",headers,body:str});
+    if(r.status===403){toast("Je hebt geen rechten om instellingen op te slaan.");return}
+    if(r.status===412){
+      await showConcurrencyConflict({entity:"de algemene instellingen",local:body,loadLatest:async()=>{const latest=await store._json("/api/instellingen/algemeen");if(!latest.ok)throw new Error("settings-latest");const current=await latest.json();return{body:current,etag:responseEtag(latest,current)}},reapply:async latest=>{settingsEtag=latest.etag;settingsVer=latest.body.version;await writeSettings()}});
+      return;
+    }
+    if(r.status===428||r.status===400){toast("Instellingen opslaan vereist een geldige, actuele versie. Ververs de pagina.");return}
+    if(!r.ok)throw new Error("settings");
+    const saved=await r.json();if(saved&&saved.version!=null)settingsVer=saved.version;settingsEtag=responseEtag(r,saved)||settingsEtag;
+  }catch(e){toast("Instellingen opslaan in de database lukte niet. Probeer opnieuw.")}}
+function scheduleSettings(){if(!store.db||!setLoaded)return;const cur=JSON.stringify(settingsPart());if(cur===lastSet)return;clearTimeout(setT);setT=setTimeout(writeSettings,1500)}
+async function makeBackup(btn){
+  if(S.nummer&&!S.voorbeeld)await store.save(recordFrom(S.nummer));
+  const data={type:"vsvk-backup",versie:1,gemaakt:new Date().toISOString(),instellingen:settingsPart(),calculaties:OV.map(r=>Object.assign({},r))};
+  const nm="VSVK back-up "+todayISO()+".json";
+  try{const blob=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download=nm;document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove()},0);
+    toast(`Back-up opgeslagen (${OV.length} calculaties)`)}
+  catch(e){toast("Back-up downloaden lukte niet.")}}
+async function restoreBackup(d){
+  const recs=(d.calculaties||[]).filter(r=>r&&r.nummer&&r.data);const st=d.instellingen||{};
+  ["vestigingen","medewerkers","onderdelen","sugg"].forEach(k=>{if(Array.isArray(st[k]))S[k]=st[k]});if(Array.isArray(st.teksten))DEF_TEKSTEN=st.teksten;
+  save();if(store.db)await writeSettings();
+  let n=0;for(const r of recs){await store.save(r);n++}
+  tab="overzicht";render();toast(`Back-up teruggezet: ${n} calculaties en de instellingen`);
+}
+let cloudT;function scheduleCloud(){if(S.voorbeeld||!S.nummer)return;clearTimeout(cloudT);const nr=S.nummer;cloudT=setTimeout(()=>{if(S.nummer===nr)store.save(recordFrom(nr))},1200)}
+let assigning=false;
+async function assignNumber(){if(S.voorbeeld||S.nummer||assigning)return;assigning=true;
+  try{const nr=await store.claim();if(!nr){toast("Er kon geen nummer worden toegekend. Probeer het opnieuw via Overzicht.");return}
+    if(S.nummer||S.voorbeeld)return;S.nummer=nr;S.project.calcnr=nr;S.project.offertenr=nr;save();render();toast(`Calculatie ${nr} aangemaakt`)}finally{assigning=false}}
+function openRecord(r,asCopy){
+  let d={};try{d=JSON.parse(r.data||"{}")}catch(e){toast("Deze calculatie kon niet worden geopend.");return}
+  const keepSet={artikelen:S.artikelen,vestigingen:S.vestigingen,medewerkers:S.medewerkers,onderdelen:S.onderdelen,sugg:S.sugg};
+  const n=Object.assign(baseData(),keepSet,d);n.voorbeeld=false;n.plan=n.plan||{};n.planning=n.planning||[];
+  if(asCopy){n.nummer=null;n.version=null;n.etag=null;n.project=Object.assign({},n.project,{datum:todayISO(),versie:"1",calcnr:"",offertenr:""});n.status="Concept";n.plan={};delete n.afronding;S=n;tab="calculatie";save();render();scrollTo({top:0});assignNumber()}
+  else{n.nummer=r.nummer;n.version=r.version;n.etag=r.etag;n.project.calcnr=r.nummer;n.project.offertenr=r.nummer;n.status=d.status||r.status||"Concept";S=n;tab="calculatie";render();scrollTo({top:0});toast(`Calculatie ${r.nummer} geopend`)}
+}
+function renderOverzicht(){
+  const list=OV.slice().sort((a,b)=>String(b.nummer).localeCompare(String(a.nummer),"nl",{numeric:true}));
+  const q=ovQ.toLowerCase();
+  const fmtD=x=>x?new Date(x).toLocaleDateString("nl-NL",{day:"numeric",month:"short",year:"numeric"}):"";
+  const rows=list.map(r=>{const cur=r.nummer===S.nummer;const sText=[r.nummer,r.projectnaam,r.klant,r.door,r.status].join(" ").toLowerCase();
+    if(ovConfirm===r.nummer)return `<tr data-s="${esc(sText)}"><td colspan="9"><div class="row" data-layout="padding-6px-0"><span>Calculatie <b>${esc(r.nummer)}</b>${r.projectnaam?" ("+esc(r.projectnaam)+")":""} definitief verwijderen?</span><button class="btn primary" data-act="delyes">Ja, verwijderen</button><button class="btn" data-act="delno">Annuleren</button></div></td></tr>`;
+    return `<tr data-s="${esc(sText)}" class="${cur?"ov-cur":""}" ${q&&!sText.includes(q)?"hidden":""}>
+      <td><b>${esc(r.nummer)}</b>${cur?' <span class="chip">open</span>':""}</td><td data-layout="min-width-200px">${esc(r.projectnaam)||'<span class="ro">Zonder naam</span>'}</td><td>${esc(r.klant)}</td><td data-layout="white-space-nowrap">${fdateShort(r.datum)}</td><td>${esc(r.door)}</td>
+      <td><select id="ovs-${esc(r.nummer)}" data-ovstatus="${esc(r.nummer)}" aria-label="Status ${esc(r.nummer)}">${STATUSES.map(x=>`<option${x===(cur?S.status:r.status)?" selected":""}>${x}</option>`).join("")}</select></td>
+      <td class="n">${eur0(cur?offerteModel().tot:totFromRecord(r))}</td><td class="ro">${fmtD(r.bijgewerkt)}</td>
+      <td data-layout="white-space-nowrap"><button class="btn" data-act="open" data-nr="${esc(r.nummer)}">Openen</button> <button class="btn ghost" data-act="copy" data-nr="${esc(r.nummer)}" data-layout="color-ink">Kopiëren</button> <button class="btn ghost" data-act="del" data-nr="${esc(r.nummer)}" aria-label="Verwijderen">✕</button></td></tr>`}).join("");
+  const y=new Date().getFullYear();
+  return `<section class="panel"><div class="row" data-layout="justify-content-space-between"><h2>Alle calculaties</h2><div class="row"><input id="ovsearch" placeholder="Zoek op nummer, project, klant…" data-layout="width-260px" value="${esc(ovQ)}" aria-label="Zoeken"><button class="btn primary" data-act="new">+ Nieuwe calculatie</button></div></div>
+  <p class="hint">Elke calculatie krijgt automatisch een nummer (${y}-001, ${y}-002, …). Dat nummer is ook het offertenummer. Wijzigingen worden vanzelf opgeslagen, zodat het overzicht op elke computer hetzelfde is.</p>
+  ${!ovReady?`<p class="hint">Overzicht laden…</p>`:list.length?`<div class="scroll"><table data-layout="min-width-1000px"><thead><tr><th>Nummer</th><th>Project</th><th>Klant</th><th>Datum</th><th>Calculatie door</th><th>Status</th><th class="n">Bedrag excl. btw</th><th>Gewijzigd</th><th></th></tr></thead><tbody id="ovbody">${rows}</tbody></table></div>`:`<div class="notice"><span>Nog geen calculaties in het overzicht. De eerste nieuwe calculatie krijgt nummer <b>${y}-001</b>.</span><button class="btn primary" data-act="new">Nieuwe calculatie</button></div>`}
+  </section>`;
+}
+
+/* ===== PDF ===== */
+const dlP=(async()=>{for(let i=0;i<30&&!window.claude?.use;i++)await new Promise(r=>setTimeout(r,100));try{return window.claude?.use?await window.claude.use("downloads"):null}catch(e){return null}})();
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=()=>rej(new Error("load"));document.head.appendChild(s)})}
+let pdfLib=null;
+async function loadPdfFonts(pm){if(pm.__vsvkFonts!==undefined)return pm.__vsvkFonts;
+  try{const get=async f=>{const r=await fetch("fonts/"+f);if(!r.ok)throw new Error("font");const b=new Uint8Array(await r.arrayBuffer());let s="";for(let i=0;i<b.length;i+=0x8000)s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(s)};
+    const [rg,bd]=await Promise.all([get("LiberationSans-Regular.ttf"),get("LiberationSans-Bold.ttf")]);
+    pm.vfs["LiberationSans-Regular.ttf"]=rg;pm.vfs["LiberationSans-Bold.ttf"]=bd;
+    pm.fonts=Object.assign({},pm.fonts||{Roboto:{normal:"Roboto-Regular.ttf",bold:"Roboto-Medium.ttf",italics:"Roboto-Italic.ttf",bolditalics:"Roboto-MediumItalic.ttf"}},{Arial:{normal:"LiberationSans-Regular.ttf",bold:"LiberationSans-Bold.ttf",italics:"LiberationSans-Regular.ttf",bolditalics:"LiberationSans-Bold.ttf"}});
+    pm.__vsvkFonts=true}catch(e){pm.__vsvkFonts=false}return pm.__vsvkFonts}
+async function getPdfMake(){if(window.pdfMake&&window.pdfMake.vfs)return window.pdfMake;if(!pdfLib)pdfLib=loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js").then(()=>loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js"));await pdfLib;return window.pdfMake}
+function offerteModel(){
+  const c=calc();const ak=1+(num(S.project.akwr)||0);const o=S.offerte,p=S.project,k=S.klant;
+  const v=S.vestigingen.find(x=>x.naam===p.vestiging)||{};const m=findMede(p.door);
+  let geldig="";if(p.datum){const d=new Date(p.datum+"T00:00:00");d.setDate(d.getDate()+(num(o.geldig)||0));geldig=d.toLocaleDateString("nl-NL",{day:"numeric",month:"long",year:"numeric"})}
+  const groups=[];S.blocks.forEach(b=>{const t=blockTotal(b);if(!t&&!b.onderdeel)return;const name=b.onderdeel||"Overig";let g=groups.find(x=>x.n===name);if(!g){g={n:name,t:0,tx:[]};groups.push(g)}g.t+=t*ak;b.lines.forEach(l=>{if(l.tekst&&!g.tx.includes(l.tekst))g.tx.push(l.tekst)})});groups.forEach(g=>g.t=rnd(g.t,S.afronding));
+  const tot=groups.reduce((s,g)=>s+g.t,0);const btw=num(o.btw)||0;
+  const hs=h=>S.teksten.filter(t=>t.h===h&&t.on&&t.t.trim()).map(t=>t.t.trim());
+  return{c,o,p,k,v,m,geldig,groups,tot,btw,hs};
+}
+function pdfLogo(){const el=document.querySelector(".brand .logo-svg");if(!el)return null;const c=el.cloneNode(true);const ps=c.querySelectorAll("path");if(ps[0])ps[0].setAttribute("fill","#FF4E02");if(ps[1])ps[1].setAttribute("fill","#1A1A1A");c.removeAttribute("class");c.removeAttribute("role");c.removeAttribute("aria-label");c.setAttribute("xmlns","http://www.w3.org/2000/svg");c.setAttribute("width","700");c.setAttribute("height","130");return c.outerHTML}
+function buildDoc(FONT){
+  const M=offerteModel(),{o,p,k,v,m}=M;const OR="#FF4E02",INK="#000000",GREY="#333333",BEIGE="#EDEBE6",LINE="#DBD7CD";
+  const W=499;// A4 595 - 2*48
+  const head=t=>({margin:[0,12,0,5],columnGap:5,columns:[{width:1.4,canvas:[{type:"rect",x:0,y:2.5,w:1.4,h:7,color:OR}]},{width:"*",text:t.toUpperCase(),style:"h"}]});
+  const list=a=>({ul:a.map(t=>({text:t,alignment:"justify",margin:[0,0,0,1.5]})),markerColor:OR,margin:[0,0,0,0]});
+  const section=(t,a)=>a.length<=10?{unbreakable:true,stack:[head(t),list(a)]}:{stack:[head(t),list(a)]};
+  const meta=[["Offertenummer",p.offertenr],["Datum",fdate(p.datum)],["Geldig tot",M.geldig],["Project",p.naam],["Contactpersoon",p.door]].filter(([x,y])=>y).map(([x,y])=>[{text:x,color:GREY},{text:y,bold:true}]);
+  const addr=[k.bedrijf&&{text:k.bedrijf,bold:true},k.contact&&("T.a.v. "+k.contact),k.adres,((k.postcode||"")+"  "+(k.plaats||"")).trim()].filter(Boolean);
+  const logo=pdfLogo();
+  const content=[
+    {table:{widths:["*"],body:[[{columns:[{width:3.5,canvas:[{type:"rect",x:0,y:3,w:3.5,h:19,color:OR}]},{width:"auto",text:"OFFERTE",bold:true,fontSize:23,characterSpacing:1,margin:[10,0,0,0]},{width:"*",text:""},logo?{svg:logo,width:150,margin:[0,0,0,0]}:{width:"auto",text:"VSVK",bold:true,fontSize:22}]}]]},
+     layout:{fillColor:()=>"#DBD7CD",hLineWidth:()=>0,vLineWidth:()=>0,paddingLeft:()=>14,paddingRight:()=>14,paddingTop:()=>15,paddingBottom:()=>13},margin:[0,0,0,20]},
+    {columns:[
+      {width:"*",stack:addr.length?addr:[{text:"",margin:[0,0,0,0]}],lineHeight:1.3},
+      meta.length?{width:"auto",table:{body:meta},layout:{hLineWidth:()=>0,vLineWidth:()=>0,paddingLeft:(i)=>i?8:0,paddingRight:()=>0,paddingTop:()=>1,paddingBottom:()=>1},fontSize:8.5}:{width:"auto",text:""}
+    ],margin:[0,0,0,20]},
+    {text:`Geachte ${o.aanhef}${o.achternaam?" "+o.achternaam:""},`,margin:[0,0,0,6]},
+    {text:`Hartelijk dank voor uw aanvraag. Met genoegen bieden wij u hierbij onze offerte aan${p.naam?" voor het project "+p.naam:""}. Hieronder vindt u een korte omschrijving van de werkzaamheden en het prijsoverzicht.`,alignment:"justify"},
+  ];
+  if(o.omschrijving)content.push({unbreakable:true,stack:[head("Projectomschrijving"),{text:o.omschrijving.trim(),alignment:"justify"}]});
+  // prijstabel
+  const body=[[{text:"WERKONDERDEEL",style:"th"},{text:"BEDRAG EXCL. BTW",style:"th",alignment:"right"}]];
+  M.groups.forEach(g=>body.push([{stack:[{text:g.n,bold:true},...g.tx.map(t=>t.includes("\n")||t.length>140?{text:t,alignment:"justify",margin:[0,2,0,2]}:{ul:[{text:t,alignment:"justify"}],markerColor:OR,margin:[0,1.5,0,0]})]},{text:eur0(g.t),alignment:"right",bold:true}]));
+  if(!M.groups.length)body.push([{text:"Nog geen bedragen in de calculatie.",italics:true,color:GREY},{text:""}]);
+  const pct=String(+(M.btw*100).toFixed(2)).replace(".",",");
+  const totals={columns:[{width:"*",text:""},{width:230,table:{widths:["*",90],body:[
+      [{text:"Totaal excl. btw"},{text:eur0(M.tot),alignment:"right"}],
+      [{text:`Btw ${pct}%`,color:GREY},{text:eur0(rnd(M.tot*M.btw,S.afronding)),alignment:"right",color:GREY}],
+      [{text:"Totaal incl. btw",bold:true},{text:eur0(M.tot+rnd(M.tot*M.btw,S.afronding)),bold:true,alignment:"right"}]
+    ]},layout:{hLineWidth:(i)=>i===1?0.5:(i===2?1:(i===3?1:0)),vLineWidth:()=>0,hLineColor:(i)=>i===1?LINE:INK,paddingTop:()=>4,paddingBottom:()=>4,paddingLeft:()=>6,paddingRight:()=>6}}],margin:[0,6,0,0]};
+  content.push({stack:[head("Prijsoverzicht"),
+    {table:{headerRows:1,widths:["*",100],body,dontBreakRows:true},layout:{hLineWidth:(i,n)=>i<=1?0:0.5,vLineWidth:()=>0,hLineColor:()=>LINE,fillColor:(r)=>r===0?BEIGE:null,paddingTop:(r)=>r===0?5:6,paddingBottom:(r)=>r===0?5:6,paddingLeft:()=>6,paddingRight:()=>6}},
+    totals]});
+  [["Planning","Planning"],["Uitgangspunten","Uitgangspunten"],["Niet inbegrepen","Niet inbegrepen in deze offerte"],["Voorwaarden","Voorwaarden"]].forEach(([key,t])=>{const a=M.hs(key);if(a.length)content.push(section(t,a))});
+  const signRow=t=>[{text:t,color:GREY,margin:[0,13,0,2]},{text:" ",margin:[0,13,0,2]}];
+  content.push({unbreakable:true,stack:[
+    {text:closingText(p,m),alignment:"justify",margin:[0,16,0,16]},
+    {columns:[
+      {width:"*",stack:["Met vriendelijke groet,",{text:v.naam||"VSVK",bold:true,margin:[0,2,0,0]},m.sig?{image:m.sig,fit:[130,40],margin:[0,6,0,3]}:{text:" ",margin:[0,22,0,0]},p.door||"",...[m.tel,m.email].filter(Boolean).map(x=>({text:x,color:GREY,fontSize:8.5}))]},
+      {width:24,text:""},
+      {width:"*",stack:[{text:"Voor akkoord opdrachtgever",bold:true},{table:{widths:[62,"*"],body:[signRow("Naam"),signRow("Handtekening"),signRow("Datum")]},layout:{hLineWidth:(i)=>i===0?0:0.6,vLineWidth:()=>0,hLineColor:()=>GREY,paddingLeft:()=>0,paddingRight:()=>0,paddingTop:()=>0,paddingBottom:()=>0}}]}
+    ]}]});
+  const nb=x=>String(x).replace(/ /g," ");
+  const foot1=[v.naam||"VSVK",[v.adres,v.pc,v.plaats].filter(Boolean).join(" "),v.tel&&"T "+v.tel,v.email,o.website].filter(Boolean).map(nb);
+  const spread=a=>({columns:a.flatMap((t,i)=>i?[{width:"*",text:"|",alignment:"center",color:LINE},{width:"auto",text:t}]:[{width:"auto",text:t}]),columnGap:0});
+  const foot2=[v.kvk&&"KvK "+v.kvk,v.btw&&"Btw "+v.btw,v.iban&&"IBAN "+v.iban].filter(Boolean).map(nb);
+  return{pageSize:"A4",pageMargins:[48,40,48,56],
+    info:{title:`Offerte ${p.offertenr||""} ${p.naam||""}`.trim(),author:v.naam||"VSVK"},
+    defaultStyle:{font:FONT||"Roboto",fontSize:10,lineHeight:1.22,color:INK},
+    styles:{h:{bold:true,fontSize:10.5,color:INK,characterSpacing:0.5},th:{bold:true,fontSize:8.5,color:INK,characterSpacing:0.5}},
+    footer:(cur,total)=>({margin:[48,12,48,0],stack:[{canvas:[{type:"line",x1:0,y1:0,x2:W,y2:0,lineWidth:1.5,lineColor:OR}]},{stack:[foot1.length?spread(foot1):null,spread([...foot2,`Pagina ${cur} van ${total}`])].filter(Boolean),fontSize:7,color:GREY,lineHeight:1.35,margin:[0,5,0,0]}]}),
+    content};
+}
+let pdfBusy=false;
+async function makePdf(btn){
+  if(pdfBusy)return;pdfBusy=true;const lab=btn?btn.textContent:"";if(btn){btn.textContent="PDF maken…";btn.disabled=true}
+  try{
+    const dl=await dlP;
+    if(!dl){toast("Opslaan als PDF werkt alleen als je de app op claude.ai of in de Claude-app opent.");return}
+    const pm=await getPdfMake();const fontOk=await loadPdfFonts(pm);
+    const blob=await new Promise((res,rej)=>{try{pm.createPdf(buildDoc(fontOk?"Arial":"Roboto")).getBlob(res)}catch(e){rej(e)}});
+    const nm=("Offerte "+(S.project.offertenr||"VSVK")+(S.project.naam?" "+S.project.naam:"")).replace(/[\\/:*?"<>|]+/g,"-").slice(0,120)+".pdf";
+    try{await dl.save({filename:nm,data:blob});toast("PDF opgeslagen")}
+    catch(e){const c=e&&e.code;if(c==="declined")toast("Opslaan geannuleerd");else if(c==="rate_limited")toast("Er staat al een opslagvenster open. Probeer het zo opnieuw.");else toast("Opslaan als PDF is hier niet beschikbaar.")}
+  }catch(e){toast("De PDF kon niet worden gemaakt. Controleer je internetverbinding en probeer opnieuw.")}
+  finally{pdfBusy=false;if(btn&&document.body.contains(btn)){btn.textContent=lab;btn.disabled=false}}
+}
+
+/* ===== Profiel ===== */
+function renderProfile(){
+  if(profileChecking)return `<section class="panel"><h2>Profiel controleren</h2><p class="hint">We controleren of je profiel compleet is.</p></section>`;
+  if(profileError)return `<section class="panel"><h2>Profiel niet beschikbaar</h2><p class="hint" role="alert">${esc(profileError)}</p><button class="btn primary" data-act="profileretry">Opnieuw proberen</button></section>`;
+  const p=currentUserProfile||{};
+  return `<section class="panel"><h2>Mijn profiel</h2>
+  <p class="hint">${profileRequired?"Vul eerst je contactgegevens in om de applicatie te gebruiken.":"Werk je contactgegevens bij. Je alternatieve e-mailadres staat los van je Keycloak-inlogadres."}</p>
+  <p class="hint">Ingelogd als <b>${esc(p.displayName||p.userName||AUTH.userName)}</b>${p.primaryEmail?` (${esc(p.primaryEmail)})`:""}.</p>
+  <form id="user-profile-form" enctype="multipart/form-data" data-layout="display-grid-gap-14px-max-width-560px">
+    <label>Telefoonnummer *<input name="phoneNumber" type="tel" autocomplete="tel" maxlength="32" required value="${esc(p.phoneNumber||"")}" data-layout="display-block-width-100pct-margin-top-5px"></label>
+    <label>Alternatief e-mailadres *<input name="alternativeEmail" type="email" autocomplete="email" maxlength="254" required value="${esc(p.alternativeEmail||"")}" data-layout="display-block-width-100pct-margin-top-5px"></label>
+    <div><label for="profile-signature">Digitale handtekening (optioneel)</label><input id="profile-signature" name="signature" type="file" accept="image/png,image/jpeg" data-layout="display-block-margin-top-6px"><p class="hint">PNG of JPEG, maximaal 1 MB.</p></div>
+    ${p.hasSignature?`<label class="row"><input type="checkbox" name="removeSignature" value="true"> Bestaande handtekening verwijderen</label>`:""}
+    <div class="row"><button class="btn primary" type="submit">${profileRequired?"Profiel opslaan en doorgaan":"Wijzigingen opslaan"}</button></div>
+  </form></section>`;
+}
+
+/* ===== render ===== */
+const HEADS={profiel:["Mijn profiel","Je contactgegevens voor de applicatie."],overzicht:["Overzicht","Alle calculaties en offertes met hun nummer, status en bedrag."],calculatie:["Calculatie","Project, klant en de opbouw van de prijs per onderdeel."],offerte:["Offerte","Automatisch opgebouwd uit de calculatie, klaar om te versturen."],teksten:["Offerteteksten","Planning, uitgangspunten, niet inbegrepen en voorwaarden."],planning:["Planning","Wanneer elk werkonderdeel wordt uitgevoerd."],artikelen:["Artikelen","Tarieven voor arbeid, materieel, materiaal en logistiek."],vestigingen:["Vestigingen","Vestigingen en medewerkers voor keuzelijsten en de offerte."],opslaan:["Opslaan & laden","Calculaties bewaren en meenemen."]};
+const headHTML=()=>{let [t,d]=HEADS[tab];if(S.nummer&&/^(calculatie|offerte|planning|teksten)$/.test(tab))d=`Nr. ${S.nummer}${S.project.naam?" · "+S.project.naam:""}`;else if(S.voorbeeld&&/^(calculatie|offerte|planning)$/.test(tab))d="Voorbeeldcalculatie";return `<div class="pagehead"><h1>${esc(t)}</h1><p>${esc(d)}</p></div>`};
+function renderTabs(){const tabs=profileRequired||profileChecking?TABS.filter(([k])=>k==="profiel"):TABS;document.getElementById("tabs").innerHTML=tabs.map(([k,l])=>`<button role="tab" aria-selected="${k===tab}" data-tab="${k}">${l}</button>`).join("")}
+function render(){
+  const m=document.getElementById("main");const f=document.activeElement?.id;
+  m.innerHTML=headHTML()+{profiel:renderProfile,overzicht:renderOverzicht,calculatie:renderCalc,offerte:renderOfferte,teksten:renderTeksten,planning:renderPlanning,artikelen:renderArtikelen,vestigingen:renderVest,opslaan:renderOpslaan}[tab]();
+  if(f){const el=document.getElementById(f);if(el)el.focus()}
+  updateTotals();renderTabs();
+}
+
+document.getElementById("tabs").addEventListener("click",e=>{const b=e.target.closest("[data-tab]");if(!b)return;if(profileRequired&&b.dataset.tab!=="profiel")return;if(tab==="artikelen"&&b.dataset.tab!=="artikelen"){if(!artLocked)toast("Artikelen weer vergrendeld");artLocked=true;artAsk=false}if(tab==="teksten"&&b.dataset.tab!=="teksten"){if(!txLocked)toast("Offerteteksten weer vergrendeld");txLocked=true;txAsk=false}if(tab==="vestigingen"&&b.dataset.tab!=="vestigingen"){if(!vestLocked)toast("Vestigingen weer vergrendeld");vestLocked=true;vestAsk=false}tab=b.dataset.tab;try{localStorage.setItem(KEY+"-tab",tab)}catch(x){}render();scrollTo({top:0})});
+
+function onField(e,final){
+  const el=e.target;
+  if(el.id==="ovsearch"){ovQ=el.value;const q=ovQ.toLowerCase();document.querySelectorAll("#ovbody tr[data-s]").forEach(r=>r.hidden=!!q&&!r.dataset.s.includes(q));return}
+  if(el.dataset.ovstatus){if(final)store.setStatus(el.dataset.ovstatus,el.value);return}
+  if(el.id==="artsearch"){artQ=el.value;document.querySelectorAll("#artbody tr").forEach(r=>r.hidden=!!artQ&&!r.dataset.name.includes(artQ.toLowerCase()));return}
+  if(el.dataset.pct){const n=num(el.value);setPath(el.dataset.pct,n==null?0:n/100);save();updateTotals();if(final&&tab==="offerte")render();return}
+  if(el.dataset.plan){const k=el.dataset.plan,f=el.dataset.f;const v=S.plan[k]||(S.plan[k]={start:"",eind:""});v[f]=el.value;
+    if(f==="start"&&v.start&&(!v.eind||v.eind<v.start))v.eind=v.start;if(f==="eind"&&v.eind&&v.start&&v.eind<v.start)v.start=v.eind;save();if(final)render();return}
+  const p=el.dataset.bind;if(!p)return;
+  if(artLocked&&/^artikelen\./.test(p))return;
+  if(vestLocked&&/^(vestigingen|medewerkers)\./.test(p))return;
+  if(txLocked&&/^(teksten|sugg|onderdelen)\./.test(p))return;
+  let v=el.value;
+  if(v==="true"||v==="false"){if(/\.(on|act)$/.test(p))v=v==="true"}
+  else if(el.dataset.num){v=v===""?"":(num(v)??v)}
+  setPath(p,v);
+  const articleField=p.match(/^artikelen\.(\d+)\./);if(articleField)scheduleArticleSave(+articleField[1]);
+  if(/^planning\.\d+\.(start|eind)$/.test(p)){const r=getPath(p.replace(/\.(start|eind)$/,''));if(r.start&&(!r.eind||r.eind<r.start))r.eind=r.start}if(S.voorbeeld&&/^(project|klant|blocks)/.test(p))S.voorbeeld=S.voorbeeld;save();
+  if(/\.artikel$/.test(p)){const [,bi,,li]=p.split(".");const a=art(v);const u=document.querySelector(`[data-u="${bi}:${li}"]`),r=document.querySelector(`[data-r="${bi}:${li}"]`);
+    if(u&&!getPath(p.replace(/artikel$/,"eenheid"))){const def=mapUnit(a);if(def&&![...u.options].some(o=>o.value===def))u.add(new Option(def,def));u.value=def}const tp=p.replace(/artikel$/,"tarief");const tv=a&&num(a.t)!=null?num(a.t):"";setPath(tp,tv);if(r){r.value=money(tv);r.placeholder=a?money(a.t):""}}
+  updateTotals();
+  if(final&&(el.dataset.rr||tab==="offerte"||tab==="planning"||(tab==="teksten"&&/\.on$/.test(p))))render();
+}
+document.getElementById("main").addEventListener("input",e=>onField(e,false));
+/* slimme artikelzoeker */
+const acBox=document.createElement("div");acBox.id="acbox";acBox.setAttribute("role","listbox");acBox.hidden=true;document.body.appendChild(acBox);
+let acEl=null,acItems=[],acIdx=0,acPicking=false;
+const fold=x=>String(x||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/≤/g,"<=").replace(/[^a-z0-9<=>.,&/ ]+/g," ");
+function acSearch(q){const toks=fold(q).split(/\s+/).filter(Boolean);const list=S.artikelen.filter(a=>a.act!==false&&a.a);
+  if(!toks.length)return list.slice().sort((x,y)=>CATS.indexOf(x.c)-CATS.indexOf(y.c)||x.a.localeCompare(y.a,"nl"));
+  const res=[];list.forEach(a=>{const name=fold(a.a),hay=name+" "+fold(a.c)+" "+fold(a.e);if(!toks.every(t=>hay.includes(t)))return;
+    const words=name.split(/\s+/);let sc=0;
+    if(name.startsWith(toks.join(" ")))sc-=100;
+    toks.forEach(t=>{if(words.some(w=>w.startsWith(t)))sc-=10;if(name.includes(t))sc-=5});
+    res.push([sc+name.length/100,a])});
+  return res.sort((x,y)=>x[0]-y[0]).map(x=>x[1])}
+function hl(text,q){const toks=fold(q).split(/\s+/).filter(Boolean);if(!toks.length)return esc(text);const f=fold(text);const mark=new Array(text.length).fill(false);
+  toks.forEach(t=>{let i=f.indexOf(t);while(i>=0){for(let k=i;k<i+t.length&&k<mark.length;k++)mark[k]=true;i=f.indexOf(t,i+1)}});
+  let out="",on=false;for(let i=0;i<text.length;i++){if(mark[i]&&!on){out+="<mark>";on=true}if(!mark[i]&&on){out+="</mark>";on=false}out+=esc(text[i])}return out+(on?"</mark>":"")}
+function acOpen(el,all){acEl=el;const q=all?"":el.value;acItems=acSearch(q).slice(0,q?14:200);acIdx=0;
+  if(!acItems.length){acBox.innerHTML=`<div class="ac-empty">Geen artikel gevonden voor “${esc(el.value)}”. Voeg het toe op het tabblad Artikelen.</div>`}
+  else{let lastC="";acBox.innerHTML=acItems.map((a,i)=>{const head=!q&&a.c!==lastC?`<div class="ac-cat">${esc(a.c)}</div>`:"";lastC=a.c;
+    return `${head}<div class="ac-it${i===acIdx?" on":""}" role="option" data-i="${i}"><span class="ac-n">${hl(a.a,q)}</span><span class="ac-m">${q?esc(a.c)+" · ":""}${esc(mapUnit(a)||a.e)} · ${num(a.t)==null?esc(a.t):"€ "+money(a.t)}</span></div>`}).join("")}
+  acPlace(el);acBox.hidden=false;el.setAttribute("aria-expanded","true");acBox.scrollTop=0}
+function acPlace(el){
+  const r=el.getBoundingClientRect();if(r.bottom<0||r.top>innerHeight){acClose();return}const w=Math.max(r.width,420);const left=Math.max(8,Math.min(r.left,innerWidth-w-8));
+  const below=innerHeight-r.bottom;const h=Math.min(320,Math.max(below-12,180));
+  Object.assign(acBox.style,{left:left+"px",width:w+"px",maxHeight:h+"px"});
+  if(below<200&&r.top>below){acBox.style.top="";acBox.style.bottom=(innerHeight-r.top+4)+"px"}else{acBox.style.bottom="";acBox.style.top=(r.bottom+4)+"px"}}
+function acClose(){acBox.hidden=true;if(acEl)acEl.setAttribute("aria-expanded","false");acEl=null}
+function acMove(d){if(!acItems.length)return;acIdx=(acIdx+d+acItems.length)%acItems.length;acBox.querySelectorAll(".ac-it").forEach((x,i)=>x.classList.toggle("on",i===acIdx));const on=acBox.querySelector(".ac-it.on");if(on)on.scrollIntoView({block:"nearest"})}
+function acPick(i){const a=acItems[i];const el=acEl;if(!a||!el)return;el.value=a.a;el.classList.remove("unknown");el.removeAttribute("title");acClose();
+  acPicking=true;try{el.dispatchEvent(new Event("input",{bubbles:true}));el.dispatchEvent(new Event("change",{bubbles:true}))}finally{acPicking=false}try{el.select()}catch(x){}}
+acBox.addEventListener("mousedown",e=>{e.preventDefault();const it=e.target.closest(".ac-it");if(it)acPick(+it.dataset.i)});
+document.getElementById("main").addEventListener("input",e=>{if(!acPicking&&e.target.classList&&e.target.classList.contains("artin")){e.target.classList.remove("unknown");acOpen(e.target)}});
+document.getElementById("main").addEventListener("click",e=>{const t=e.target;if(t.classList&&t.classList.contains("artin")&&acBox.hidden)acOpen(t,!t.value||!!art(t.value))});
+document.getElementById("main").addEventListener("focusout",e=>{if(e.target===acEl)setTimeout(()=>{if(document.activeElement!==acEl)acClose()},120);
+  const t=e.target;if(t.classList&&t.classList.contains("artin")&&t.value&&!art(t.value)){t.classList.add("unknown");t.title="Onbekend artikel: kies een artikel uit de lijst"}});
+document.getElementById("main").addEventListener("keydown",e=>{const t=e.target;if(!(t.classList&&t.classList.contains("artin")))return;
+  const open=!acBox.hidden&&acEl===t;
+  if(e.key==="ArrowDown"&&e.altKey){e.preventDefault();e.stopPropagation();acOpen(t,true);return}
+  if(!open)return;
+  if(e.key==="ArrowDown"){e.preventDefault();e.stopPropagation();acMove(1)}
+  else if(e.key==="ArrowUp"){e.preventDefault();e.stopPropagation();acMove(-1)}
+  else if(e.key==="Enter"||e.key==="Tab"){if(acItems.length&&(e.key==="Enter"||t.value)){if(e.key==="Enter"){e.preventDefault()}e.stopPropagation();acPick(acIdx)}else acClose()}
+  else if(e.key==="Escape"){e.preventDefault();e.stopPropagation();acClose()}
+  else if(e.key==="ArrowLeft"||e.key==="ArrowRight"){e.stopPropagation()}
+},true);
+addEventListener("scroll",e=>{if(e.target===acBox||acBox.contains(e.target))return;if(!acBox.hidden&&acEl)acPlace(acEl)},true);
+acBox.addEventListener("wheel",e=>e.stopPropagation(),{passive:true});
+addEventListener("resize",()=>acClose());
+
+/* pijltjestoetsen in de calculatie */
+let navCol=0;
+function navRows(){const rows=[];document.querySelectorAll("#main .block").forEach(bl=>{const h=bl.querySelector(".block-head input.ond");if(h)rows.push([h]);
+  bl.querySelectorAll(".calc-table tbody tr:not(.confirm-row)").forEach(tr=>{rows.push([...tr.children].map(td=>td.querySelector("input:not([type=hidden]),select,textarea")))})});return rows}
+function navFocus(el){if(!el)return false;const id=el.id;el.focus();let t=document.getElementById(id)||el;if(!document.body.contains(el)&&t){t.focus()}else t=el;
+  if(t.select&&t.tagName==="INPUT")try{t.select()}catch(x){}return true}
+document.getElementById("main").addEventListener("keydown",e=>{
+  if(tab!=="calculatie"||e.ctrlKey||e.metaKey||e.altKey||e.shiftKey)return;
+  const el=e.target;if(!el.matches||!el.matches(".calc-table input,.calc-table select,.calc-table textarea,.block-head input.ond"))return;
+  const k=e.key;if(!["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Enter"].includes(k))return;
+  const rows=navRows();let r=-1,c=-1;rows.some((row,i)=>{const j=row.indexOf(el);if(j>=0){r=i;c=j;return true}return false});if(r<0)return;
+  const isText=el.tagName==="INPUT"||el.tagName==="TEXTAREA";
+  if(el.tagName==="SELECT"&&k!=="Enter")e.preventDefault();
+  if(el.tagName==="TEXTAREA"&&(k==="Enter"||((k==="ArrowUp")&&el.selectionStart>el.value.indexOf("\n")&&el.value.indexOf("\n")>=0)||((k==="ArrowDown")&&el.value.lastIndexOf("\n")>=el.selectionEnd)))return;
+  if(k==="ArrowLeft"||k==="ArrowRight"){
+    if(isText&&el.selectionStart!=null){const all=el.selectionStart===0&&el.selectionEnd===el.value.length;
+      if(!all&&k==="ArrowLeft"&&el.selectionStart>0)return;if(!all&&k==="ArrowRight"&&el.selectionEnd<el.value.length)return}
+    const row=rows[r];let j=c;const d=k==="ArrowLeft"?-1:1;do{j+=d}while(j>=0&&j<row.length&&!row[j]);
+    if(j>=0&&j<row.length&&row[j]){e.preventDefault();navCol=j;navFocus(row[j]);return}
+    for(let i=r+d;i>=0&&i<rows.length;i+=d){const nr=rows[i].map((x,n)=>[x,n]).filter(x=>x[0]);if(nr.length){const [t,n]=d>0?nr[0]:nr[nr.length-1];e.preventDefault();if(rows[i].length>1)navCol=n;navFocus(t);return}}
+    return}
+  if(rows[r].length>1)navCol=c;
+  const d=k==="ArrowUp"?-1:1;let i=r+d;
+  while(i>=0&&i<rows.length){const row=rows[i];const t=row.length===1?row[0]:(row[navCol]||row.find(Boolean));if(t){e.preventDefault();navFocus(t);return}i+=d}
+});
+document.getElementById("main").addEventListener("change",e=>{
+  if(e.target.dataset&&e.target.dataset.money&&e.target.value!==""){const n=num(e.target.value);if(n!=null)e.target.value=money(n)}
+  if(e.target.dataset&&e.target.dataset.sig!=null){if(vestLocked)return;const f=e.target.files[0];if(!f)return;if(f.size>1.5e6){toast("Kies een kleinere afbeelding (max. 1,5 MB).");return}const r=new FileReader();r.onload=()=>{S.medewerkers[+e.target.dataset.sig].sig=r.result;save();render();toast("Handtekening toegevoegd")};r.readAsDataURL(f);return}
+  if(e.target.id==="filein"){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{document.getElementById("jsonbox").value=r.result;doImport()};r.readAsText(f);return}
+  onField(e,true)});
+
+document.getElementById("main").addEventListener("submit",e=>{
+  if(e.target.id!=="user-profile-form")return;
+  e.preventDefault();
+  store.saveProfile(new FormData(e.target));
+});
+
+let pending=null,pendingBackup=null;
+function ask(txt,fn){pending=fn;const c=document.getElementById("confirm");if(c){document.getElementById("confirmtxt").textContent=txt;c.hidden=false}else{tab="opslaan";render();ask(txt,fn)}}
+function doImport(){const box=document.getElementById("jsonbox");let d;try{d=JSON.parse(box.value)}catch(x){d=null}if(d&&d.type==="vsvk-backup"){pendingBackup=d;ask(`Back-up van ${String(d.gemaakt||"").slice(0,10)} terugzetten? ${(d.calculaties||[]).length} calculaties en de instellingen worden overschreven als ze hetzelfde nummer hebben.`,()=>restoreBackup(pendingBackup));return}try{if(!d.project||!d.blocks)throw 0;S=Object.assign(baseData(),{artikelen:S.artikelen},d);if(!S.nummer)S.voorbeeld=false;save();toast("Calculatie geladen");tab="calculatie";render();assignNumber()}catch(x){toast("Dit is geen geldige calculatiecode. Kopieer de volledige code en probeer opnieuw.")}}
+function copy(text,msg){(navigator.clipboard?navigator.clipboard.writeText(text):Promise.reject()).then(()=>toast(msg)).catch(()=>{toast("Kopiëren lukte niet; selecteer de tekst en kopieer handmatig.")})}
+
+document.getElementById("main").addEventListener("click",e=>{
+  const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,i=+b.dataset.i,bi=+b.dataset.b;
+  const keep=()=>({artikelen:S.artikelen,teksten:JSON.parse(JSON.stringify(DEF_TEKSTEN||S.teksten)),vestigingen:S.vestigingen,medewerkers:S.medewerkers,onderdelen:S.onderdelen,sugg:S.sugg,offerte:{...baseData().offerte,btw:S.offerte.btw,website:S.offerte.website,geldig:S.offerte.geldig,betaal:S.offerte.betaal}});
+  switch(a){
+    case"profileretry":profileChecking=true;profileError="";render();store.init();return;
+    case"addblock":S.blocks.push({id:id(),onderdeel:"",lines:[line(),line(),line()]});break;
+    case"delblock":delBlockId=S.blocks[bi]&&S.blocks[bi].id;render();return;
+    case"delblockno":delBlockId=null;render();return;
+    case"delblockyes":{const nm=S.blocks[bi]&&S.blocks[bi].onderdeel;S.blocks.splice(bi,1);delBlockId=null;toast(nm?`Blok "${nm}" verwijderd`:"Blok verwijderd");break}
+    case"addline":S.blocks[bi].lines.push(line());break;
+    case"delline":{const l=S.blocks[bi]&&S.blocks[bi].lines[+b.dataset.l];if(!l)return;
+      if(!(l.artikel||l.tekst||l.omschr||l.aantal||l.dagen||l.uren)){S.blocks[bi].lines.splice(+b.dataset.l,1);break}
+      delLineId=l.id;render();return}
+    case"dellineno":delLineId=null;render();return;
+    case"dellineyes":S.blocks[bi].lines.splice(+b.dataset.l,1);delLineId=null;toast("Regel verwijderd");break;
+    case"txunlock":if(!AUTH.canManageSettings)return;txAsk=true;render();return;
+    case"txunlockno":txAsk=false;render();return;
+    case"txunlockyes":if(!AUTH.canManageSettings)return;txAsk=false;txLocked=false;render();toast("Wijzigen toegestaan");return;
+    case"txlock":if(!AUTH.canManageSettings)return;txLocked=true;render();toast("Offerteteksten vergrendeld");return;
+    case"addtekst":if(!AUTH.canManageSettings||txLocked)return;S.teksten.push({id:id(),h:b.dataset.h,t:"",on:true});break;
+    case"deltekst":if(!AUTH.canManageSettings||txLocked)return;S.teksten.splice(i,1);break;
+    case"addsugg":if(!AUTH.canManageSettings||txLocked)return;S.sugg.push({id:id(),o:"",t:""});break;
+    case"delsugg":if(!AUTH.canManageSettings||txLocked)return;S.sugg.splice(i,1);break;
+    case"addond":if(!AUTH.canManageSettings||txLocked)return;S.onderdelen.push("");break;
+    case"delond":if(!AUTH.canManageSettings||txLocked)return;S.onderdelen.splice(i,1);break;
+    case"addplan":S.planning.push({id:id(),naam:"",start:"",eind:"",opm:""});break;
+    case"delplan":S.planning.splice(i,1);break;
+    case"addart":if(!AUTH.canManageSettings||artLocked)return;{
+      const article={a:"Nieuw artikel",c:CATS.includes("Overig")?"Overig":(CATS[0]||""),e:EENHEDEN[0]||"",t:0,act:true};
+      store.createArticle(article).then(created=>{if(!created)return;S.artikelen.push(created);artQ="";render();toast("Artikel toegevoegd")}).catch(()=>toast("Artikel toevoegen aan PostgreSQL lukte niet."));return}
+    case"artunlock":if(!AUTH.canManageSettings)return;artAsk=true;render();return;
+    case"artunlockno":artAsk=false;render();return;
+    case"artunlockyes":if(!AUTH.canManageSettings)return;artAsk=false;artLocked=false;render();toast("Wijzigen toegestaan");return;
+    case"artlock":if(!AUTH.canManageSettings)return;artLocked=true;render();toast("Artikelen vergrendeld");return;
+    case"delart":if(!AUTH.canManageSettings||artLocked)return;{
+      const article=S.artikelen[i];if(!article||!article.id)return;
+      store.deactivateArticle(article).then(ok=>{if(!ok){toast("Artikel deactiveren lukte niet.");return}article.act=false;render();toast("Artikel gedeactiveerd")}).catch(()=>toast("Artikel deactiveren lukte niet."));return}
+    case"vestunlock":if(!AUTH.canManageSettings)return;vestAsk=true;render();return;
+    case"vestunlockno":vestAsk=false;render();return;
+    case"vestunlockyes":if(!AUTH.canManageSettings)return;vestAsk=false;vestLocked=false;render();toast("Wijzigen toegestaan");return;
+    case"vestlock":if(!AUTH.canManageSettings)return;vestLocked=true;render();toast("Vestigingen vergrendeld");return;
+    case"addvest":if(!AUTH.canManageSettings||vestLocked)return;S.vestigingen.push({id:id(),naam:"",adres:"",pc:"",plaats:"",tel:"",email:"",kvk:"",btw:"",iban:""});break;
+    case"delvest":if(!AUTH.canManageSettings||vestLocked)return;S.vestigingen.splice(i,1);break;
+    case"addmede":if(!AUTH.canManageSettings||vestLocked)return;S.medewerkers.push({id:id(),naam:"",functie:"",vest:"",tel:"",email:""});break;
+    case"delsig":if(!AUTH.canManageSettings||vestLocked)return;S.medewerkers[i].sig="";break;
+    case"delmede":if(!AUTH.canManageSettings||vestLocked)return;S.medewerkers.splice(i,1);break;
+    case"new":{
+      const go=()=>{S=Object.assign(baseData(),keep());S.status="Concept";S.nummer=null;tab="calculatie";save();render();scrollTo({top:0});assignNumber()};
+      if(S.voorbeeld||S.nummer){go();return}
+      if(tab!=="opslaan"){go();return}
+      ask("Huidige calculatie (zonder nummer) wissen?",go);return}
+    case"open":{const r=OV.find(x=>x.nummer===b.dataset.nr);if(!r)return;openRecord(r,false);return}
+    case"copy":{const r=OV.find(x=>x.nummer===b.dataset.nr);if(!r)return;openRecord(r,true);return}
+    case"del":ovConfirm=b.dataset.nr;render();return;
+    case"delno":ovConfirm=null;render();return;
+    case"delyes":{const nr=ovConfirm;ovConfirm=null;store.del(nr).then(ok=>{if(!ok)return;if(S.nummer===nr){S.nummer=null;S.project.calcnr="";S.project.offertenr="";save()}toast(`Calculatie ${nr} verwijderd`);render()});render();return}
+    case"sample":ask("Huidige calculatie vervangen door het voorbeeld?",()=>{const catalog=S.artikelen;S=sampleData();S.artikelen=catalog;save();tab="calculatie"});return;
+    case"yes":if(pending)pending();pending=null;break;
+    case"no":pending=null;document.getElementById("confirm").hidden=true;return;
+    case"export":document.getElementById("jsonbox").value=JSON.stringify(S,null,1);return;
+    case"copyjson":{const box=document.getElementById("jsonbox");if(!box.value)box.value=JSON.stringify(S,null,1);box.select();copy(box.value,"Code gekopieerd");return}
+    case"import":doImport();return;
+    case"pdf":makePdf(b);return;
+    case"backup":makeBackup(b);return;
+    case"copyoff":copy(document.getElementById("paper").innerText,"Offertetekst gekopieerd");return;
+    default:return;
+  }
+  if(S.voorbeeld&&/^(addblock|delblock|addline|delline)$/.test(a))S.voorbeeld=true;
+  save();render();
+});
+if(!S.plan)S.plan={};(S.medewerkers||[]).forEach(m=>{if(m.sig==null&&m.naam==="Peter van Kester")m.sig=SIG_PVK});(S.planning||[]).forEach(r=>{if(r.start&&!r.eind&&num(r.dagen)>0)r.eind=isoOf(addDays(r.start,num(r.dagen)-1))});
+render();
+store.init().then(async()=>{await waitOv();if(!S.voorbeeld&&!S.nummer&&(S.project.naam||S.blocks.some(b=>b.onderdeel||b.lines.some(l=>l.artikel))))assignNumber()});
+})();

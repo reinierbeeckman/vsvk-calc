@@ -31,6 +31,7 @@ builder.Services.AddSingleton<CalculatieRepository>();
 builder.Services.AddScoped<InstellingenRepository>();
 builder.Services.AddScoped<VestigingRepository>();
 builder.Services.AddScoped<ArtikelRepository>();
+builder.Services.AddScoped<PlanningRepository>();
 builder.Services.AddScoped<IUserProfileRepository, UserProfileRepository>();
 builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddSingleton<DatabaseMigrator>();
@@ -78,6 +79,7 @@ builder.Services.AddAuthorization(options =>
 {
   options.AddPolicy(VsvkRoles.Default, policy => policy.RequireAssertion(context => VsvkRoles.IsApplicationUser(context.User)));
   options.AddPolicy("directie", policy => policy.RequireRole(VsvkRoles.Directie));
+  options.AddPolicy("planning-lijsten", policy => policy.RequireAssertion(context => VsvkRoles.CanManagePlanning(context.User)));
 });
 
 var app = builder.Build();
@@ -310,6 +312,7 @@ app.MapGet("/health", () => Results.Ok(new { ok = true }))
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapArtikelEndpoints();
+app.MapPlanningEndpoints();
 app.MapUserProfileEndpoints();
 
 // Example endpoint (stays for now)

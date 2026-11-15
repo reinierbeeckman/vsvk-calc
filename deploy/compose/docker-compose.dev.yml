@@ -62,6 +62,10 @@
             - obj/
         - action: rebuild
           path: ../../apps/calculatie
+        - action: rebuild
+          path: ../../apps/planning
+        - action: rebuild
+          path: ../../apps/shared
 
   keycloak:
     command: ["start", "--http-port=8080", "--import-realm"]

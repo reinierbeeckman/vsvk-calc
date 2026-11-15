@@ -8,6 +8,7 @@ public sealed class UserInformation
   public string? JobTitle { get; set; }
   public string? PhoneNumber { get; set; }
   public string? EmailAddress { get; set; }
+  public bool IsActive { get; set; } = true;
   public Guid? VestigingId { get; set; }
   public Vestiging? Vestiging { get; set; }
   public ICollection<UserInformationSkill> Skills { get; set; } = new List<UserInformationSkill>();

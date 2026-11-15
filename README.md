@@ -30,6 +30,7 @@ Calculatie- en offerte-app op een BFF-architectuur:
 Open daarna:
 
 - App/BFF: http://localhost:8080
+- Planning-lijsten: http://localhost:8080/planning/
 - Login: http://localhost:8080/bff/login
 - Keycloak: http://localhost:8081
 
@@ -46,6 +47,8 @@ Gebruik per omgeving exact één runtime env-file: `deploy/env/.env`.
 ## Structuur
 
 - `apps/calculatie/` — SPA
+- `apps/planning/` — beperkte planning-lijsten-SPA
+- `apps/shared/` — gedeelde header en stijlen voor de applicaties
 - `apps/bff/` — YARP BFF
 - `apps/api-dotnet/` — REST API
 - `deploy/compose/` — compose files per environment
@@ -58,3 +61,15 @@ Gebruik per omgeving exact één runtime env-file: `deploy/env/.env`.
 - Scheid app-database en Keycloak-database credentials.
 
 Meer deployment-details: `deploy/README.md`.
+
+## Applicatielayout
+
+Gebruik voor nieuwe applicaties de gedeelde `/shared/layout.css` en `/shared/header.js`. Plaats een element met `data-vsvk-header`, `data-application` en `data-title` vóór het headerscript en zet de applicatienavigatie daarin als `nav.tabs`. Voeg applicaties en hun URL toe aan de applicatiewisselaar in het gedeelde headerscript. De header haalt de ingelogde gebruiker via de BFF op; applicaties met een eigen authenticatie-initialisatie kunnen `data-account="external"` gebruiken. Plaats algemene headeropmaak in de gedeelde stylesheet en schermspecifieke opmaak in een afzonderlijke stylesheet van de applicatie.
+
+`npm run dev` serveert de statische bestanden voor ontwikkeling; voor authenticatie en databasegegevens is de BFF-stack nodig. Controleer de gedeelde header met `npm test`.
+
+## Planning-lijsten
+
+De lijsten tonen bestaande medewerkersprofielen, materieel en artikelen via de BFF. Planning en directie met applicatietoegang kunnen medewerkers en materieel binnen hun vestigingsscope zien; directie ziet alle vestigingen. Alleen de medewerkerstatus kan in dit scherm worden gewijzigd. Artikelen gebruiken de bestaande catalogus en toegangsregels. Een medewerker verschijnt pas nadat zijn Keycloak-profiel in de database bestaat. Nieuwe medewerkers, overige medewerkergegevens, klanten, materieelbewerkingen en aanvullende planningvelden volgen later.
+
+Voer na deployment de migratie uit zoals hierboven beschreven. Deze voegt `user_information.is_active` toe met standaardwaarde `true`; eerder verwijderde statuswaarden kunnen niet automatisch worden hersteld. Controleer daarom de status van bestaande medewerkers. Bij een gelijktijdige wijziging blijft de gemaakte statuskeuze staan en moet de gebruiker na vergelijking zelf opnieuw opslaan.

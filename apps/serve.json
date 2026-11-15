@@ -1,0 +1,13 @@
+{
+  "directoryListing": false,
+  "cleanUrls": false,
+  "rewrites": [
+    { "source": "/", "destination": "/calculatie/index.html" },
+    { "source": "/planning", "destination": "/planning/index.html" },
+    { "source": "/calculatie.css", "destination": "/calculatie/calculatie.css" },
+    { "source": "/calculatie.js", "destination": "/calculatie/calculatie.js" },
+    { "source": "/visie.html", "destination": "/calculatie/visie.html" },
+    { "source": "/visie.css", "destination": "/calculatie/visie.css" },
+    { "source": "/fonts/:font", "destination": "/calculatie/fonts/:font" }
+  ]
+}

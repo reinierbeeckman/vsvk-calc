@@ -4,8 +4,9 @@
   "private": true,
   "description": "VSVK Calculatie & Offerte - baseline voor de enterprise datalaag",
   "scripts": {
-    "dev": "serve apps/calculatie -l 8080 --no-clipboard",
-    "start": "npm run dev"
+    "dev": "serve apps -c serve.json -l 8080 --no-clipboard",
+    "start": "npm run dev",
+    "test": "node --test tests/*.test.js"
   },
   "devDependencies": {
     "serve": "^14.2.4"

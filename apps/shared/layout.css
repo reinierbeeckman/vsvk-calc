@@ -1,0 +1,30 @@
+header.top{--head:#fff;--head-ink:#1a1a1a;--head-muted:#5b5b5b;--header-line:#dbd7cd;--brand-orange:#ff4e02;--logo-ink:#1a1a1a;--f-body:Interstate,"Overpass",Arial,sans-serif;--f-display:"Arial Black","Archivo Black",Arial,sans-serif;--f-mono:Interstate,"Overpass",Arial,sans-serif;position:sticky;top:env(safe-area-inset-top,0px);z-index:8;background:var(--head);color:var(--head-ink);border-bottom:1px solid var(--header-line)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) header.top{--head:#1a1a1a;--head-ink:#fff;--head-muted:#a8a6a1;--header-line:#34322e;--logo-ink:#fff}}
+:root[data-theme="dark"] header.top{--head:#1a1a1a;--head-ink:#fff;--head-muted:#a8a6a1;--header-line:#34322e;--logo-ink:#fff}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1500px;margin:0 auto}
+header.top .bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px 28px;padding-block:14px 8px}
+header.top .brand{display:flex;align-items:center;gap:16px}
+header.top .logo-svg{display:block;height:30px;width:auto;max-width:100%}
+header.top .brand span{font:700 12px/1.2 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--head-muted);border-left:1px solid var(--header-line);padding-left:16px}
+header.top .app-switcher{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+header.top .app-switcher a{font:700 12px var(--f-body);color:var(--head-ink);text-decoration:none;padding:7px 10px;border:1px solid var(--header-line);white-space:nowrap}
+header.top .app-switcher a[aria-current="page"]{border-bottom:3px solid var(--brand-orange)}
+header.top .app-switcher a:hover,header.top .app-switcher a:focus-visible{outline:2px solid var(--brand-orange);outline-offset:1px}
+header.top .totals{display:flex;gap:24px;margin-left:auto;flex-wrap:wrap}
+header.top .totals div{display:flex;flex-direction:column}
+header.top .totals small{font:600 10.5px var(--f-body);text-transform:uppercase;letter-spacing:.08em;color:var(--head-muted)}
+header.top .totals strong{font:700 17px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--head-ink)}
+header.top .totals div:last-child strong{color:var(--brand-orange)}
+header.top .account{display:flex;align-items:center;gap:12px;padding-left:14px;border-left:1px solid var(--header-line);min-width:0}
+header.top.no-totals .account{margin-left:auto}
+header.top .account-meta{display:grid;gap:1px;max-width:220px;min-width:0}
+header.top .account-name{font-weight:700;overflow-wrap:anywhere}
+header.top .account-roles{color:var(--head-muted);font-size:11px;line-height:1.2;overflow-wrap:anywhere}
+header.top .account-logout-form{margin:0}
+header.top .account-logout{font:700 11px var(--f-body);letter-spacing:.06em;text-transform:uppercase;padding:5px 9px;border:2px solid var(--head-ink);background:transparent;color:var(--head-ink);cursor:pointer}
+header.top .account-logout:hover{background:var(--head-ink);color:var(--head)}
+header.top nav.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+header.top nav.tabs button{font:400 12.5px var(--f-display);letter-spacing:.04em;text-transform:uppercase;background:none;border:0;color:var(--head-muted);padding:10px 12px 11px;border-bottom:4px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap}
+header.top nav.tabs button[aria-selected="true"]{color:var(--head-ink);border-bottom-color:var(--brand-orange)}
+header.top nav.tabs button:hover{color:var(--head-ink)}
+@media(max-width:640px){header.top .account,header.top.no-totals .account{order:3;flex-basis:100%;justify-content:flex-end;margin-left:0;padding:10px 0 0;border-left:0;border-top:1px solid var(--header-line)}header.top .account-meta{margin-right:auto}header.top .totals{margin-left:0}header.top .brand span{display:none}}

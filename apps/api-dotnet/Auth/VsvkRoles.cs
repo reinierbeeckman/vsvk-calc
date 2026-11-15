@@ -43,6 +43,9 @@ public static class VsvkRoles
   public static bool HasOrganizationWideAccess(ClaimsPrincipal user) =>
     user.IsInRole(Directie);
 
+  public static bool CanManagePlanning(ClaimsPrincipal user) =>
+    IsApplicationUser(user) && (user.IsInRole(Planning) || user.IsInRole(Directie));
+
   public static bool CanViewFinancialVestigingData(ClaimsPrincipal user) =>
     user.IsInRole(Directie) || user.IsInRole(Finance);
 
