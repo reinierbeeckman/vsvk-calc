@@ -86,6 +86,13 @@ builder.Services.AddAuthorization(options =>
 var app = builder.Build();
 app.UseExceptionHandler();
 
+if (args.Contains("--migrate-planning-tarieven"))
+{
+  var migrator = app.Services.GetRequiredService<DatabaseMigrator>();
+  await migrator.MigratePlanningRatesAsync(app.Lifetime.ApplicationStopping);
+  return;
+}
+
 if (args.Contains("--migrate"))
 {
   var migrator = app.Services.GetRequiredService<DatabaseMigrator>();

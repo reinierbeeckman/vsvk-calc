@@ -12,6 +12,8 @@
 <body>
   <div data-vsvk-header data-application="planning" data-title="Planning mensen &amp; materieel"><nav class="tabs" aria-label="Planning onderdelen"><button type="button" data-section="Overzicht">Overzicht</button><button type="button" data-section="Werkopdrachten">Werkopdrachten</button><button type="button" data-section="Planbord">Planbord</button><button type="button" data-section="Werkbonnen">Werkbonnen</button><button type="button" data-section="Team">Team</button><button type="button" data-section="Lijsten" aria-selected="true">Lijsten</button></nav></div>
   <script src="/shared/header.js"></script>
+  <div class="vsvk-loading-status" data-vsvk-loading-status role="status" aria-live="polite"></div>
+  <script src="/shared/loading.js"></script>
   <main class="wrap">
     <div class="pagehead"><h1 id="title">Medewerkers</h1><p id="description"></p></div>
     <nav class="subnav" id="list-nav" aria-label="Lijsten"><button type="button" data-list="medewerkers">Medewerkers</button><button type="button" data-list="klanten">Klanten</button><button type="button" data-list="materieel">Materieel</button><button type="button" data-list="artikelen">Artikelen</button><button type="button" data-list="ordernummers">Ordernummers</button><button type="button" data-list="tarieven">Tarieven</button><button type="button" data-list="leveranciers">Leveranciers</button><button type="button" data-list="instellingen">Instellingen</button><button type="button" data-list="huisstijl">Huisstijl</button><button type="button" data-list="rollen">Rollen &amp; rechten</button></nav>
@@ -22,7 +24,7 @@
     </section>
     <section class="panel" id="unavailable" hidden><div class="empty">Dit onderdeel is nog niet beschikbaar.</div></section>
   </main>
-  <dialog id="detail" aria-labelledby="detail-title"><div class="mbox"><div class="mhead"><div><h2 id="detail-title"></h2><p class="hint" id="detail-subtitle"></p></div><button class="btn ghost" type="button" data-close aria-label="Sluiten">✕</button></div><div class="mbody" id="detail-body"></div><div class="mfoot"><button class="btn" type="button" data-close>Sluiten</button></div></div></dialog>
+  <dialog id="detail" aria-labelledby="detail-title"><div class="mbox"><div class="mhead"><div><h2 id="detail-title"></h2><p class="hint" id="detail-subtitle"></p></div><button class="btn ghost" type="button" data-close aria-label="Sluiten">✕</button></div><div class="mbody" id="detail-body"></div><div class="mfoot"><button class="btn customer-only customer-delete" type="button" disabled title="Nog niet beschikbaar">Verwijderen</button><button class="btn customer-only" type="button" data-close>Annuleren</button><button class="btn other-only" type="button" data-close>Sluiten</button><button class="btn primary customer-only" type="button" disabled title="Klantgegevens aanpassen is nog niet beschikbaar">Klantgegevens opslaan</button></div></div></dialog>
   <script src="/planning/planning.js"></script>
 </body>
 </html>

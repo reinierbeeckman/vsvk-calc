@@ -296,6 +296,7 @@ where id = 1
     await MigrateMaterieelAsync(cancellationToken);
     await MigrateRemoveMaterieelImportStateAsync(cancellationToken);
     await MigrateCustomersAsync(cancellationToken);
+    await MigratePlanningRatesAsync(cancellationToken);
   }
 
   private async Task MigrateCustomersAsync(CancellationToken cancellationToken)
@@ -333,6 +334,31 @@ where id = 1
         omschrijving varchar(255) not null, tarief numeric(10,2) not null,
         eenheid varchar(50), aangemaakt_op timestamptz default current_timestamp
       );
+      """;
+    await using var command = _dataSource.CreateCommand(sql);
+    await command.ExecuteNonQueryAsync(cancellationToken);
+  }
+
+  public async Task MigratePlanningRatesAsync(CancellationToken cancellationToken = default)
+  {
+    const string sql = """
+      create table if not exists functies (
+        id serial primary key, aan boolean not null default true,
+        naam varchar(255) not null, toelichting text,
+        aangemaakt_op timestamptz default current_timestamp
+      );
+      create table if not exists standaard_tarieven (
+        id serial primary key, functie_id integer not null references functies(id) on delete cascade,
+        prijs numeric(10,2) not null, eenheid varchar(50) not null default 'uur',
+        geldig_vanaf date not null default current_date, aangemaakt_op timestamptz default current_timestamp
+      );
+      create index if not exists idx_standaard_tarieven_functie_datum
+        on standaard_tarieven (functie_id, geldig_vanaf desc);
+      alter table standaard_tarieven add column if not exists version bigint not null default 1;
+      alter table klanten add column if not exists tarieven_version bigint not null default 1;
+      alter table klant_afwijkende_tarieven add column if not exists functie_id integer references functies(id);
+      create unique index if not exists ix_klant_afwijkende_tarieven_klant_functie
+        on klant_afwijkende_tarieven (klant_id, functie_id) where functie_id is not null;
       """;
     await using var command = _dataSource.CreateCommand(sql);
     await command.ExecuteNonQueryAsync(cancellationToken);

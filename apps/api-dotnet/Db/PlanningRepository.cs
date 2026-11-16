@@ -3,7 +3,7 @@ using Vsvk.Api.DTOs;
 
 namespace Vsvk.Api.Db;
 
-public sealed class PlanningRepository(VsvkDbContext context)
+public sealed partial class PlanningRepository(VsvkDbContext context)
 {
   public Task<List<PlanningCustomerListDto>> ListCustomersAsync(CancellationToken cancellationToken) =>
     context.Klanten.AsNoTracking().OrderBy(customer => customer.Bedrijfsnaam).ThenBy(customer => customer.Id)

@@ -10,4 +10,13 @@ public sealed class PlanningCustomerService(PlanningRepository repository) : IPl
 
   public Task<PlanningCustomerDetailDto?> GetAsync(int id, CancellationToken cancellationToken) =>
     repository.GetCustomerAsync(id, cancellationToken);
+
+  public Task<List<PlanningStandardRateDto>> ListRatesAsync(CancellationToken cancellationToken) =>
+    repository.ListRatesAsync(cancellationToken);
+
+  public Task<PlanningCustomerRatesDto?> GetRatesAsync(int id, CancellationToken cancellationToken) =>
+    repository.GetCustomerRatesAsync(id, cancellationToken);
+
+  public Task<PlanningRatesUpdateResult> SaveRatesAsync(int id, long version, List<PlanningRateOverrideRequest> overrides, CancellationToken cancellationToken) =>
+    repository.SaveCustomerRatesAsync(id, version, overrides, cancellationToken);
 }

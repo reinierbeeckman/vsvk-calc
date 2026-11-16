@@ -43,6 +43,10 @@ De migratie maakt relationele tabellen voor artikelen, artikelcategorieën en ar
 
 De SPA leest de catalogus via `GET /api/articles`, `GET /api/article-categories` en `GET /api/article-units`. Alleen `directie` kan artikelen aanpassen of deactiveren; categorieën en eenheden worden als referentiedata via hun eigen opzoektabellen geleverd.
 
+Planning toont per functie het meest recente standaardtarief met een ingangsdatum op of vóór vandaag (Nederlandse tijd). Gebruikers met de Keycloak-rol `directie` kunnen de prijs in de tarievenlijst wijzigen. In het klantvenster kunnen zij afwijkingen opslaan of verwijderen; een leeg veld betekent het standaardtarief. Bestaande afwijkingen zonder functiekoppeling blijven als historische tarieven zichtbaar en worden niet automatisch gekoppeld of overschreven.
+
+De API biedt `GET /api/planning/tarieven`, `GET`/`PUT /api/planning/tarieven/{id}/prijs` en `GET`/`PUT /api/planning/klanten/{id}/tarieven`. Standaardprijzen en klanttarieven zijn afzonderlijk versiebeheerd: gebruik de sterke ETag uit de desbetreffende GET-response als `If-Match` bij PUT. Alle wijzigingen in `standaard_tarieven` en `klant_afwijkende_tarieven` moeten via deze versiecontrole lopen; directe databasewijzigingen omzeilen die beveiliging. Voer na het uitrollen de migratie uit voordat de nieuwe API wordt gebruikt. Op een bestaande database met de klanttabellen kan alleen de tariefmigratie worden uitgevoerd met dezelfde Compose-opties als hierboven en `--profile migrate run --rm --no-deps migrate --migrate-planning-tarieven`.
+
 Bij de eerste aanmelding maakt `GET /api/user/profile` een leeg profiel aan met de UUID uit het gevalideerde Keycloak-token. De SPA stuurt gebruikers met een onvolledig profiel direct naar **Mijn profiel** en laat de overige tabbladen pas zien nadat het telefoonnummer en alternatieve e-mailadres zijn opgeslagen. Een digitale handtekening is optioneel. Profielwijzigingen gebruiken een strong ETag en vereisen `If-Match`, net als andere updates van bestaande gegevens.
 
 Open daarna:

@@ -96,7 +96,8 @@ const fdate=iso=>{if(!iso)return"";const d=new Date(iso+"T00:00:00");return isNa
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),1800)}
 async function showConcurrencyConflict({entity,local,loadLatest,reapply}){
   let latest;
-  try{latest=await loadLatest()}catch{toast(`De nieuwste versie van ${entity} kon niet worden geladen.`);return false}
+  const finishLoading=window.VsvkLoading.begin();
+  try{latest=await loadLatest()}catch{toast(`De nieuwste versie van ${entity} kon niet worden geladen.`);return false}finally{finishLoading()}
   if(!latest||!latest.body||!latest.etag){toast(`De nieuwste versie van ${entity} kon niet worden vergeleken.`);return false}
   const dlg=document.createElement("dialog");
   dlg.className="conflict-dialog";
@@ -492,17 +493,20 @@ const ensureAuthenticated = async () => {
 };
 
 const store={db:null,_poll:null,
-  async _json(url,opt){
-    const r=await fetch(url,Object.assign({credentials:"include"},opt||{}));
-    const apiCall=typeof url==="string"&&url.startsWith("/api/");
-    const ct=(r.headers.get("content-type")||"").toLowerCase();
-    const redirectedToAuth=r.redirected&&/\/protocol\/openid-connect\/auth/i.test(r.url||"");
-    const htmlInsteadOfJson=apiCall&&r.ok&&ct.includes("text/html");
-    if(redirectedToAuth||htmlInsteadOfJson){redirectToLogin();throw new Error("auth")}
-    return r
+  async _json(url,opt,background=false){
+    const finishLoading=!background&&(!opt||!opt.method||opt.method.toUpperCase()==="GET")?window.VsvkLoading.begin():()=>{};
+    try{
+      const r=await fetch(url,Object.assign({credentials:"include"},opt||{}));
+      const apiCall=typeof url==="string"&&url.startsWith("/api/");
+      const ct=(r.headers.get("content-type")||"").toLowerCase();
+      const redirectedToAuth=r.redirected&&/\/protocol\/openid-connect\/auth/i.test(r.url||"");
+      const htmlInsteadOfJson=apiCall&&r.ok&&ct.includes("text/html");
+      if(redirectedToAuth||htmlInsteadOfJson){redirectToLogin();throw new Error("auth")}
+      return r
+    }finally{finishLoading()}
   },
-  async _refreshOv(){
-    const r=await this._json("/api/calculaties");
+  async _refreshOv(background=false){
+    const r=await this._json("/api/calculaties",undefined,background);
     if(isAuthFailure(r)){redirectToLogin();throw new Error("auth")}
     if(isAccessDenied(r))throw new Error("forbidden");
     if(!r.ok)throw new Error("ov");
@@ -512,6 +516,7 @@ const store={db:null,_poll:null,
     onOv();
   },
   async init(){
+    const finishLoading=window.VsvkLoading.begin();
     try{
       if(await ensureAuthenticated()===false){redirectToLogin();return}
       const profileResponse=await this._json("/api/user/profile");
@@ -544,7 +549,7 @@ const store={db:null,_poll:null,
       this.db={kind:"http"};
       if(this._poll)clearInterval(this._poll);
       this._poll=setInterval(()=>{
-        this._refreshOv().catch(async error=>{
+        this._refreshOv(true).catch(async error=>{
           if(error&&error.message==="forbidden"){
             if(this._poll)clearInterval(this._poll);
             this._poll=null;
@@ -574,6 +579,8 @@ const store={db:null,_poll:null,
       ovReady=true;
       onOv();
       toast("Database niet bereikbaar. Herlaad of log opnieuw in.");
+    }finally{
+      finishLoading();
     }
   },
   async saveProfile(formData){

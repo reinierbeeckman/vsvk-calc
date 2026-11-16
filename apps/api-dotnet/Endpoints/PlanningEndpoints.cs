@@ -30,6 +30,74 @@ public static class PlanningEndpoints
       .WithSummary("Klant met contactpersonen ophalen")
       .Produces<PlanningCustomerDetailDto>(200).Produces(400).Produces(401).Produces(403).Produces(404);
 
+    group.MapGet("/tarieven", async (HttpContext context, IPlanningCustomerService service, CancellationToken cancellationToken) =>
+      CustomerResponse(context, await service.ListRatesAsync(cancellationToken)))
+      .RequireAuthorization(policy => policy.RequireRole(VsvkRoles.Directie))
+      .WithSummary("Actuele standaardtarieven ophalen")
+      .Produces<List<PlanningStandardRateDto>>(200).Produces(401).Produces(403);
+
+    group.MapGet("/tarieven/{id:int}/prijs", async (int id, HttpContext context, PlanningRepository repository, CancellationToken cancellationToken) =>
+    {
+      if (id <= 0) return Results.BadRequest();
+      var price = await repository.GetStandardPriceAsync(id, cancellationToken);
+      if (price is null) return Results.NotFound();
+      context.Response.Headers.ETag = price.ETag;
+      context.Response.Headers.CacheControl = "private, no-store";
+      return Results.Ok(price);
+    }).RequireAuthorization(policy => policy.RequireRole(VsvkRoles.Directie))
+      .WithSummary("Standaardtariefprijs ophalen")
+      .Produces<PlanningStandardPriceDto>(200).Produces(400).Produces(401).Produces(403).Produces(404);
+
+    group.MapPut("/tarieven/{id:int}/prijs", async (int id, PlanningStandardPriceRequest request, HttpContext context, PlanningRepository repository, CancellationToken cancellationToken) =>
+    {
+      if (id <= 0) return Results.BadRequest();
+      var precondition = IfMatchParser.Parse(context.Request.Headers.TryGetValue("If-Match", out var values) ? values.ToString() : null);
+      if (!precondition.IsValid) return Results.StatusCode(precondition.StatusCode);
+      if (request.Prijs is null || request.Prijs < 0 || request.Prijs >= 100000000 || decimal.Round(request.Prijs.Value, 2) != request.Prijs.Value)
+        return Results.BadRequest("Vul een geldig tarief in met maximaal twee decimalen.");
+      if (await repository.GetStandardPriceAsync(id, cancellationToken) is null) return Results.NotFound();
+      var price = await repository.SaveStandardPriceAsync(id, precondition.Version!.Value, request.Prijs.Value, cancellationToken);
+      if (price is null) return Results.StatusCode(StatusCodes.Status412PreconditionFailed);
+      context.Response.Headers.ETag = price.ETag;
+      context.Response.Headers.CacheControl = "private, no-store";
+      return Results.Ok(price);
+    }).RequireAuthorization(policy => policy.RequireRole(VsvkRoles.Directie))
+      .WithSummary("Standaardtariefprijs opslaan met If-Match")
+      .Produces<PlanningStandardPriceDto>(200).Produces(400).Produces(401).Produces(403).Produces(404).Produces(412).Produces(428);
+
+    group.MapGet("/klanten/{id:int}/tarieven", async (int id, HttpContext context, IPlanningCustomerService service, CancellationToken cancellationToken) =>
+    {
+      if (id <= 0) return Results.BadRequest();
+      var rates = await service.GetRatesAsync(id, cancellationToken);
+      if (rates is null) return Results.NotFound();
+      context.Response.Headers.ETag = rates.ETag;
+      context.Response.Headers.CacheControl = "private, no-store";
+      return Results.Ok(rates);
+    }).RequireAuthorization(policy => policy.RequireRole(VsvkRoles.Directie))
+      .WithSummary("Afwijkende klanttarieven ophalen")
+      .Produces<PlanningCustomerRatesDto>(200).Produces(400).Produces(401).Produces(403).Produces(404);
+
+    group.MapPut("/klanten/{id:int}/tarieven", async (int id, PlanningCustomerRatesRequest request, HttpContext context, IPlanningCustomerService service, CancellationToken cancellationToken) =>
+    {
+      if (id <= 0) return Results.BadRequest();
+      var precondition = IfMatchParser.Parse(context.Request.Headers.TryGetValue("If-Match", out var values) ? values.ToString() : null);
+      if (!precondition.IsValid) return Results.StatusCode(precondition.StatusCode);
+      var overrides = request.Afwijkingen;
+      if (overrides is null || overrides.Count > 1000 || overrides.Any(item => item is null || item.FunctieId <= 0 ||
+        item.Tarief is null || item.Tarief < 0 || item.Tarief >= 100000000 || decimal.Round(item.Tarief.Value, 2) != item.Tarief.Value) ||
+        overrides.Select(item => item.FunctieId).Distinct().Count() != overrides.Count)
+        return Results.BadRequest("Controleer de functies en tarieven.");
+      if (await service.GetRatesAsync(id, cancellationToken) is null) return Results.NotFound();
+      var saved = await service.SaveRatesAsync(id, precondition.Version!.Value, overrides, cancellationToken);
+      if (saved.Invalid) return Results.BadRequest("Een functie heeft geen geldig standaardtarief of is niet actief.");
+      if (saved.Rates is null) return Results.StatusCode(StatusCodes.Status412PreconditionFailed);
+      context.Response.Headers.ETag = saved.Rates.ETag;
+      context.Response.Headers.CacheControl = "private, no-store";
+      return Results.Ok(saved.Rates);
+    }).RequireAuthorization(policy => policy.RequireRole(VsvkRoles.Directie))
+      .WithSummary("Afwijkende klanttarieven opslaan met If-Match")
+      .Produces<PlanningCustomerRatesDto>(200).Produces(400).Produces(401).Produces(403).Produces(404).Produces(412).Produces(428);
+
     group.MapGet("/medewerkers", async (ClaimsPrincipal user, PlanningRepository repository, CancellationToken cancellationToken) =>
     {
       if (!VsvkRoles.HasRequiredVestigingScope(user)) return Results.Forbid();

@@ -19,6 +19,9 @@ public sealed class VsvkDbContext : DbContext
   public DbSet<MaterieelGroep> MaterieelGroepen => Set<MaterieelGroep>();
   public DbSet<Klant> Klanten => Set<Klant>();
   public DbSet<KlantContactpersoon> KlantContactpersonen => Set<KlantContactpersoon>();
+  public DbSet<PlanningFunctie> PlanningFuncties => Set<PlanningFunctie>();
+  public DbSet<PlanningStandaardTarief> PlanningStandaardTarieven => Set<PlanningStandaardTarief>();
+  public DbSet<PlanningKlantTarief> PlanningKlantTarieven => Set<PlanningKlantTarief>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
@@ -49,6 +52,36 @@ public sealed class VsvkDbContext : DbContext
     klant.Property(item => item.BtwVerlegd).HasColumnName("btw_verlegd");
     klant.Property(item => item.MandagenregisterMeesturen).HasColumnName("mandagenregister_meesturen");
     klant.Property(item => item.Opmerkingen).HasColumnName("opmerkingen");
+    klant.Property(item => item.TarievenVersion).HasColumnName("tarieven_version");
+
+    var functie = modelBuilder.Entity<PlanningFunctie>();
+    functie.ToTable("functies");
+    functie.HasKey(item => item.Id);
+    functie.Property(item => item.Id).HasColumnName("id");
+    functie.Property(item => item.Aan).HasColumnName("aan");
+    functie.Property(item => item.Naam).HasColumnName("naam");
+    functie.Property(item => item.Toelichting).HasColumnName("toelichting");
+
+    var standaardTarief = modelBuilder.Entity<PlanningStandaardTarief>();
+    standaardTarief.ToTable("standaard_tarieven");
+    standaardTarief.HasKey(item => item.Id);
+    standaardTarief.Property(item => item.Id).HasColumnName("id");
+    standaardTarief.Property(item => item.FunctieId).HasColumnName("functie_id");
+    standaardTarief.Property(item => item.Prijs).HasColumnName("prijs").HasPrecision(10, 2);
+    standaardTarief.Property(item => item.Version).HasColumnName("version");
+    standaardTarief.Property(item => item.Eenheid).HasColumnName("eenheid");
+    standaardTarief.Property(item => item.GeldigVanaf).HasColumnName("geldig_vanaf");
+    standaardTarief.HasOne(item => item.Functie).WithMany().HasForeignKey(item => item.FunctieId);
+
+    var klantTarief = modelBuilder.Entity<PlanningKlantTarief>();
+    klantTarief.ToTable("klant_afwijkende_tarieven");
+    klantTarief.HasKey(item => item.Id);
+    klantTarief.Property(item => item.Id).HasColumnName("id");
+    klantTarief.Property(item => item.KlantId).HasColumnName("klant_id");
+    klantTarief.Property(item => item.FunctieId).HasColumnName("functie_id");
+    klantTarief.Property(item => item.Omschrijving).HasColumnName("omschrijving");
+    klantTarief.Property(item => item.Tarief).HasColumnName("tarief").HasPrecision(10, 2);
+    klantTarief.Property(item => item.Eenheid).HasColumnName("eenheid");
 
     var contact = modelBuilder.Entity<KlantContactpersoon>();
     contact.ToTable("klant_contactpersonen");
