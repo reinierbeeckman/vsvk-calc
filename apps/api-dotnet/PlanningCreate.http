@@ -1,0 +1,53 @@
+### Maak een medewerkerprofiel zonder Keycloak-account aan (development)
+POST {{baseUrl}}/api/planning/medewerkers
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "personeelsnummer": "TEST-1001",
+  "naam": "Voorbeeldmedewerker",
+  "functie": "Planner",
+  "telefoon": null,
+  "email": null,
+  "vestiging": null,
+  "actief": true,
+  "skills": []
+}
+
+### Maak een klant aan (development, met toegangstoken)
+POST {{baseUrl}}/api/planning/klanten
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "debiteurnummer": "TEST-1001",
+  "bedrijfsnaam": "Voorbeeldklant"
+}
+
+### Maak materieel aan
+POST {{baseUrl}}/api/planning/materieel
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "omschrijving": "Voorbeeldmachine",
+  "kenteken": null,
+  "merk": null,
+  "zoeknaam": null,
+  "serienummer": null,
+  "standplaatsId": null,
+  "materieelGroepId": null
+}
+
+### Maak een functie met standaardtarief aan
+POST {{baseUrl}}/api/planning/tarieven
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "functie": "Voorbeeldfunctie",
+  "actief": true,
+  "prijs": 55.25,
+  "eenheid": "uur",
+  "geldigVanaf": "2026-01-01"
+}

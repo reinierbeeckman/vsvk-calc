@@ -24,9 +24,13 @@
     let customerRatesDirty = false;
     let customerRatesSaving = false;
     let detailDraft = null;
-    const planningPermissions = request('/bff/user').then(user => user.permissions?.canEditPlanningRecords === true).catch(() => false);
+    let planningPermissionsFailed = false;
+    const planningPermissions = request('/bff/user').then(user => user.permissions?.canEditPlanningRecords === true).catch(error => {
+      planningPermissionsFailed = true; console.error('Rechten ophalen mislukt:', error); return false;
+    });
     const drafts = new Map();
     const notices = new Map();
+    const statusConflicts = new Map();
     const saving = new Set();
     const countVersions = new Map();
     const priceDrafts = new Map();
@@ -80,7 +84,22 @@
       document.querySelector('#list-panel').hidden = !definition.path;
       document.querySelector('#unavailable').hidden = !!definition.path;
       if (!definition.path) return;
-      document.querySelector('#add').textContent = '+ ' + definition.singular;
+      const add = document.querySelector('#add');
+      add.textContent = '+ ' + definition.singular; add.disabled = true; add.title = 'Nog niet beschikbaar';
+      document.querySelector('#list-hint').textContent = 'Nieuwe records, import en export zijn nog niet beschikbaar.';
+      planningPermissions.then(canEdit => {
+        if (sequence !== loadNumber) return;
+        if (!canEdit) {
+          add.title = planningPermissionsFailed ? 'Rechten ophalen mislukt' : 'Alleen beschikbaar voor development';
+          document.querySelector('#list-hint').textContent = planningPermissionsFailed
+            ? 'Rechten ophalen mislukt. Ververs de pagina om het opnieuw te proberen.'
+            : 'Nieuwe records toevoegen is alleen beschikbaar voor development. Import en export zijn nog niet beschikbaar.';
+          return;
+        }
+        if (!['medewerkers', 'klanten', 'materieel', 'artikelen', 'tarieven'].includes(list)) return;
+        add.disabled = false; add.title = '';
+        document.querySelector('#list-hint').textContent = 'Import en export zijn nog niet beschikbaar.';
+      });
       search.placeholder = 'Zoeken in ' + definition.title.toLocaleLowerCase('nl') + '…';
       const finishLoading = window.VsvkLoading.begin();
       stopListLoading = finishLoading;
@@ -228,10 +247,41 @@
     function statusCell(row, item) {
       const container = row.insertCell(); container.className = 'status-cell';
       const selected = drafts.has(item.id) ? drafts.get(item.id) : item.actief;
-      const toggle = switchControl(selected, 'Actief ' + (item.naam || item.personeelsnummer || 'medewerker')); toggle.disabled = saving.has(item.id);
-      toggle.addEventListener('click', () => { const next = !selected; if (next === item.actief) drafts.delete(item.id); else drafts.set(item.id, next); notices.delete(item.id); render(); });
+      const conflict = statusConflicts.get(item.id);
+      const toggle = switchControl(selected, 'Actief ' + (item.naam || item.personeelsnummer || 'medewerker')); toggle.disabled = saving.has(item.id) || conflict === 'unavailable';
+      toggle.addEventListener('click', () => {
+        const next = !selected;
+        if (next === item.actief) { drafts.delete(item.id); notices.delete(item.id); statusConflicts.delete(item.id); render(); }
+        else { drafts.set(item.id, next); if (conflict) render(); else saveStatus(item); }
+      });
       const notice = document.createElement('small'); notice.setAttribute('role', 'status'); notice.textContent = notices.get(item.id) || '';
       container.append(toggle, notice);
+      if (drafts.has(item.id) && notices.has(item.id) && !saving.has(item.id)) {
+        const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn sm';
+        retry.textContent = conflict === 'unavailable' ? 'Nieuwste status ophalen' : conflict ? 'Mijn keuze opnieuw toepassen' : 'Opnieuw proberen';
+        retry.addEventListener('click', () => {
+          if (conflict === 'unavailable') return refreshStatusConflict(item);
+          statusConflicts.delete(item.id); return saveStatus(item);
+        });
+        container.append(retry);
+        if (conflict === 'latest') {
+          const discard = document.createElement('button'); discard.type = 'button'; discard.className = 'btn sm'; discard.textContent = 'Nieuwste status behouden';
+          discard.addEventListener('click', () => { drafts.delete(item.id); notices.delete(item.id); statusConflicts.delete(item.id); render(); });
+          container.append(discard);
+        }
+      }
+    }
+    async function refreshStatusConflict(item) {
+      saving.add(item.id); render();
+      const finishLoading = window.VsvkLoading.begin();
+      try {
+        const latest = await request('/api/planning/medewerkers/' + encodeURIComponent(item.id));
+        updateEmployee(item, latest); statusConflicts.set(item.id, 'latest');
+        notices.set(item.id, 'Gewijzigd door een ander. Huidige status: ' + (latest.actief ? 'actief' : 'inactief') + '. Je keuze is behouden; controleer en pas die zo nodig opnieuw toe.');
+      } catch (error) {
+        statusConflicts.set(item.id, 'unavailable');
+        notices.set(item.id, 'Conflict; ophalen van de nieuwste versie mislukt. Je keuze blijft staan.');
+      } finally { saving.delete(item.id); finishLoading(); render(); }
     }
     async function saveStatus(item) {
       const selected = drafts.get(item.id);
@@ -241,13 +291,8 @@
         updateEmployee(item, updated); drafts.delete(item.id); notices.set(item.id, 'Opgeslagen.');
       } catch (error) {
         if (error.status === 412) {
-          const finishLoading = window.VsvkLoading.begin();
-          try {
-            const latest = await request('/api/planning/medewerkers/' + encodeURIComponent(item.id));
-            updateEmployee(item, latest);
-            notices.set(item.id, 'Gewijzigd door een ander. Huidige status: ' + (latest.actief ? 'actief' : 'inactief') + '. Je keuze is behouden; controleer en sla opnieuw op.');
-          } catch (refreshError) { notices.set(item.id, 'Conflict; ophalen van de nieuwste versie mislukt. Je keuze blijft staan.'); }
-          finally { finishLoading(); }
+          statusConflicts.set(item.id, 'unavailable');
+          await refreshStatusConflict(item);
         } else notices.set(item.id, 'Opslaan mislukt: ' + error.message);
       } finally { saving.delete(item.id); render(); }
     }
@@ -257,6 +302,69 @@
         const visible = rows.find(employee => employee.id === item.id);
         if (visible && visible !== item) Object.assign(visible, updated);
       }
+    }
+    function employeeFields(skills, branches, requiredName = false) {
+      const options = entries => entries.map(entry => ({ value: entry.naam, label: entry.naam }));
+      return [{ key: 'actief', label: 'Actief', type: 'boolean' }, { key: 'personeelsnummer', label: 'Personeelsnummer' },
+        { key: 'naam', label: 'Naam', required: requiredName }, { key: 'functie', label: 'Functie' }, { key: 'telefoon', label: 'Telefoon' }, { key: 'email', label: 'E-mail' },
+        { key: 'vestiging', label: 'Vestiging', type: 'select', options: options(branches) }, { key: 'skills', label: 'Vaardigheden & certificaten', type: 'skills', options: options(skills) }];
+    }
+    async function openCreate() {
+      const list = current;
+      if (!['medewerkers', 'klanten', 'materieel', 'artikelen', 'tarieven'].includes(list) || !await planningPermissions || current !== list || currentSection !== 'Lijsten') return;
+      const sequence = ++detailNumber;
+      stopDetailLoading(); customerRatesDirty = false;
+      detailSave.disabled = true; detailSave.onclick = null; detailSave.title = '';
+      detail.classList.remove('customer-detail');
+      document.querySelector('#detail-title').textContent = definitions[list].singular + ' toevoegen';
+      document.querySelector('#detail-subtitle').textContent = definitions[list].title + ' · Nieuw';
+      const content = document.querySelector('#detail-body'); content.textContent = 'Gegevens laden…';
+      detail.showModal();
+      const finishLoading = window.VsvkLoading.begin(); stopDetailLoading = finishLoading;
+      try {
+        if (list === 'medewerkers') {
+          const [skills, branches] = await Promise.all([request('/api/planning/medewerkers/vaardigheden'), request('/api/planning/medewerkers/vestigingen')]);
+          if (sequence !== detailNumber || !detail.open) return;
+          detailDraft = window.VsvkPlanningEditor.create({ content, saveButton: detailSave, method: 'POST',
+            endpoint: '/api/planning/medewerkers', request,
+            item: { actief: true, personeelsnummer: null, naam: null, functie: null, telefoon: null, email: null, vestiging: null, skills: [] },
+            fields: employeeFields(skills, branches, true), isCurrent: () => sequence === detailNumber && detail.open,
+            onSaved: () => { detailDraft = null; detail.close(); if (current === list) load(list); } });
+        } else if (list === 'klanten') {
+          detailDraft = window.VsvkPlanningEditor.create({ content, saveButton: detailSave, method: 'POST',
+            endpoint: '/api/planning/klanten', request, item: { debiteurnummer: '', bedrijfsnaam: '' },
+            fields: [{ key: 'debiteurnummer', label: 'Debiteurnummer', required: true }, { key: 'bedrijfsnaam', label: 'Bedrijfsnaam', required: true }],
+            isCurrent: () => sequence === detailNumber && detail.open,
+            onSaved: () => { detailDraft = null; detail.close(); if (current === list) load(list); } });
+        } else if (list === 'tarieven') {
+          detailDraft = window.VsvkPlanningEditor.create({ content, saveButton: detailSave, method: 'POST',
+            endpoint: '/api/planning/tarieven', request, item: { actief: true, functie: '', prijs: null, eenheid: '', geldigVanaf: null },
+            fields: [{ key: 'actief', label: 'Actief', type: 'boolean' }, { key: 'functie', label: 'Functie', required: true },
+              { key: 'prijs', label: 'Prijs', type: 'number', required: true }, { key: 'eenheid', label: 'Eenheid', required: true },
+              { key: 'geldigVanaf', label: 'Geldig vanaf', type: 'date', required: true }],
+            isCurrent: () => sequence === detailNumber && detail.open,
+            onSaved: () => { detailDraft = null; detail.close(); if (current === list) load(list); } });
+        } else if (list === 'materieel') {
+          const references = await request('/api/planning/materieel/referenties');
+          if (sequence !== detailNumber || !detail.open) return;
+          const options = entries => entries.map(entry => ({ value: entry.id, label: entry.naam }));
+          const fields = [{ key: 'omschrijving', label: 'Omschrijving', required: true },
+            { key: 'materieelGroepId', label: 'Groep', type: 'select', options: options(references.groepen) },
+            { key: 'standplaatsId', label: 'Vestiging', type: 'select', options: options(references.vestigingen) },
+            { key: 'kenteken', label: 'Kenteken' }, { key: 'merk', label: 'Merk' },
+            { key: 'zoeknaam', label: 'Zoeknaam' }, { key: 'serienummer', label: 'Serienummer' }];
+          detailDraft = window.VsvkPlanningEditor.create({ content, saveButton: detailSave, method: 'POST',
+            endpoint: '/api/planning/materieel', request, item: { omschrijving: '', materieelGroepId: null, standplaatsId: null, kenteken: null, merk: null, zoeknaam: null, serienummer: null },
+            fields, isCurrent: () => sequence === detailNumber && detail.open,
+            onSaved: () => { detailDraft = null; detail.close(); if (current === list) load(list); } });
+        } else {
+          const [categories, units] = await Promise.all([request('/api/article-categories'), request('/api/article-units')]);
+          if (sequence !== detailNumber || !detail.open) return;
+          renderArticleDetail(content, { naam: '', categorieId: '', eenheidId: '', tarief: null, tariefSoort: 'zie_prijs', actief: true }, categories, units, sequence, null);
+        }
+      } catch (error) {
+        if (sequence === detailNumber && detail.open) content.textContent = 'Gegevens ophalen mislukt: ' + error.message;
+      } finally { finishLoading(); }
     }
     function addDetailSection(container, title, text) {
       const section = document.createElement('section'); section.className = 'fsec'; const heading = document.createElement('h3'); heading.textContent = title; const paragraph = document.createElement('p'); paragraph.className = 'hint'; paragraph.textContent = text; section.append(heading, paragraph); container.append(section);
@@ -320,9 +428,7 @@
             endpoint = readEndpoint + '/gegevens';
             const [employee, skills, branches] = await Promise.all([request(readEndpoint), request('/api/planning/medewerkers/vaardigheden'), request('/api/planning/medewerkers/vestigingen')]);
             record = employee;
-            fields = [{ key: 'actief', label: 'Actief', type: 'boolean' }, { key: 'personeelsnummer', label: 'Personeelsnummer' },
-              { key: 'naam', label: 'Naam' }, { key: 'functie', label: 'Functie' }, { key: 'telefoon', label: 'Telefoon' }, { key: 'email', label: 'E-mail' },
-              { key: 'vestiging', label: 'Vestiging', type: 'select', options: options(branches) }, { key: 'skills', label: 'Vaardigheden & certificaten', type: 'skills', options: options(skills) }];
+            fields = employeeFields(skills, branches);
           } else if (list === 'materieel') {
             endpoint = '/api/planning/materieel/' + encodeURIComponent(item.id); readEndpoint = endpoint;
             [record, references] = await Promise.all([request(endpoint), request('/api/planning/materieel/referenties')]);
@@ -396,7 +502,7 @@
         control.setAttribute('aria-label', label);
         if (options) {
           const selectable = options.filter(option => option.actief !== false || option.id === value);
-          const available = selectable.some(option => option.id === value) ? selectable : [{ id: value, naam: article[key === 'categorieId' ? 'categorie' : 'eenheid'] }, ...selectable];
+          const available = selectable.some(option => option.id === value) ? selectable : [{ id: value, naam: value ? article[key === 'categorieId' ? 'categorie' : 'eenheid'] : '—' }, ...selectable];
           optionIds[key] = new Set(available.map(entry => entry.id));
           for (const entry of available) { const option = document.createElement('option'); option.value = entry.id; option.textContent = entry.naam; control.append(option); }
         } else control.type = 'text';
@@ -465,14 +571,17 @@
       save.onclick = async () => {
         const data = values();
         const price = controls.tarief.value.trim().replace(',', '.');
-        if (!data.naam || data.naam.length > 200 || (price && (!/^\d+(?:\.\d{1,4})?$/.test(price) || data.tarief > 9999999999.9999))) {
-          status.textContent = 'Vul een omschrijving en een geldig tarief met maximaal vier decimalen in.'; return;
+        if (!data.naam || data.naam.length > 200 || !data.categorieId || !data.eenheidId || (price && (!/^\d+(?:\.\d{1,4})?$/.test(price) || data.tarief > 9999999999.9999))) {
+          status.textContent = 'Vul een omschrijving, categorie, eenheid en een geldig tarief met maximaal vier decimalen in.'; return;
         }
         state.saving = true; status.textContent = ''; updateState();
         const finishLoading = window.VsvkLoading.begin();
         try {
-          const saved = await request('/api/articles/' + encodeURIComponent(article.id), { method: 'PUT', headers: { 'Content-Type': 'application/json', 'If-Match': state.baseline.eTag }, body: JSON.stringify(data) });
+          const headers = { 'Content-Type': 'application/json' };
+          if (item) headers['If-Match'] = state.baseline.eTag;
+          const saved = await request(item ? '/api/articles/' + encodeURIComponent(article.id) : '/api/articles', { method: item ? 'PUT' : 'POST', headers, body: JSON.stringify(data) });
           if (sequence !== detailNumber || !detail.open) return;
+          if (!item) { detailDraft = null; detail.close(); if (current === 'artikelen') load('artikelen'); return; }
           state.baseline = saved; Object.assign(item, saved); status.textContent = 'Artikel opgeslagen.'; render();
         } catch (error) {
           if (sequence !== detailNumber || !detail.open) return;
@@ -763,6 +872,7 @@
     }
     document.querySelectorAll('[data-section]').forEach(button => button.addEventListener('click', () => showSection(button.dataset.section)));
     document.querySelectorAll('[data-list]').forEach(button => button.addEventListener('click', () => load(button.dataset.list)));
+    document.querySelector('#add').addEventListener('click', openCreate);
     const mayCloseDetail = () => !customerRatesSaving && !detailDraft?.saving && (!(customerRatesDirty || detailDraft?.dirty) || window.confirm('Niet-opgeslagen wijzigingen verwerpen?'));
     document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => { if (mayCloseDetail()) detail.close(); }));
     detail.addEventListener('cancel', event => { if (!mayCloseDetail()) event.preventDefault(); });

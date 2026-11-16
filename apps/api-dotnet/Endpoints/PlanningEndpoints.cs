@@ -36,6 +36,30 @@ public static class PlanningEndpoints
       .WithSummary("Klant met contactpersonen ophalen")
       .Produces<PlanningCustomerDetailDto>(200).Produces(400).Produces(401).Produces(403).Produces(404);
 
+    group.MapPost("/klanten", async (CreatePlanningCustomerRequest request, HttpContext context, IPlanningCustomerService service, IHostEnvironment environment, IConfiguration configuration, CancellationToken cancellationToken) =>
+    {
+      if (!environment.IsDevelopment() || !configuration.GetValue<bool>("DevelopmentAccess:Enabled") ||
+          context.User.Identity?.IsAuthenticated != true || !VsvkRoles.IsApplicationUser(context.User) ||
+          !context.User.IsInRole(VsvkRoles.Development)) return Results.Forbid();
+      if (string.IsNullOrWhiteSpace(request.Debiteurnummer) || request.Debiteurnummer.Trim().Length > 50 ||
+          request.Debiteurnummer.Any(char.IsControl) || string.IsNullOrWhiteSpace(request.Bedrijfsnaam) ||
+          request.Bedrijfsnaam.Trim().Length > 255 || request.Bedrijfsnaam.Any(char.IsControl))
+        return Results.BadRequest("Vul een geldig debiteurnummer en een geldige bedrijfsnaam in.");
+      try
+      {
+        var saved = await service.CreateAsync(request, cancellationToken);
+        context.Response.Headers.ETag = saved.ETag;
+        context.Response.Headers.CacheControl = "private, no-store";
+        return Results.Created($"/api/planning/klanten/{saved.Id}", saved);
+      }
+      catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+      {
+        return Results.Conflict("Dit debiteurnummer bestaat al.");
+      }
+    }).RequireAuthorization(policy => policy.RequireRole(VsvkRoles.Directie))
+      .WithSummary("Klant toevoegen voor ontwikkeling")
+      .Produces<PlanningCustomerDetailDto>(201).Produces(400).Produces(401).Produces(403).Produces(409);
+
     group.MapPut("/klanten/{id:int}", async (int id, PlanningCustomerDetailDto request, HttpContext context, IPlanningCustomerService service, IHostEnvironment environment, IConfiguration configuration, CancellationToken cancellationToken) =>
     {
       if (!environment.IsDevelopment() || !configuration.GetValue<bool>("DevelopmentAccess:Enabled") ||

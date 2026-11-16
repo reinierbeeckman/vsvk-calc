@@ -38,6 +38,18 @@ public static class PlanningMaterieelMutationEndpoints
     }).WithSummary("Bestaand materieel ophalen voor ontwikkeling")
       .Produces<PlanningMaterieelEditDto>(200).Produces(401).Produces(403).Produces(404);
 
+    group.MapPost("", async (PlanningMaterieelUpdateRequest request, IPlanningMaterieelMutationRepository repository, HttpContext context, CancellationToken ct) =>
+    {
+      if (!Valid(request) || string.IsNullOrWhiteSpace(request.Omschrijving))
+        return Results.BadRequest("Controleer de materieelgegevens en referenties.");
+      var created = await repository.CreateAsync(request, ct);
+      if (created.Invalid) return Results.BadRequest("Een groep of vestiging bestaat niet.");
+      var item = created.Materieel ?? throw new InvalidOperationException("Het aangemaakte materieel kon niet worden opgehaald.");
+      SetHeaders(context, item);
+      return Results.Created($"/api/planning/materieel/{item.Id}", item);
+    }).WithSummary("Materieel toevoegen voor ontwikkeling")
+      .Produces<PlanningMaterieelEditDto>(201).Produces(400).Produces(401).Produces(403);
+
     group.MapPut("/{id:guid}", async (Guid id, PlanningMaterieelUpdateRequest request, IPlanningMaterieelMutationRepository repository, HttpContext context, CancellationToken ct) =>
     {
       var precondition = IfMatchParser.Parse(context.Request.Headers.TryGetValue("If-Match", out var values) ? values.ToString() : null);

@@ -5,6 +5,15 @@ namespace Vsvk.Api.Db;
 
 public sealed partial class PlanningRepository
 {
+  public async Task<PlanningCustomerDetailDto> CreateCustomerAsync(CreatePlanningCustomerRequest data, CancellationToken cancellationToken)
+  {
+    var customer = new Klant { Aan = true, Debiteurnummer = data.Debiteurnummer!.Trim(), Bedrijfsnaam = data.Bedrijfsnaam!.Trim(), Version = 1, TarievenVersion = 1 };
+    context.Klanten.Add(customer);
+    await context.SaveChangesAsync(cancellationToken);
+    return await GetCustomerAsync(customer.Id, cancellationToken)
+      ?? throw new InvalidOperationException("De aangemaakte klant kon niet worden opgehaald.");
+  }
+
   public async Task<PlanningCustomerDetailDto?> SaveCustomerAsync(int id, long version, PlanningCustomerDetailDto data, CancellationToken cancellationToken)
   {
     await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);

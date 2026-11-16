@@ -7,10 +7,12 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Npgsql;
 using Vsvk.Api.DTOs;
 using Vsvk.Api.Db;
 using Vsvk.Api.Endpoints;
@@ -36,6 +38,46 @@ public sealed class PlanningEmployeeDevelopmentTests
     await using var server = await StartAsync(environment, enabled);
     using var response = await SendAsync(server.Client, roles, "\"1\"", ValidBody);
     Assert.Equal(expected, response.StatusCode);
+  }
+
+  [Theory]
+  [InlineData("Production", true, "default-roles-vsvk,development", HttpStatusCode.Forbidden)]
+  [InlineData("Development", false, "default-roles-vsvk,development", HttpStatusCode.Forbidden)]
+  [InlineData("Development", true, "development", HttpStatusCode.Forbidden)]
+  [InlineData("Development", true, "default-roles-vsvk,directie", HttpStatusCode.Forbidden)]
+  [InlineData("Development", true, "", HttpStatusCode.Unauthorized)]
+  [InlineData("Development", true, "default-roles-vsvk,development", HttpStatusCode.Created)]
+  public async Task Creation_requires_development_access(string environment, bool enabled, string roles, HttpStatusCode expected)
+  {
+    await using var server = await StartAsync(environment, enabled);
+    if (roles.Length > 0) server.Client.DefaultRequestHeaders.Add("X-Roles", roles);
+    using var response = await server.Client.PostAsJsonAsync("/api/planning/medewerkers", ValidBody);
+    Assert.Equal(expected, response.StatusCode);
+    if (expected == HttpStatusCode.Created)
+    {
+      var employee = await response.Content.ReadFromJsonAsync<PlanningEmployeeDto>();
+      Assert.NotEqual(Guid.Empty, employee!.Id);
+      Assert.Equal("\"1\"", response.Headers.ETag!.ToString());
+      Assert.EndsWith(employee.Id.ToString(), response.Headers.Location!.ToString());
+    }
+  }
+
+  [Fact]
+  public async Task Creation_rejects_empty_name_and_invalid_skills()
+  {
+    await using var server = await StartAsync("Development", true);
+    server.Client.DefaultRequestHeaders.Add("X-Roles", "default-roles-vsvk,development");
+    Assert.Equal(HttpStatusCode.BadRequest, (await server.Client.PostAsJsonAsync("/api/planning/medewerkers", new { naam = " ", actief = true, skills = Array.Empty<object>() })).StatusCode);
+    Assert.Equal(HttpStatusCode.BadRequest, (await server.Client.PostAsJsonAsync("/api/planning/medewerkers", new { naam = "A", actief = true, skills = new[] { new { naam = "VCA" }, new { naam = "VCA" } } })).StatusCode);
+    Assert.Equal(HttpStatusCode.BadRequest, (await server.Client.PostAsJsonAsync("/api/planning/medewerkers", new { naam = "A", actief = true, vestiging = "Onbekend", skills = Array.Empty<object>() })).StatusCode);
+  }
+
+  [Fact]
+  public async Task Creation_reports_duplicate_employee_number()
+  {
+    await using var server = await StartAsync("Development", true);
+    server.Client.DefaultRequestHeaders.Add("X-Roles", "default-roles-vsvk,development");
+    Assert.Equal(HttpStatusCode.Conflict, (await server.Client.PostAsJsonAsync("/api/planning/medewerkers", new { personeelsnummer = "bestaat", naam = "A", actief = true, skills = Array.Empty<object>() })).StatusCode);
   }
 
   [Fact]
@@ -110,6 +152,15 @@ public sealed class PlanningEmployeeDevelopmentTests
     public int Writes { get; private set; }
     public Task<List<PlanningEmployeeLookupDto>> ListSkillsAsync(CancellationToken cancellationToken) => Task.FromResult(new List<PlanningEmployeeLookupDto> { new("VCA") });
     public Task<List<PlanningEmployeeLookupDto>> ListBranchesAsync(CancellationToken cancellationToken) => Task.FromResult(new List<PlanningEmployeeLookupDto> { new("Noord") });
+    public Task<PlanningEmployeeUpdateResult> CreateEmployeeAsync(PlanningEmployeeUpdateRequest request, CancellationToken cancellationToken)
+    {
+      if (request.Personeelsnummer == "bestaat")
+        throw new DbUpdateException("Duplicate", new PostgresException("Duplicate", "ERROR", "ERROR", PostgresErrorCodes.UniqueViolation, constraintName: "ux_user_information_employee_number"));
+      if (request.Vestiging is not null and not "Noord")
+        return Task.FromResult(new PlanningEmployeeUpdateResult(null, PlanningEmployeeUpdateStatus.Invalid));
+      var employee = new PlanningEmployeeDto(Guid.NewGuid(), request.Personeelsnummer, request.Naam, request.Functie, request.Telefoon, request.Email, request.Vestiging, request.Actief!.Value, 1, request.Skills!);
+      return Task.FromResult(new PlanningEmployeeUpdateResult(employee, PlanningEmployeeUpdateStatus.Saved));
+    }
     public Task<PlanningEmployeeUpdateResult> SaveAsync(Guid id, long expectedVersion, PlanningEmployeeUpdateRequest request, CancellationToken cancellationToken)
     {
       if (expectedVersion != version) return Task.FromResult(new PlanningEmployeeUpdateResult(null, PlanningEmployeeUpdateStatus.Conflict));

@@ -22,6 +22,9 @@ public sealed record PlanningCustomerListDto(
   int Id, bool Actief, string Debiteurnummer, string Bedrijfsnaam, string? Telefoon,
   string? Plaats, string? StandaardBesteller);
 
+/// <summary>De verplichte gegevens voor het aanmaken van een klant.</summary>
+public sealed record CreatePlanningCustomerRequest(string? Debiteurnummer, string? Bedrijfsnaam);
+
 public sealed record PlanningCustomerContactDto(
   [property: JsonRequired] int Id, [property: JsonRequired] string Naam, [property: JsonRequired] string? Functie,
   [property: JsonRequired] string? Telefoon, [property: JsonRequired] string? Email, [property: JsonRequired] bool IsStandaardBesteller);

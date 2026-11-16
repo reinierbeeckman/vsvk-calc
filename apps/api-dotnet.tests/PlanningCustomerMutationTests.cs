@@ -41,6 +41,37 @@ public sealed class PlanningCustomerMutationTests
     Assert.Equal(expected, (await client.SendAsync(request)).StatusCode);
   }
 
+  [Theory]
+  [InlineData("Development", true, "development", HttpStatusCode.Created)]
+  [InlineData("Production", true, "development", HttpStatusCode.Forbidden)]
+  [InlineData("Development", false, "development", HttpStatusCode.Forbidden)]
+  [InlineData("Development", true, "directie", HttpStatusCode.Forbidden)]
+  [InlineData("Development", true, "development-no-access", HttpStatusCode.Forbidden)]
+  public async Task Creating_a_customer_requires_development_access(string environment, bool enabled, string role, HttpStatusCode expected)
+  {
+    await using var host = await StartAsync(environment, enabled);
+    using var client = Client(host);
+    client.DefaultRequestHeaders.Add("X-Test-Role", role);
+    using var response = await client.PostAsJsonAsync("/api/planning/klanten", new { debiteurnummer = "1001", bedrijfsnaam = "Klant" });
+    Assert.Equal(expected, response.StatusCode);
+    if (expected == HttpStatusCode.Created)
+    {
+      Assert.NotNull(response.Headers.Location);
+      Assert.Equal("\"1\"", response.Headers.ETag!.ToString());
+    }
+  }
+
+  [Fact]
+  public async Task Creating_a_customer_rejects_missing_names()
+  {
+    await using var host = await StartAsync("Development", true);
+    using var client = Client(host);
+    Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync("/api/planning/klanten", new { debiteurnummer = "1", bedrijfsnaam = "Klant" })).StatusCode);
+    client.DefaultRequestHeaders.Add("X-Test-Role", "development");
+    Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/planning/klanten", new { debiteurnummer = "", bedrijfsnaam = "Klant" })).StatusCode);
+    Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/planning/klanten", new { debiteurnummer = "1", bedrijfsnaam = "" })).StatusCode);
+  }
+
   [Fact]
   public async Task Preconditions_validation_and_etags_are_enforced()
   {
@@ -89,6 +120,8 @@ public sealed class PlanningCustomerMutationTests
   {
     private PlanningCustomerDetailDto value = Customer;
     public Task<PlanningCustomerDetailDto?> GetAsync(int id, CancellationToken ct) => Task.FromResult<PlanningCustomerDetailDto?>(id == 1 ? value : null);
+    public Task<PlanningCustomerDetailDto> CreateAsync(CreatePlanningCustomerRequest request, CancellationToken ct) =>
+      Task.FromResult(Customer with { Debiteurnummer = request.Debiteurnummer!, Bedrijfsnaam = request.Bedrijfsnaam! });
     public Task<PlanningCustomerDetailDto?> SaveAsync(int id, long version, PlanningCustomerDetailDto request, CancellationToken ct) => Task.FromResult<PlanningCustomerDetailDto?>(value = request with { Version = version + 1 });
     public Task<List<PlanningCustomerListDto>> ListAsync(CancellationToken ct) => throw new NotImplementedException();
     public Task<List<PlanningStandardRateDto>> ListRatesAsync(CancellationToken ct) => throw new NotImplementedException();

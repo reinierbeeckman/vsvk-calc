@@ -1,4 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Vsvk.Api.Auth;
 using Vsvk.Api.Db;
 using Vsvk.Api.DTOs;
@@ -24,6 +26,28 @@ public static class PlanningEmployeeDevelopmentEndpoints
       Results.Ok(await repository.ListBranchesAsync(cancellationToken)))
       .WithSummary("Bestaande vestigingen ophalen voor ontwikkelbeheer")
       .Produces<List<PlanningEmployeeLookupDto>>(200).Produces(401).Produces(403);
+
+    group.MapPost("", async (PlanningEmployeeUpdateRequest request, HttpContext context,
+      IPlanningEmployeeDevelopmentRepository repository, CancellationToken cancellationToken) =>
+    {
+      if (!IsValid(request) || string.IsNullOrWhiteSpace(request.Naam))
+        return Results.BadRequest("Controleer de medewerkergegevens en vaardigheden.");
+      try
+      {
+        var result = await repository.CreateEmployeeAsync(request, cancellationToken);
+        if (result.Status == PlanningEmployeeUpdateStatus.Invalid)
+          return Results.BadRequest("Kies bestaande, eenduidige vestigingen en vaardigheden.");
+        var employee = result.Employee ?? throw new InvalidOperationException("De aangemaakte medewerker ontbreekt.");
+        context.Response.Headers.ETag = employee.ETag;
+        context.Response.Headers.CacheControl = "private, no-store";
+        return Results.Created($"/api/planning/medewerkers/{employee.Id}", employee);
+      }
+      catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "ux_user_information_employee_number" })
+      {
+        return Results.Conflict("Dit personeelsnummer bestaat al.");
+      }
+    }).WithSummary("Medewerker toevoegen zonder account (alleen ontwikkeling)")
+      .Produces<PlanningEmployeeDto>(201).Produces(400).Produces(401).Produces(403).Produces(409);
 
     group.MapPut("/{id:guid}/gegevens", async (Guid id, PlanningEmployeeUpdateRequest request, HttpContext context,
       IPlanningEmployeeDevelopmentRepository repository, CancellationToken cancellationToken) =>

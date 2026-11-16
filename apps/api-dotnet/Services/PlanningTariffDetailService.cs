@@ -17,6 +17,7 @@ public sealed record PlanningTariffDetailRequest(string? Functie, bool? Actief, 
 public interface IPlanningTariffDetailService
 {
   Task<PlanningTariffDetailDto?> GetAsync(int id, CancellationToken cancellationToken);
+  Task<PlanningTariffDetailDto> CreateAsync(PlanningTariffDetailRequest request, CancellationToken cancellationToken);
   Task<PlanningTariffDetailDto?> SaveAsync(int id, long version, PlanningTariffDetailRequest request, CancellationToken cancellationToken);
 }
 
@@ -26,6 +27,19 @@ public sealed class PlanningTariffDetailService(VsvkDbContext context) : IPlanni
     context.PlanningStandaardTarieven.AsNoTracking().Where(rate => rate.Id == id)
       .Select(rate => new PlanningTariffDetailDto(rate.Id, rate.FunctieId, rate.Functie.Naam, rate.Functie.Aan,
         rate.Prijs, rate.Eenheid, rate.GeldigVanaf, rate.Version)).FirstOrDefaultAsync(cancellationToken);
+
+  public async Task<PlanningTariffDetailDto> CreateAsync(PlanningTariffDetailRequest request, CancellationToken cancellationToken)
+  {
+    var rate = new PlanningStandaardTarief
+    {
+      Functie = new PlanningFunctie { Naam = request.Functie!.Trim(), Aan = request.Actief!.Value },
+      Prijs = request.Prijs!.Value, Eenheid = request.Eenheid!.Trim(), GeldigVanaf = request.GeldigVanaf!.Value, Version = 1
+    };
+    context.PlanningStandaardTarieven.Add(rate);
+    await context.SaveChangesAsync(cancellationToken);
+    return await GetAsync(rate.Id, cancellationToken)
+      ?? throw new InvalidOperationException("Het aangemaakte tarief kon niet worden opgehaald.");
+  }
 
   public async Task<PlanningTariffDetailDto?> SaveAsync(int id, long version, PlanningTariffDetailRequest request, CancellationToken cancellationToken)
   {

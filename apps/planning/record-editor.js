@@ -124,7 +124,10 @@
       state.saving = true; status.textContent = ''; updateState();
       const finish = window.VsvkLoading?.begin() || (() => {});
       try {
-        const saved = await request(endpoint, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'If-Match': state.baseline.eTag }, body: JSON.stringify(values) });
+        const method = config.method || 'PUT';
+        const headers = { 'Content-Type': 'application/json' };
+        if (method === 'PUT') headers['If-Match'] = state.baseline.eTag;
+        const saved = await request(endpoint, { method, headers, body: JSON.stringify(values) });
         if (!isCurrent()) return;
         state.baseline = saved; for (const field of fields) set(field, saved[field.key]);
         status.textContent = 'Opgeslagen.'; onSaved(saved);

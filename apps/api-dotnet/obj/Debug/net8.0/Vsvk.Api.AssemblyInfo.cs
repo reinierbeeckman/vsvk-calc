@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Vsvk.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6aa86da4376f3a6e091d8ac18c91445e89756156")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b33637cf9b52fa028c3988516fc19ce7204d6f89")]
 [assembly: System.Reflection.AssemblyProductAttribute("Vsvk.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Vsvk.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

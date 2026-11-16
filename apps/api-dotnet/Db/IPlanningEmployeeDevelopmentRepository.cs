@@ -8,6 +8,7 @@ public sealed record PlanningEmployeeUpdateResult(PlanningEmployeeDto? Employee,
 
 public interface IPlanningEmployeeDevelopmentRepository
 {
+  Task<PlanningEmployeeUpdateResult> CreateEmployeeAsync(PlanningEmployeeUpdateRequest request, CancellationToken cancellationToken);
   Task<PlanningEmployeeUpdateResult> SaveAsync(Guid id, long expectedVersion, PlanningEmployeeUpdateRequest request, CancellationToken cancellationToken);
   Task<List<PlanningEmployeeLookupDto>> ListSkillsAsync(CancellationToken cancellationToken);
   Task<List<PlanningEmployeeLookupDto>> ListBranchesAsync(CancellationToken cancellationToken);

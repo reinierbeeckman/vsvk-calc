@@ -8,6 +8,7 @@ public interface IPlanningMaterieelMutationRepository
 {
   Task<PlanningMaterieelEditDto?> GetAsync(Guid id, CancellationToken cancellationToken);
   Task<PlanningMaterieelReferencesDto> GetReferencesAsync(CancellationToken cancellationToken);
+  Task<PlanningMaterieelSaveResult> CreateAsync(PlanningMaterieelUpdateRequest request, CancellationToken cancellationToken);
   Task<PlanningMaterieelSaveResult> SaveAsync(Guid id, long version, PlanningMaterieelUpdateRequest request, CancellationToken cancellationToken);
 }
 
@@ -26,6 +27,30 @@ public sealed class PlanningMaterieelMutationRepository(VsvkDbContext context) :
     var branches = await context.Vestigingen.AsNoTracking().OrderBy(branch => branch.Naam).ThenBy(branch => branch.Id)
       .Select(branch => new PlanningMaterieelReferenceDto(branch.Id, branch.Naam)).ToListAsync(cancellationToken);
     return new PlanningMaterieelReferencesDto(groups, branches);
+  }
+
+  public async Task<PlanningMaterieelSaveResult> CreateAsync(PlanningMaterieelUpdateRequest request, CancellationToken cancellationToken)
+  {
+    if ((request.StandplaatsId is Guid branch && !await context.Vestigingen.AnyAsync(item => item.Id == branch, cancellationToken)) ||
+        (request.MaterieelGroepId is Guid group && !await context.MaterieelGroepen.AnyAsync(item => item.Id == group, cancellationToken)))
+      return new PlanningMaterieelSaveResult(null, true);
+
+    var item = new Materieel
+    {
+      Id = Guid.NewGuid(), Omschrijving = request.Omschrijving, Kenteken = request.Kenteken, Merk = request.Merk,
+      Zoeknaam = request.Zoeknaam, Serienummer = request.Serienummer, StandplaatsId = request.StandplaatsId,
+      MaterieelGroepId = request.MaterieelGroepId, Version = 1
+    };
+    context.MaterieelItems.Add(item);
+    try
+    {
+      await context.SaveChangesAsync(cancellationToken);
+    }
+    catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation })
+    {
+      return new PlanningMaterieelSaveResult(null, true);
+    }
+    return new PlanningMaterieelSaveResult(await GetAsync(item.Id, cancellationToken), false);
   }
 
   public async Task<PlanningMaterieelSaveResult> SaveAsync(Guid id, long version, PlanningMaterieelUpdateRequest request, CancellationToken cancellationToken)

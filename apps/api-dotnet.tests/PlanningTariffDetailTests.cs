@@ -40,6 +40,31 @@ public sealed class PlanningTariffDetailTests
     Assert.Equal(expected, (await client.SendAsync(put)).StatusCode);
   }
 
+  [Theory]
+  [InlineData("Development", true, "development,default-roles-vsvk", HttpStatusCode.Created)]
+  [InlineData("Production", true, "development,default-roles-vsvk", HttpStatusCode.Forbidden)]
+  [InlineData("Development", false, "development,default-roles-vsvk", HttpStatusCode.Forbidden)]
+  [InlineData("Development", true, "directie,default-roles-vsvk", HttpStatusCode.Forbidden)]
+  [InlineData("Development", true, "development", HttpStatusCode.Forbidden)]
+  [InlineData("Development", true, "", HttpStatusCode.Unauthorized)]
+  public async Task Creating_tariff_requires_development_access(string environment, bool enabled, string roles, HttpStatusCode expected)
+  {
+    await using var app = await Start(environment, enabled);
+    using var client = Client(app, roles);
+    using var response = await client.PostAsJsonAsync("/api/planning/tarieven", new { functie = "A", actief = true, prijs = 50m, eenheid = "uur", geldigVanaf = "2026-01-01" });
+    Assert.Equal(expected, response.StatusCode);
+    if (expected == HttpStatusCode.Created) { Assert.NotNull(response.Headers.Location); Assert.Equal("\"1\"", response.Headers.ETag!.ToString()); }
+  }
+
+  [Fact]
+  public async Task Creating_tariff_rejects_invalid_values()
+  {
+    await using var app = await Start("Development", true);
+    using var client = Client(app, "development,default-roles-vsvk");
+    Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/planning/tarieven", new { functie = "", actief = true, prijs = 50m, eenheid = "uur", geldigVanaf = "2026-01-01" })).StatusCode);
+    Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/planning/tarieven", new { functie = "A", actief = true, prijs = 1.234m, eenheid = "uur", geldigVanaf = "2026-01-01" })).StatusCode);
+  }
+
   [Fact]
   public async Task Preconditions_validation_and_stale_edits_preserve_latest_data()
   {
@@ -95,6 +120,11 @@ public sealed class PlanningTariffDetailTests
   {
     private PlanningTariffDetailDto item = new(1, 1, "Grondwerker", true, 50m, "uur", new DateOnly(2025, 1, 1), 1);
     public Task<PlanningTariffDetailDto?> GetAsync(int id, CancellationToken ct) => Task.FromResult(id == 1 ? item : null);
+    public Task<PlanningTariffDetailDto> CreateAsync(PlanningTariffDetailRequest request, CancellationToken ct)
+    {
+      item = new(1, 1, request.Functie!, request.Actief!.Value, request.Prijs!.Value, request.Eenheid!, request.GeldigVanaf!.Value, 1);
+      return Task.FromResult(item);
+    }
     public Task<PlanningTariffDetailDto?> SaveAsync(int id, long version, PlanningTariffDetailRequest request, CancellationToken ct)
     {
       if (id != 1 || item.Version != version) return Task.FromResult<PlanningTariffDetailDto?>(null);

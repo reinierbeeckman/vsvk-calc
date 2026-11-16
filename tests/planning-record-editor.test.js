@@ -69,3 +69,25 @@ test('vaardigheden tonen hun velden met herkenbare labels', () => {
   assert.ok(labels.includes('Diplomadatum'));
   assert.ok(labels.includes('Geldig tot'));
 });
+
+test('een nieuw record wordt eenmaal aangemaakt met POST zonder If-Match', async () => {
+  const window = {};
+  vm.runInNewContext(code, { window, document: { createElement: tag => new Element(tag) }, JSON, Set, Object, String, Number });
+  const content = new Element('div');
+  const saveButton = new Element('button');
+  let call;
+  let saved;
+  window.VsvkPlanningEditor.create({ content, saveButton, method: 'POST', endpoint: '/records',
+    request: async (url, options) => { call = { url, options }; return { naam: 'Machine', eTag: '"1"' }; },
+    item: { naam: '' }, fields: [{ key: 'naam', label: 'Naam', required: true }],
+    isCurrent: () => true, onSaved: value => { saved = value; } });
+  const input = descendants(content).find(element => element.attributes['aria-label'] === 'Naam');
+  input.value = 'Machine'; input.events.input(); saveButton.click();
+  await flush();
+  assert.equal(call.url, '/records');
+  assert.equal(call.options.method, 'POST');
+  assert.equal(call.options.headers['If-Match'], undefined);
+  assert.equal(JSON.parse(call.options.body).naam, 'Machine');
+  assert.equal(saved.naam, 'Machine');
+  assert.equal(saveButton.disabled, true);
+});

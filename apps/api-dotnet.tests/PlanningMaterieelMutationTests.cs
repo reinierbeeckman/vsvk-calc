@@ -39,6 +39,8 @@ public sealed class PlanningMaterieelMutationTests
     if (application) host.Client.DefaultRequestHeaders.Add("X-Test-Application", "yes");
     Assert.Equal(expected, (await host.Client.GetAsync($"/api/planning/materieel/{Id}")).StatusCode);
     Assert.Equal(expected, (await host.Put("\"1\"", Request("Bus"))).StatusCode);
+    Assert.Equal(expected == HttpStatusCode.OK ? HttpStatusCode.Created : expected,
+      (await host.Client.PostAsJsonAsync("/api/planning/materieel", Request("Bus"))).StatusCode);
   }
 
   [Fact]
@@ -46,6 +48,33 @@ public sealed class PlanningMaterieelMutationTests
   {
     await using var host = await TestHost.Start("Development", true);
     Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.GetAsync($"/api/planning/materieel/{Id}")).StatusCode);
+    Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.PostAsJsonAsync("/api/planning/materieel", Request("Bus"))).StatusCode);
+  }
+
+  [Theory]
+  [InlineData("Production", true, HttpStatusCode.Forbidden)]
+  [InlineData("Development", false, HttpStatusCode.Forbidden)]
+  [InlineData("Development", true, HttpStatusCode.Created)]
+  public async Task Create_is_available_only_in_enabled_development(string environment, bool enabled, HttpStatusCode expected)
+  {
+    await using var host = await TestHost.Start(environment, enabled);
+    host.Authorize();
+    using var response = await host.Client.PostAsJsonAsync("/api/planning/materieel", Request("Nieuwe machine"));
+    Assert.Equal(expected, response.StatusCode);
+    if (expected == HttpStatusCode.Created)
+    {
+      Assert.NotNull(response.Headers.Location);
+      Assert.Equal("\"1\"", response.Headers.ETag!.ToString());
+    }
+  }
+
+  [Fact]
+  public async Task Create_rejects_invalid_fields_and_references()
+  {
+    await using var host = await TestHost.Start("Development", true);
+    host.Authorize();
+    Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.PostAsJsonAsync("/api/planning/materieel", Request(new string('x', 501)))).StatusCode);
+    Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.PostAsJsonAsync("/api/planning/materieel", Request("Machine") with { MaterieelGroepId = Guid.NewGuid() })).StatusCode);
   }
 
   [Fact]
@@ -121,6 +150,12 @@ public sealed class PlanningMaterieelMutationTests
     private PlanningMaterieelEditDto item = new(Id, "Bus", null, null, null, null, Branch, Group, 1);
     public Task<PlanningMaterieelEditDto?> GetAsync(Guid id, CancellationToken ct) => Task.FromResult(id == Id ? item : null);
     public Task<PlanningMaterieelReferencesDto> GetReferencesAsync(CancellationToken ct) => Task.FromResult(new PlanningMaterieelReferencesDto([new(Group, "Groep")], [new(Branch, "Vestiging")]));
+    public Task<PlanningMaterieelSaveResult> CreateAsync(PlanningMaterieelUpdateRequest request, CancellationToken ct)
+    {
+      if (request.MaterieelGroepId != Group || request.StandplaatsId != Branch) return Task.FromResult(new PlanningMaterieelSaveResult(null, true));
+      item = new(Id, request.Omschrijving, request.Kenteken, request.Merk, request.Zoeknaam, request.Serienummer, request.StandplaatsId, request.MaterieelGroepId, 1);
+      return Task.FromResult(new PlanningMaterieelSaveResult(item, false));
+    }
     public Task<PlanningMaterieelSaveResult> SaveAsync(Guid id, long version, PlanningMaterieelUpdateRequest request, CancellationToken ct)
     {
       if (item.Version != version) return Task.FromResult(new PlanningMaterieelSaveResult(null, false));
