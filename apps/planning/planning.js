@@ -267,6 +267,7 @@
       const sequence = ++detailNumber;
       stopDetailLoading();
       customerRatesDirty = false;
+      detailSave.hidden = list !== 'klanten' && list !== 'artikelen' && list !== 'materieel';
       detailSave.disabled = true; detailSave.onclick = null; detailSave.title = '';
       if (list === 'klanten') detail.classList.add('customer-detail'); else detail.classList.remove('customer-detail');
       document.querySelector('#detail-title').textContent = item.bedrijfsnaam || item.naam || item.omschrijving || definition.singular;
