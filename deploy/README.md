@@ -43,9 +43,13 @@ De migratie maakt relationele tabellen voor artikelen, artikelcategorieën en ar
 
 De SPA leest de catalogus via `GET /api/articles`, `GET /api/article-categories` en `GET /api/article-units`. Alleen `directie` kan artikelen aanpassen of deactiveren; categorieën en eenheden worden als referentiedata via hun eigen opzoektabellen geleverd.
 
+In Planning zijn de bestaande gegevens van medewerkers, vaardigheden, klanten, contactpersonen, materieel, artikelen en tarieven bewerkbaar voor gebruikers met de Keycloak-rol `development` wanneer de ontwikkeltoegang aan staat. Opslaan vereist de laatst opgehaalde ETag; bij een conflict blijft de invoer behouden. Nog niet gekoppelde onderdelen blijven niet beschikbaar.
+
 Planning toont per functie het meest recente standaardtarief met een ingangsdatum op of vóór vandaag (Nederlandse tijd). Gebruikers met de Keycloak-rol `directie` kunnen de prijs in de tarievenlijst wijzigen. In het klantvenster kunnen zij afwijkingen opslaan of verwijderen; een leeg veld betekent het standaardtarief. Bestaande afwijkingen zonder functiekoppeling blijven als historische tarieven zichtbaar en worden niet automatisch gekoppeld of overschreven.
 
 De API biedt `GET /api/planning/tarieven`, `GET`/`PUT /api/planning/tarieven/{id}/prijs` en `GET`/`PUT /api/planning/klanten/{id}/tarieven`. Standaardprijzen en klanttarieven zijn afzonderlijk versiebeheerd: gebruik de sterke ETag uit de desbetreffende GET-response als `If-Match` bij PUT. Alle wijzigingen in `standaard_tarieven` en `klant_afwijkende_tarieven` moeten via deze versiecontrole lopen; directe databasewijzigingen omzeilen die beveiliging. Voer na het uitrollen de migratie uit voordat de nieuwe API wordt gebruikt. Op een bestaande database met de klanttabellen kan alleen de tariefmigratie worden uitgevoerd met dezelfde Compose-opties als hierboven en `--profile migrate run --rm --no-deps migrate --migrate-planning-tarieven`.
+
+Voor uitsluitend de klant- en tariefstructuur, inclusief versiebeheer, gebruik `--profile migrate run --rm --no-deps migrate --migrate-planning-records` met dezelfde Compose-opties. Deze migratie voert geen overige kernmigraties uit.
 
 Bij de eerste aanmelding maakt `GET /api/user/profile` een leeg profiel aan met de UUID uit het gevalideerde Keycloak-token. De SPA stuurt gebruikers met een onvolledig profiel direct naar **Mijn profiel** en laat de overige tabbladen pas zien nadat het telefoonnummer en alternatieve e-mailadres zijn opgeslagen. Een digitale handtekening is optioneel. Profielwijzigingen gebruiken een strong ETag en vereisen `If-Match`, net als andere updates van bestaande gegevens.
 
@@ -158,6 +162,8 @@ De VSVK-realm gebruikt de rollen `development`, `directie`, `finance`, `operatio
 Ontbreekt bij een gebruiker buiten `directie` de vestigingsclaim, dan weigert de API de vestigingsgebonden calculatie-endpoints (`403`) in plaats van alle vestigingen te tonen. Ontbreekt `default-roles-vsvk` in het JWT, dan wordt applicatietoegang geweigerd. De API gebruikt de Keycloak-realmrol dus als expliciete gemeenschappelijke toegangspoort.
 
 De realm-import definieert rollen en voorbeeldgebruikers alleen bij het initialiseren van een nieuwe realm. Een al bestaande realm met persistente Keycloak-database wordt niet automatisch bijgewerkt: voeg de rollen toe via **Realm roles** en wijs ze via **Users → Role mapping** toe. De voorbeeldaccounts zijn `employee1` (`operationeel`) en `manager1` (`directie`); de accountnamen zijn alleen voorbeelden en bepalen zelf geen rechten.
+
+In de lokale Compose-ontwikkelomgeving krijgt een ingelogde gebruiker met `development` en `default-roles-vsvk` tijdelijk dezelfde effectieve rechten als `directie`, inclusief alle vestigingen en financiële gegevens. De API kent deze rechten centraal toe; de werkelijke Keycloak-rollen blijven ongewijzigd. BFF en API vereisen hiervoor zowel `ASPNETCORE_ENVIRONMENT=Development` als `DevelopmentAccess__Enabled=true`. De ontwikkel-BFF is uitsluitend op `127.0.0.1:8080` gepubliceerd; de API heeft geen gepubliceerde poort. Schakel deze ontwikkeloptie niet in voor een publiek bereikbare omgeving. In acceptatie en productie geldt de gebruikelijke rolverdeling. Alleen bestaande mutaties zijn beschikbaar; rechten creëren geen ontbrekende functionaliteit.
 
 ## CI/CD (GHCR)
 

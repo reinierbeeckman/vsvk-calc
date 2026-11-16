@@ -1,0 +1,30 @@
+﻿### Read the detail (configure baseUrl and accessToken in the HTTP client environment)
+GET {{baseUrl}}/api/planning/tarieven/12/detail
+Authorization: Bearer {{accessToken}}
+
+### Update using the ETag returned by GET (configure currentEtag including its quotes)
+PUT {{baseUrl}}/api/planning/tarieven/12/detail
+Authorization: Bearer {{accessToken}}
+If-Match: {{currentEtag}}
+Content-Type: application/json
+
+{
+  "functie": "Machinist",
+  "actief": true,
+  "prijs": 55.25,
+  "eenheid": "uur",
+  "geldigVanaf": "2026-01-01"
+}
+
+### Missing precondition returns 428
+PUT {{baseUrl}}/api/planning/tarieven/12/detail
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "functie": "Machinist",
+  "actief": true,
+  "prijs": 55.25,
+  "eenheid": "uur",
+  "geldigVanaf": "2026-01-01"
+}

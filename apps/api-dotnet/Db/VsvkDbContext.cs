@@ -53,6 +53,7 @@ public sealed class VsvkDbContext : DbContext
     klant.Property(item => item.MandagenregisterMeesturen).HasColumnName("mandagenregister_meesturen");
     klant.Property(item => item.Opmerkingen).HasColumnName("opmerkingen");
     klant.Property(item => item.TarievenVersion).HasColumnName("tarieven_version");
+    klant.Property(item => item.Version).HasColumnName("version");
 
     var functie = modelBuilder.Entity<PlanningFunctie>();
     functie.ToTable("functies");

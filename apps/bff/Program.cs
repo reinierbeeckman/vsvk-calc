@@ -224,6 +224,8 @@ app.MapGet("/bff/user", async (HttpContext context, ClaimsPrincipal user) =>
     name = user.Identity?.Name,
     username = user.FindFirst("preferred_username")?.Value ?? user.Identity?.Name,
     roles,
+    permissions = KeycloakAccessTokenClaims.GetPermissions(roles,
+      app.Environment.IsDevelopment() && app.Configuration.GetValue<bool>("DevelopmentAccess:Enabled")),
     hasApplicationAccess = true,
     claims = user.Claims.Select(c => new { c.Type, c.Value })
   });

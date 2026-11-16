@@ -78,16 +78,44 @@ public sealed class PlanningCustomerTests
     Assert.Equal("Jan", contacts[0].GetProperty("naam").GetString());
     Assert.True(contacts[0].GetProperty("isStandaardBesteller").GetBoolean());
     Assert.Equal("Piet", contacts[1].GetProperty("naam").GetString());
-    await using (var update = source.CreateCommand("update klant_contactpersonen set telefoon = '06456' where naam = 'Jan'"))
+    await using (var update = source.CreateCommand("update klant_contactpersonen set telefoon = '06456' where naam = 'Jan'; update klanten set version = version + 1 where id = 1"))
       await update.ExecuteNonQueryAsync();
     var changed = await client.GetAsync("/api/planning/klanten/1");
     Assert.NotEqual(response.Headers.ETag, changed.Headers.ETag);
-    await using (var update = source.CreateCommand("update klanten set iban = 'NL02ABNA0123456789' where id = 1"))
+    await using (var update = source.CreateCommand("update klanten set iban = 'NL02ABNA0123456789', version = version + 1 where id = 1"))
       await update.ExecuteNonQueryAsync();
     var changedIban = await client.GetAsync("/api/planning/klanten/1");
     Assert.NotEqual(changed.Headers.ETag, changedIban.Headers.ETag);
     using var noIban = JsonDocument.Parse(await (await client.GetAsync("/api/planning/klanten/2")).Content.ReadAsStringAsync());
     Assert.Equal(JsonValueKind.Null, noIban.RootElement.GetProperty("facturatie").GetProperty("iban").ValueKind);
     Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/planning/klanten/999")).StatusCode);
+  }
+
+  [Fact]
+  public async Task Customer_aggregate_rejects_stale_writes_and_rolls_back_contact_errors()
+  {
+    await using var postgres = new PostgreSqlBuilder().WithImage("postgres:16-alpine").Build();
+    await postgres.StartAsync();
+    await using var source = NpgsqlDataSource.Create(postgres.GetConnectionString());
+    await new DatabaseMigrator(source).MigrateAsync();
+    await using (var seed = source.CreateCommand("insert into klanten(id, debiteurnummer, bedrijfsnaam) values (1, '1001', 'Oud'); insert into klant_contactpersonen(klant_id, naam) values (1, 'Jan')")) await seed.ExecuteNonQueryAsync();
+    var options = new DbContextOptionsBuilder<VsvkDbContext>().UseNpgsql(postgres.GetConnectionString()).Options;
+    await using var context = new VsvkDbContext(options);
+    var repository = new PlanningRepository(context);
+    var original = (await repository.GetCustomerAsync(1, CancellationToken.None))!;
+    var first = original with { Bedrijfsnaam = "Eerste", Contactpersonen = [original.Contactpersonen[0] with { Naam = "Piet" }] };
+    var saved = await repository.SaveCustomerAsync(1, 1, first, CancellationToken.None);
+    Assert.Equal(2, saved!.Version);
+    Assert.Null(await repository.SaveCustomerAsync(1, 1, original with { Bedrijfsnaam = "Verouderd" }, CancellationToken.None));
+    var current = (await repository.GetCustomerAsync(1, CancellationToken.None))!;
+    Assert.Equal("Eerste", current.Bedrijfsnaam);
+    Assert.Equal("Piet", current.Contactpersonen[0].Naam);
+    var invalid = current with { Bedrijfsnaam = "Terugrollen", Contactpersonen = [current.Contactpersonen[0] with { Naam = new string('x', 256) }] };
+    await Assert.ThrowsAsync<DbUpdateException>(() => repository.SaveCustomerAsync(1, 2, invalid, CancellationToken.None));
+    await using var verify = new VsvkDbContext(options);
+    var after = (await new PlanningRepository(verify).GetCustomerAsync(1, CancellationToken.None))!;
+    Assert.Equal(2, after.Version);
+    Assert.Equal("Eerste", after.Bedrijfsnaam);
+    Assert.Equal("Piet", after.Contactpersonen[0].Naam);
   }
 }

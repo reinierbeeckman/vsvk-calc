@@ -1,6 +1,9 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Vsvk.Api.Auth;
 using Vsvk.Api.Db;
 using Vsvk.Api.DTOs;
@@ -25,10 +28,46 @@ public static class PlanningEndpoints
     {
       if (id <= 0) return Results.BadRequest();
       var customer = await service.GetAsync(id, cancellationToken);
-      return customer is null ? Results.NotFound() : CustomerResponse(context, customer);
+      if (customer is null) return Results.NotFound();
+      context.Response.Headers.ETag = customer.ETag;
+      context.Response.Headers.CacheControl = "private, no-store";
+      return Results.Ok(customer);
     }).RequireAuthorization(policy => policy.RequireRole(VsvkRoles.Directie))
       .WithSummary("Klant met contactpersonen ophalen")
       .Produces<PlanningCustomerDetailDto>(200).Produces(400).Produces(401).Produces(403).Produces(404);
+
+    group.MapPut("/klanten/{id:int}", async (int id, PlanningCustomerDetailDto request, HttpContext context, IPlanningCustomerService service, IHostEnvironment environment, IConfiguration configuration, CancellationToken cancellationToken) =>
+    {
+      if (!environment.IsDevelopment() || !configuration.GetValue<bool>("DevelopmentAccess:Enabled") ||
+          context.User.Identity?.IsAuthenticated != true || !VsvkRoles.IsApplicationUser(context.User) ||
+          !context.User.IsInRole(VsvkRoles.Development)) return Results.Forbid();
+      if (id <= 0 || request.Id != id) return Results.BadRequest();
+      var precondition = IfMatchParser.Parse(context.Request.Headers.TryGetValue("If-Match", out var values) ? values.ToString() : null);
+      if (!precondition.IsValid) return Results.StatusCode(precondition.StatusCode);
+      if (!ValidCustomer(request)) return Results.BadRequest("Controleer de klantgegevens en contactpersonen.");
+      var current = await service.GetAsync(id, cancellationToken);
+      if (current is null) return Results.NotFound();
+      if (current.Version != precondition.Version) return Results.StatusCode(StatusCodes.Status412PreconditionFailed);
+      var existing = current.Contactpersonen.Select(c => c.Id).ToHashSet();
+      if (request.Contactpersonen.Any(c => c.Id < 0 || (c.Id > 0 && !existing.Contains(c.Id))) ||
+          request.Contactpersonen.Where(c => c.Id > 0).Select(c => c.Id).Distinct().Count() != request.Contactpersonen.Count(c => c.Id > 0))
+        return Results.BadRequest("Ongeldige contactpersoon.");
+      try
+      {
+        var saved = await service.SaveAsync(id, precondition.Version!.Value, request, cancellationToken);
+        if (saved is null) return Results.StatusCode(StatusCodes.Status412PreconditionFailed);
+        context.Response.Headers.ETag = saved.ETag;
+        context.Response.Headers.CacheControl = "private, no-store";
+        return Results.Ok(saved);
+      }
+      catch (Exception ex) when (ex is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } ||
+        ex is DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } })
+      {
+        return Results.BadRequest("Debiteurnummer bestaat al of er zijn meerdere standaardbestellers.");
+      }
+    }).RequireAuthorization(policy => policy.RequireRole(VsvkRoles.Directie))
+      .WithSummary("Klant en contactpersonen opslaan met If-Match")
+      .Produces<PlanningCustomerDetailDto>(200).Produces(400).Produces(401).Produces(403).Produces(404).Produces(412).Produces(428);
 
     group.MapGet("/tarieven", async (HttpContext context, IPlanningCustomerService service, CancellationToken cancellationToken) =>
       CustomerResponse(context, await service.ListRatesAsync(cancellationToken)))
@@ -138,6 +177,23 @@ public static class PlanningEndpoints
 
   private static string? Branch(ClaimsPrincipal user) =>
     VsvkRoles.HasOrganizationWideAccess(user) ? null : VsvkRoles.GetVestiging(user);
+
+  private static bool ValidCustomer(PlanningCustomerDetailDto c)
+  {
+    static bool Length(string? value, int max) => value is null || value.Length <= max;
+    static bool Email(string? value) => string.IsNullOrWhiteSpace(value) || new EmailAddressAttribute().IsValid(value);
+    var b = c.Facturatie;
+    return b is not null && c.Contactpersonen is not null && c.Contactpersonen.Count <= 1000 &&
+      !string.IsNullOrWhiteSpace(c.Bedrijfsnaam) && Length(c.Bedrijfsnaam, 255) &&
+      !string.IsNullOrWhiteSpace(c.Debiteurnummer) && Length(c.Debiteurnummer, 50) &&
+      Length(c.KvkNummer, 20) && Length(c.Website, 255) && Length(c.Telefoon, 50) && Length(c.Email, 255) && Email(c.Email) &&
+      Length(c.Straat, 255) && Length(c.Huisnummer, 20) && Length(c.Toevoeging, 20) && Length(c.Postcode, 10) && Length(c.Plaats, 100) && Length(c.Land, 100) &&
+      Length(b.BtwNummer, 30) && Length(b.Iban, 50) && Length(b.FactuurEmail, 255) && Email(b.FactuurEmail) &&
+      Length(b.VasteReferentie, 100) && Length(b.FacturerenPer, 50) &&
+      (b.GRekeningPercentage is null || (b.GRekeningPercentage >= 0 && b.GRekeningPercentage <= 100 && decimal.Round(b.GRekeningPercentage.Value, 2) == b.GRekeningPercentage)) &&
+      c.Contactpersonen.Count(p => p is not null && p.IsStandaardBesteller) <= 1 &&
+      c.Contactpersonen.All(p => p is not null && !string.IsNullOrWhiteSpace(p.Naam) && Length(p.Naam, 255) && Length(p.Functie, 100) && Length(p.Telefoon, 50) && Length(p.Email, 255) && Email(p.Email));
+  }
 
   private static IResult CustomerResponse<T>(HttpContext context, T value)
   {

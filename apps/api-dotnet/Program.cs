@@ -32,6 +32,9 @@ builder.Services.AddScoped<InstellingenRepository>();
 builder.Services.AddScoped<VestigingRepository>();
 builder.Services.AddScoped<ArtikelRepository>();
 builder.Services.AddScoped<PlanningRepository>();
+builder.Services.AddScoped<IPlanningEmployeeDevelopmentRepository>(services => services.GetRequiredService<PlanningRepository>());
+builder.Services.AddPlanningMaterieelMutations();
+builder.Services.AddScoped<IPlanningTariffDetailService, PlanningTariffDetailService>();
 builder.Services.AddScoped<IPlanningCustomerService, PlanningCustomerService>();
 builder.Services.AddScoped<IUserProfileRepository, UserProfileRepository>();
 builder.Services.AddScoped<IUserProfileService, UserProfileService>();
@@ -85,6 +88,13 @@ builder.Services.AddAuthorization(options =>
 
 var app = builder.Build();
 app.UseExceptionHandler();
+
+if (args.Contains("--migrate-planning-records"))
+{
+  var migrator = app.Services.GetRequiredService<DatabaseMigrator>();
+  await migrator.MigratePlanningRecordsAsync(app.Lifetime.ApplicationStopping);
+  return;
+}
 
 if (args.Contains("--migrate-planning-tarieven"))
 {
@@ -321,6 +331,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapArtikelEndpoints();
 app.MapPlanningEndpoints();
+app.MapPlanningEmployeeDevelopmentEndpoints();
+app.MapPlanningMaterieelMutationEndpoints();
+app.MapPlanningTariffDetailEndpoints();
 app.MapUserProfileEndpoints();
 
 // Example endpoint (stays for now)

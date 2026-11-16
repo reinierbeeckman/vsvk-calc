@@ -24,7 +24,8 @@
     </section>
     <section class="panel" id="unavailable" hidden><div class="empty">Dit onderdeel is nog niet beschikbaar.</div></section>
   </main>
-  <dialog id="detail" aria-labelledby="detail-title"><div class="mbox"><div class="mhead"><div><h2 id="detail-title"></h2><p class="hint" id="detail-subtitle"></p></div><button class="btn ghost" type="button" data-close aria-label="Sluiten">✕</button></div><div class="mbody" id="detail-body"></div><div class="mfoot"><button class="btn customer-only customer-delete" type="button" disabled title="Nog niet beschikbaar">Verwijderen</button><button class="btn customer-only" type="button" data-close>Annuleren</button><button class="btn other-only" type="button" data-close>Sluiten</button><button class="btn primary customer-only" type="button" disabled title="Klantgegevens aanpassen is nog niet beschikbaar">Klantgegevens opslaan</button></div></div></dialog>
+  <dialog id="detail" aria-labelledby="detail-title"><div class="mbox"><div class="mhead"><div><h2 id="detail-title"></h2><p class="hint" id="detail-subtitle"></p></div><button class="btn ghost" type="button" data-close aria-label="Sluiten">✕</button></div><div class="mbody" id="detail-body"></div><div class="mfoot"><button class="btn customer-only customer-delete" type="button" disabled title="Nog niet beschikbaar">Verwijderen</button><button class="btn primary" id="detail-save" type="button" disabled>Opslaan</button><button class="btn" type="button" data-close>Sluiten</button></div></div></dialog>
+  <script src="/planning/record-editor.js"></script>
   <script src="/planning/planning.js"></script>
 </body>
 </html>

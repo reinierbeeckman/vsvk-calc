@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Hosting;
 
 namespace Vsvk.Api.Auth;
 
@@ -8,7 +9,7 @@ namespace Vsvk.Api.Auth;
 /// Keycloak puts realm roles in the nested claim: realm_access.roles[].
 /// ASP.NET expects role claims to be flattened to ClaimTypes.Role.
 /// </summary>
-public sealed class KeycloakRealmRoleClaimsTransformation : IClaimsTransformation
+public sealed class KeycloakRealmRoleClaimsTransformation(IHostEnvironment environment, IConfiguration configuration) : IClaimsTransformation
 {
   public Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
   {
@@ -19,36 +20,35 @@ public sealed class KeycloakRealmRoleClaimsTransformation : IClaimsTransformatio
     }
 
     var realmAccess = principal.FindFirst("realm_access")?.Value;
-    if (string.IsNullOrWhiteSpace(realmAccess))
+    if (!string.IsNullOrWhiteSpace(realmAccess))
     {
-      return Task.FromResult(principal);
-    }
-
-    try
-    {
-      using var doc = JsonDocument.Parse(realmAccess);
-      if (!doc.RootElement.TryGetProperty("roles", out var rolesElement) || rolesElement.ValueKind != JsonValueKind.Array)
+      try
       {
-        return Task.FromResult(principal);
-      }
-
-      foreach (var roleEl in rolesElement.EnumerateArray())
-      {
-        var role = roleEl.GetString();
-        if (string.IsNullOrWhiteSpace(role))
+        using var doc = JsonDocument.Parse(realmAccess);
+        if (doc.RootElement.ValueKind == JsonValueKind.Object
+            && doc.RootElement.TryGetProperty("roles", out var rolesElement) && rolesElement.ValueKind == JsonValueKind.Array)
         {
-          continue;
-        }
-
-        if (!principal.IsInRole(role))
-        {
-          identity.AddClaim(new Claim(ClaimTypes.Role, role));
+          foreach (var roleEl in rolesElement.EnumerateArray())
+          {
+            if (roleEl.ValueKind != JsonValueKind.String) continue;
+            var role = roleEl.GetString();
+            if (!string.IsNullOrWhiteSpace(role) && !principal.IsInRole(role))
+            {
+              identity.AddClaim(new Claim(ClaimTypes.Role, role));
+            }
+          }
         }
       }
+      catch (JsonException)
+      {
+      }
     }
-    catch
+
+    if (environment.IsDevelopment() && configuration.GetValue<bool>("DevelopmentAccess:Enabled")
+        && principal.IsInRole(VsvkRoles.Development)
+        && VsvkRoles.IsApplicationUser(principal) && !principal.IsInRole(VsvkRoles.Directie))
     {
-      // Ignore malformed JSON.
+      identity.AddClaim(new Claim(ClaimTypes.Role, VsvkRoles.Directie, ClaimValueTypes.String, "vsvk-development"));
     }
 
     return Task.FromResult(principal);

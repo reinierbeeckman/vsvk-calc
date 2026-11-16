@@ -3,6 +3,8 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Vsvk.Bff.Auth;
 
+public sealed record UserPermissions(bool CanManageSettings, bool CanViewSensitiveData, bool CanEditPlanningRecords);
+
 public static class KeycloakAccessTokenClaims
 {
   public const string ApplicationAccessRole = "default-roles-vsvk";
@@ -50,4 +52,14 @@ public static class KeycloakAccessTokenClaims
 
   public static bool HasApplicationAccess(string? accessToken) =>
     GetRealmRoles(accessToken).Contains(ApplicationAccessRole, StringComparer.Ordinal);
+
+  public static UserPermissions GetPermissions(IReadOnlyCollection<string> roles, bool isDevelopment)
+  {
+    var hasAccess = roles.Contains(ApplicationAccessRole, StringComparer.Ordinal);
+    var management = hasAccess && (roles.Contains("directie", StringComparer.Ordinal)
+      || (isDevelopment && roles.Contains("development", StringComparer.Ordinal)));
+    return new UserPermissions(management,
+      management || (hasAccess && roles.Contains("finance", StringComparer.Ordinal)),
+      hasAccess && isDevelopment && roles.Contains("development", StringComparer.Ordinal));
+  }
 }

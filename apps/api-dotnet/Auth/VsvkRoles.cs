@@ -22,7 +22,8 @@ public static class VsvkRoles
       try
       {
         using var document = JsonDocument.Parse(realmAccess.Value);
-        if (document.RootElement.TryGetProperty("roles", out var roles)
+        if (document.RootElement.ValueKind == JsonValueKind.Object
+            && document.RootElement.TryGetProperty("roles", out var roles)
             && roles.ValueKind == JsonValueKind.Array
             && roles.EnumerateArray().Any(role =>
               role.ValueKind == JsonValueKind.String

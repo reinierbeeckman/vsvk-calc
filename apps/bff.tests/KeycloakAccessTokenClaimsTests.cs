@@ -6,6 +6,35 @@ namespace Vsvk.Bff.Tests;
 
 public sealed class KeycloakAccessTokenClaimsTests
 {
+  [Theory]
+  [InlineData(true, true)]
+  [InlineData(false, false)]
+  public void DevelopmentPermissionsApplyOnlyInDevelopment(bool development, bool expected)
+  {
+    var permissions = KeycloakAccessTokenClaims.GetPermissions(["default-roles-vsvk", "development"], development);
+    Assert.Equal(expected, permissions.CanManageSettings);
+    Assert.Equal(expected, permissions.CanViewSensitiveData);
+  }
+
+  [Fact]
+  public void PermissionsRequireApplicationAccess()
+  {
+    var permissions = KeycloakAccessTokenClaims.GetPermissions(["development", "directie"], true);
+    Assert.False(permissions.CanManageSettings);
+    Assert.False(permissions.CanViewSensitiveData);
+    Assert.False(permissions.CanEditPlanningRecords);
+  }
+
+  [Theory]
+  [InlineData(true, "development", true)]
+  [InlineData(false, "development", false)]
+  [InlineData(true, "directie", false)]
+  public void PlanningEditingRequiresDevelopmentRoleAndEnvironment(bool development, string role, bool expected)
+  {
+    var permissions = KeycloakAccessTokenClaims.GetPermissions(["default-roles-vsvk", role], development);
+    Assert.Equal(expected, permissions.CanEditPlanningRecords);
+  }
+
   [Fact]
   public void GetRealmRoles_returns_roles_from_access_token()
   {

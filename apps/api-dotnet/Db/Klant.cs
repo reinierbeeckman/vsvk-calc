@@ -27,5 +27,6 @@ public sealed class Klant
   public bool MandagenregisterMeesturen { get; set; }
   public string? Opmerkingen { get; set; }
   public long TarievenVersion { get; set; } = 1;
+  public long Version { get; set; } = 1;
   public List<KlantContactpersoon> Contactpersonen { get; set; } = [];
 }

@@ -318,6 +318,7 @@ where id = 1
         opmerkingen text, aangemaakt_op timestamptz default current_timestamp
       );
       alter table klanten add column if not exists iban varchar(50);
+      alter table klanten add column if not exists version bigint not null default 1;
       create table if not exists klant_contactpersonen (
         id serial primary key,
         klant_id integer not null references klanten(id) on delete cascade,
@@ -337,6 +338,12 @@ where id = 1
       """;
     await using var command = _dataSource.CreateCommand(sql);
     await command.ExecuteNonQueryAsync(cancellationToken);
+  }
+
+  public async Task MigratePlanningRecordsAsync(CancellationToken cancellationToken = default)
+  {
+    await MigrateCustomersAsync(cancellationToken);
+    await MigratePlanningRatesAsync(cancellationToken);
   }
 
   public async Task MigratePlanningRatesAsync(CancellationToken cancellationToken = default)
@@ -362,6 +369,15 @@ where id = 1
       """;
     await using var command = _dataSource.CreateCommand(sql);
     await command.ExecuteNonQueryAsync(cancellationToken);
+    var assembly = Assembly.GetExecutingAssembly();
+    var resourceName = assembly.GetManifestResourceNames()
+      .Single(name => name.EndsWith("Db.PlanningTariffDetailMigration.sql", StringComparison.Ordinal));
+    using var stream = assembly.GetManifestResourceStream(resourceName)
+      ?? throw new InvalidOperationException("Planning tariefmigratie ontbreekt.");
+    using var reader = new StreamReader(stream);
+    var migration = await reader.ReadToEndAsync(cancellationToken);
+    await using var migrationCommand = _dataSource.CreateCommand(migration);
+    await migrationCommand.ExecuteNonQueryAsync(cancellationToken);
   }
 
   private async Task ImportArticleCatalogAsync(CancellationToken cancellationToken)

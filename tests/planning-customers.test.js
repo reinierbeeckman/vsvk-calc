@@ -5,6 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const script = fs.readFileSync(path.join(__dirname, '../apps/planning/planning.js'), 'utf8');
+const editorScript = fs.readFileSync(path.join(__dirname, '../apps/planning/record-editor.js'), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
 class Element {
@@ -16,7 +17,7 @@ class Element {
   replaceChildren(...children) { this._text = ''; this.children = children; }
   setAttribute(name, value) { this.attributes[name] = value; }
   addEventListener(name, callback) { this.events[name] = callback; }
-  click() { return this.events.click?.(); }
+  click() { if (!this.disabled) return this.onclick?.() ?? this.events.click?.(); }
   insertRow() { const element = new Element(); this.append(element); return element; }
   insertCell() { const element = new Element(); this.append(element); return element; }
   showModal() { this.open = true; }
@@ -24,7 +25,7 @@ class Element {
 }
 
 function setup(detailResponse, fixtures = {}, loading = { begin: () => () => {} }) {
-  const ids = ['head', 'body', 'message', 'search', 'detail', 'title', 'description', 'list-nav', 'list-panel', 'unavailable', 'add', 'count', 'empty', 'detail-title', 'detail-subtitle', 'detail-body'];
+  const ids = ['head', 'body', 'message', 'search', 'detail', 'title', 'description', 'list-nav', 'list-panel', 'unavailable', 'add', 'count', 'empty', 'detail-title', 'detail-subtitle', 'detail-body', 'detail-save'];
   const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
   const lists = ['medewerkers', 'klanten', 'materieel', 'artikelen', 'ordernummers', 'tarieven', 'leveranciers', 'instellingen', 'huisstijl', 'rollen'].map(list => new Element({ list }));
   const sections = [new Element({ section: 'Lijsten' })];
@@ -53,7 +54,9 @@ function setup(detailResponse, fixtures = {}, loading = { begin: () => () => {} 
       : url === '/api/planning/klanten/1' ? await detailResponse() : url === '/api/planning/klanten/1/tarieven' ? { eTag: '"1"', afwijkingen: [], historischeTarieven: [] } : fixtures[url] || [];
     return { ok: true, json: async () => data };
   };
-  vm.runInNewContext(script, { document, window: { addEventListener() {}, VsvkLoading: loading }, fetch, Map, Set, Error });
+  const context = { document, window: { addEventListener() {}, VsvkLoading: loading }, fetch, Map, Set, Error };
+  vm.runInNewContext(editorScript, context);
+  vm.runInNewContext(script, context);
   return { elements, lists, close, requests, requestDetails };
 }
 
@@ -85,6 +88,178 @@ function descendants(element) {
   return element.children.filter(child => child instanceof Element).flatMap(child => [child, ...descendants(child)]);
 }
 
+test('ontwikkelaar kan materieeldetails wijzigen en opslaan', async () => {
+  const equipment = { id: 'm1', omschrijving: 'Kraan', standplaatsId: null, materieelGroepId: null, eTag: '"1"' };
+  let saved;
+  const view = setup(async () => ({}), {
+    '/bff/user': { permissions: { canEditPlanningRecords: true } },
+    '/api/planning/materieel': [{ id: 'm1', omschrijving: 'Kraan' }],
+    '/api/planning/materieel/referenties': { groepen: [], vestigingen: [] },
+    '/api/planning/materieel/m1': options => { if (options?.method === 'PUT') { saved = options; return { ...equipment, omschrijving: 'Nieuwe kraan', eTag: '"2"' }; } return equipment; }
+  });
+  await flush(); view.lists.find(element => element.dataset.list === 'materieel').click(); await flush();
+  view.elements.body.children[0].children.at(-1).children[0].click(); await flush();
+  const nodes = descendants(view.elements['detail-body']);
+  const input = nodes.find(element => element.attributes['aria-label'] === 'Omschrijving');
+  assert.equal(view.elements['detail-save'].disabled, true);
+  input.value = 'Nieuwe kraan'; input.events.input();
+  assert.equal(view.elements['detail-save'].disabled, false);
+  view.elements['detail-save'].click(); await flush();
+  assert.equal(view.elements['detail-save'].disabled, true);
+  assert.equal(saved.headers['If-Match'], '"1"');
+  assert.equal(JSON.parse(saved.body).omschrijving, 'Nieuwe kraan');
+});
+
+test('ontwikkelaar kan medewerkergegevens inclusief actief opslaan', async () => {
+  const employee = { id: 'm1', naam: 'Jan', actief: true, skills: [], eTag: '"1"' };
+  let saved;
+  const view = setup(async () => ({}), {
+    '/bff/user': { permissions: { canEditPlanningRecords: true } },
+    '/api/planning/medewerkers': [employee],
+    '/api/planning/medewerkers/m1': employee,
+    '/api/planning/medewerkers/vaardigheden': [], '/api/planning/medewerkers/vestigingen': [],
+    '/api/planning/medewerkers/m1/gegevens': options => { saved = options; return { ...employee, naam: 'Janneke', eTag: '"2"' }; }
+  });
+  await flush(); view.elements.body.children[0].children.at(-1).children[0].click(); await flush();
+  const nodes = descendants(view.elements['detail-body']);
+  const input = nodes.find(element => element.attributes['aria-label'] === 'Naam');
+  input.value = 'Janneke'; input.events.input();
+  view.elements['detail-save'].click(); await flush();
+  assert.equal(saved.headers['If-Match'], '"1"');
+  assert.equal(JSON.parse(saved.body).naam, 'Janneke');
+  assert.equal(JSON.parse(saved.body).actief, true);
+});
+
+test('ontwikkelaar kan alle tariefvelden in het detailscherm opslaan', async () => {
+  const rate = { id: 2, functieId: 1, functie: 'Grondwerker', actief: true, prijs: 50, eenheid: 'uur', geldigVanaf: '2026-01-01', eTag: '"1"' };
+  let saved;
+  const view = setup(async () => ({}), {
+    '/bff/user': { permissions: { canEditPlanningRecords: true } },
+    '/api/planning/tarieven': [{ ...rate, standaardTariefId: 2 }],
+    '/api/planning/tarieven/2/detail': options => { if (options?.method === 'PUT') { saved = options; return { ...rate, eenheid: 'dag', eTag: '"2"' }; } return rate; }
+  });
+  await flush(); view.lists.find(element => element.dataset.list === 'tarieven').click(); await flush();
+  view.elements.body.children[0].children.at(-1).children[0].click(); await flush();
+  const nodes = descendants(view.elements['detail-body']);
+  const unit = nodes.find(element => element.attributes['aria-label'] === 'Eenheid');
+  assert.ok(unit, view.elements['detail-body'].textContent);
+  unit.value = 'dag'; unit.events.input();
+  view.elements['detail-save'].click(); await flush();
+  assert.equal(saved.headers['If-Match'], '"1"');
+  assert.equal(JSON.parse(saved.body).eenheid, 'dag');
+  assert.equal(JSON.parse(saved.body).prijs, 50);
+});
+
+test('klantmutatie bewaart invoer bij conflict en vereist expliciet opnieuw toepassen', async () => {
+  let reads = 0;
+  const writes = [];
+  const customer = { id: 1, actief: true, debiteurnummer: '1001', bedrijfsnaam: 'Oud', facturatie: {}, contactpersonen: [], eTag: '"1"' };
+  const view = setup(async () => customer, {
+    '/bff/user': { permissions: { canEditPlanningRecords: true } },
+    '/api/planning/klanten/1': options => {
+      if (options?.method === 'PUT') { writes.push(options); return writes.length === 1 ? { status: 412 } : { ...customer, bedrijfsnaam: 'Mijn klant', eTag: '"3"' }; }
+      return ++reads === 1 ? customer : { ...customer, bedrijfsnaam: 'Andere klant', eTag: '"2"' };
+    }
+  });
+  await flush(); view.lists.find(element => element.dataset.list === 'klanten').click(); await flush();
+  view.elements.body.children[0].children.at(-1).children[0].click(); await flush(); await flush();
+  let nodes = descendants(view.elements['detail-body']);
+  const name = nodes.find(element => element.attributes['aria-label'] === 'Bedrijfsnaam');
+  name.value = 'Mijn klant'; name.events.input();
+  await view.elements['detail-save'].onclick();
+  nodes = descendants(view.elements['detail-body']);
+  assert.equal(name.value, 'Mijn klant');
+  assert.match(view.elements['detail-body'].textContent, /Andere klant/);
+  assert.equal(writes.length, 1);
+  nodes.find(element => element.textContent === 'Mijn klantwijzigingen opnieuw toepassen').click();
+  await view.elements['detail-save'].onclick();
+  assert.equal(writes[1].headers['If-Match'], '"2"');
+  assert.equal(JSON.parse(writes[1].body).bedrijfsnaam, 'Mijn klant');
+});
+
+test('contactpersoon toevoegen en als standaardbesteller opslaan', async () => {
+  let written;
+  const customer = { id: 1, actief: true, debiteurnummer: '1001', bedrijfsnaam: 'Klant', facturatie: {}, contactpersonen: [], eTag: '"1"' };
+  const view = setup(async () => customer, {
+    '/bff/user': { permissions: { canEditPlanningRecords: true } },
+    '/api/planning/klanten/1': options => { if (options?.method === 'PUT') { written = JSON.parse(options.body); return { ...written, contactpersonen: [{ ...written.contactpersonen[0], id: 10 }], eTag: '"2"' }; } return customer; }
+  });
+  await flush(); view.lists.find(element => element.dataset.list === 'klanten').click(); await flush();
+  view.elements.body.children[0].children.at(-1).children[0].click(); await flush();
+  let nodes = descendants(view.elements['detail-body']);
+  nodes.find(element => element.textContent === '+ Contactpersoon').click();
+  nodes = descendants(view.elements['detail-body']);
+  const name = nodes.find(element => element.attributes['aria-label'] === 'Naam contactpersoon');
+  name.value = 'Jan'; name.events.input();
+  nodes.find(element => element.type === 'radio').events.change();
+  await view.elements['detail-save'].onclick();
+  assert.equal(written.contactpersonen[0].naam, 'Jan');
+  assert.equal(written.contactpersonen[0].isStandaardBesteller, true);
+});
+
+test('artikelgegevens kunnen in development worden gewijzigd met versiecontrole', async () => {
+  const article = { id: 'a1', naam: 'Artikel', categorieId: 'c1', categorie: 'Categorie', eenheidId: 'e1', eenheid: 'Stuk', tariefSoort: 'vast', tarief: 10, actief: true, eTag: '"1"' };
+  let saved;
+  const view = setup(async () => ({}), {
+    '/bff/user': { permissions: { canEditPlanningRecords: true } },
+    '/api/articles': [article],
+    '/api/article-categories': [{ id: 'c1', naam: 'Categorie', actief: true }],
+    '/api/article-units': [{ id: 'e1', naam: 'Stuk', actief: true }],
+    '/api/articles/a1': options => {
+      if (options?.method === 'PUT') { saved = options; return { ...article, naam: 'Gewijzigd', eTag: '"2"' }; }
+      return article;
+    }
+  });
+  await flush();
+  view.lists.find(element => element.dataset.list === 'artikelen').click();
+  await flush();
+  view.elements.body.children[0].children.at(-1).children[0].click();
+  await flush();
+  const nodes = descendants(view.elements['detail-body']);
+  const name = nodes.find(element => element.attributes['aria-label'] === 'Omschrijving');
+  name.value = 'Gewijzigd'; name.events.input();
+  view.elements['detail-save'].click();
+  await flush();
+  assert.equal(saved.headers['If-Match'], '"1"');
+  assert.equal(JSON.parse(saved.body).naam, 'Gewijzigd');
+});
+
+test('artikelgegevens blijven alleen-lezen zonder developmentrechten', async () => {
+  const view = setup(async () => ({}), { '/bff/user': { permissions: { canEditPlanningRecords: false } }, '/api/articles': [{ id: 'a1', naam: 'Artikel', actief: true }] });
+  await flush();
+  view.lists.find(element => element.dataset.list === 'artikelen').click();
+  await flush();
+  view.elements.body.children[0].children.at(-1).children[0].click();
+  await flush();
+  assert.ok(!descendants(view.elements['detail-body']).some(element => element.textContent === 'Opslaan'));
+  assert.equal(view.elements['detail-save'].disabled, true);
+});
+
+test('een artikelconflict bewaart invoer en vraagt om opnieuw toepassen', async () => {
+  const article = { id: 'a1', naam: 'Artikel', categorieId: 'c1', categorie: 'Categorie', eenheidId: 'e1', eenheid: 'Stuk', tariefSoort: 'vast', tarief: 10, actief: true, eTag: '"1"' };
+  let reads = 0;
+  const view = setup(async () => ({}), {
+    '/bff/user': { permissions: { canEditPlanningRecords: true } },
+    '/api/articles': [article],
+    '/api/article-categories': [{ id: 'c1', naam: 'Categorie', actief: true }],
+    '/api/article-units': [{ id: 'e1', naam: 'Stuk', actief: true }],
+    '/api/articles/a1': options => options?.method === 'PUT' ? { status: 412 } : (++reads === 1 ? article : { ...article, naam: 'Andermans wijziging', eTag: '"2"' })
+  });
+  await flush();
+  view.lists.find(element => element.dataset.list === 'artikelen').click();
+  await flush();
+  view.elements.body.children[0].children.at(-1).children[0].click();
+  await flush();
+  const nodes = descendants(view.elements['detail-body']);
+  const name = nodes.find(element => element.attributes['aria-label'] === 'Omschrijving');
+  name.value = 'Mijn wijziging'; name.events.input();
+  view.elements['detail-save'].click();
+  await flush();
+  assert.equal(name.value, 'Mijn wijziging');
+  assert.match(view.elements['detail-body'].textContent, /Andermans wijziging/);
+  assert.ok(descendants(view.elements['detail-body']).some(element => element.textContent === 'Mijn wijzigingen opnieuw toepassen'));
+});
+
 test('ja-neewaarden gebruiken toegankelijke schakelaars met behoud van bewerkrechten', async () => {
   const view = setup(async () => ({
     id: 1, actief: true, bedrijfsnaam: 'Klant Een',
@@ -101,6 +276,7 @@ test('ja-neewaarden gebruiken toegankelijke schakelaars met behoud van bewerkrec
   assert.equal(typeof switches[0].events.click, 'function');
   assert.equal(view.elements.head.children[0].children[0].textContent, 'Actief');
   view.elements.body.children[0].children.at(-1).children[0].click();
+  await flush();
   let detailSwitches = descendants(view.elements['detail-body']).filter(element => element.attributes.role === 'switch');
   assert.equal(detailSwitches[0].attributes['aria-checked'], 'true');
   assert.equal(detailSwitches[0].attributes['aria-readonly'], 'true');
@@ -214,6 +390,29 @@ test('standaardtarieven zijn zichtbaar en afwijkingen worden met versie opgeslag
   await save.events.click();
   assert.equal(saved.headers['If-Match'], '"1"');
   assert.deepEqual(JSON.parse(saved.body), { afwijkingen: [{ functieId: 1, tarief: 55 }] });
+  assert.equal(save.disabled, true);
+});
+
+test('afwijkend klanttarief is tekstueel invoerbaar met een decimale komma', async () => {
+  let saved;
+  const view = setup(async () => ({ id: 1, bedrijfsnaam: 'Klant Een', contactpersonen: [] }), {
+    '/api/planning/tarieven': [{ functieId: 1, functie: 'Grondwerker', actief: true, prijs: 50, eenheid: 'uur' }],
+    '/api/planning/klanten/1/tarieven': options => {
+      if (options?.method === 'PUT') { saved = options; return { eTag: '"2"', afwijkingen: [{ functieId: 1, tarief: 55.25 }], historischeTarieven: [] }; }
+      return { eTag: '"1"', afwijkingen: [], historischeTarieven: [] };
+    }
+  });
+  await flush(); view.lists.find(element => element.dataset.list === 'klanten').click(); await flush();
+  view.elements.body.children[0].children.at(-1).children[0].click(); await flush(); await flush();
+  const nodes = descendants(view.elements['detail-body']);
+  const input = nodes.find(element => element.attributes['aria-label'] === 'Afwijkend tarief Grondwerker');
+  const save = nodes.find(element => element.textContent === 'Tarieven opslaan');
+  assert.equal(input.type, 'text');
+  assert.equal(input.inputMode, 'decimal');
+  input.value = '55,25'; input.events.input();
+  assert.equal(save.disabled, false);
+  await save.events.click();
+  assert.deepEqual(JSON.parse(saved.body), { afwijkingen: [{ functieId: 1, tarief: 55.25 }] });
   assert.equal(save.disabled, true);
 });
 

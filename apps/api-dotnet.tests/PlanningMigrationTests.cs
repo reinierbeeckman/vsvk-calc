@@ -8,6 +8,25 @@ namespace Vsvk.Api.Tests;
 public sealed class PlanningMigrationTests
 {
   [Fact]
+  public async Task Planning_only_migration_creates_versions_and_rate_trigger_without_core_tables()
+  {
+    await using var postgres = new PostgreSqlBuilder().WithImage("postgres:16-alpine").Build();
+    await postgres.StartAsync();
+    await using var source = NpgsqlDataSource.Create(postgres.GetConnectionString());
+    var migrator = new DatabaseMigrator(source);
+    await migrator.MigratePlanningRecordsAsync();
+    await migrator.MigratePlanningRecordsAsync();
+    await using var query = source.CreateCommand("""
+      select to_regclass('calculaties') is null,
+        exists(select 1 from information_schema.columns where table_name = 'klanten' and column_name = 'version'),
+        exists(select 1 from pg_trigger where tgname = 'planning_bump_shared_rate_versions' and not tgisinternal)
+      """);
+    await using var reader = await query.ExecuteReaderAsync();
+    Assert.True(await reader.ReadAsync());
+    Assert.True(reader.GetBoolean(0)); Assert.True(reader.GetBoolean(1)); Assert.True(reader.GetBoolean(2));
+  }
+
+  [Fact]
   public async Task Customer_tables_are_created_and_existing_data_is_preserved()
   {
     await using var postgres = new PostgreSqlBuilder().WithImage("postgres:16-alpine").Build();
@@ -51,7 +70,8 @@ public sealed class PlanningMigrationTests
              to_regclass('idx_unieke_standaard_besteller') is not null,
              (select count(*) from klant_contactpersonen where naam = 'Bestaande contactpersoon'),
              (select count(*) from klant_afwijkende_tarieven where omschrijving = 'Bestaand tarief'),
-             (select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'klanten' and column_name = 'iban' and character_maximum_length = 50)
+             (select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'klanten' and column_name = 'iban' and character_maximum_length = 50),
+             (select version from klanten where debiteurnummer = 'K1')
       """);
     await using var reader = await query.ExecuteReaderAsync();
     Assert.True(await reader.ReadAsync());
@@ -62,6 +82,7 @@ public sealed class PlanningMigrationTests
     Assert.Equal(1, reader.GetInt64(4));
     Assert.Equal(1, reader.GetInt64(5));
     Assert.Equal(1, reader.GetInt64(6));
+    Assert.Equal(1, reader.GetInt64(7));
   }
 
   [Fact]

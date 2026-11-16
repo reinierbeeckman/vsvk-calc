@@ -14,5 +14,6 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Db/Seed/ArtikelCatalogus.json" />
+    <EmbeddedResource Include="Db/PlanningTariffDetailMigration.sql" />
   </ItemGroup>
 </Project>

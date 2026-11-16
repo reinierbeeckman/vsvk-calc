@@ -12,6 +12,7 @@
     const message = document.querySelector('#message');
     const search = document.querySelector('#search');
     const detail = document.querySelector('#detail');
+    const detailSave = document.querySelector('#detail-save');
     let current = 'medewerkers';
     let currentSection = 'Lijsten';
     let rows = [];
@@ -22,6 +23,8 @@
     let stopDetailLoading = () => {};
     let customerRatesDirty = false;
     let customerRatesSaving = false;
+    let detailDraft = null;
+    const planningPermissions = request('/bff/user').then(user => user.permissions?.canEditPlanningRecords === true).catch(() => false);
     const drafts = new Map();
     const notices = new Map();
     const saving = new Set();
@@ -29,7 +32,7 @@
     const priceDrafts = new Map();
     const priceLoading = new Set();
     const priceDirty = draft => draft.value.trim() !== '' && Number(draft.value.replace(',', '.')) !== draft.baseline || draft.value.trim() === '';
-    window.addEventListener('beforeunload', event => { if (drafts.size || customerRatesDirty || [...priceDrafts.values()].some(priceDirty)) { event.preventDefault(); event.returnValue = ''; } });
+    window.addEventListener('beforeunload', event => { if (drafts.size || customerRatesDirty || detailDraft?.dirty || [...priceDrafts.values()].some(priceDirty)) { event.preventDefault(); event.returnValue = ''; } });
     async function request(path, options) {
       const response = await fetch(path, { credentials: 'same-origin', cache: 'no-store', ...options });
       if (!response.ok) { const error = new Error('Aanvraag mislukt (' + response.status + ').'); error.status = response.status; throw error; }
@@ -264,6 +267,7 @@
       const sequence = ++detailNumber;
       stopDetailLoading();
       customerRatesDirty = false;
+      detailSave.disabled = true; detailSave.onclick = null; detailSave.title = '';
       if (list === 'klanten') detail.classList.add('customer-detail'); else detail.classList.remove('customer-detail');
       document.querySelector('#detail-title').textContent = item.bedrijfsnaam || item.naam || item.omschrijving || definition.singular;
       document.querySelector('#detail-subtitle').textContent = definition.title + ' · Alleen bekijken';
@@ -274,10 +278,10 @@
         const finishLoading = window.VsvkLoading.begin();
         stopDetailLoading = finishLoading;
         try {
-          const customer = await request('/api/planning/klanten/' + encodeURIComponent(item.id));
+          const [customer, canEdit] = await Promise.all([request('/api/planning/klanten/' + encodeURIComponent(item.id)), planningPermissions]);
           if (sequence !== detailNumber || !detail.open) return;
-          document.querySelector('#detail-subtitle').textContent = (customer.debiteurnummer ? 'Debiteur ' + customer.debiteurnummer + ' · ' : '') + 'Klantgegevens alleen bekijken';
-          const rates = renderCustomerDetail(content, customer);
+          document.querySelector('#detail-subtitle').textContent = (customer.debiteurnummer ? 'Debiteur ' + customer.debiteurnummer + ' · ' : '') + (canEdit ? 'Klantgegevens wijzigen' : 'Klantgegevens alleen bekijken');
+          const rates = renderCustomerDetail(content, customer, canEdit, sequence, item);
           await loadCustomerRates(rates, customer.id, sequence);
         } catch (error) {
           if (sequence !== detailNumber || !detail.open) return;
@@ -287,6 +291,80 @@
         }
         return;
       }
+      if (list === 'artikelen' && await planningPermissions) {
+        if (sequence !== detailNumber) return;
+        detail.showModal();
+        content.textContent = 'Artikelgegevens laden…';
+        const finishLoading = window.VsvkLoading.begin();
+        stopDetailLoading = finishLoading;
+        try {
+          const [article, categories, units] = await Promise.all([
+            request('/api/articles/' + encodeURIComponent(item.id)), request('/api/article-categories'), request('/api/article-units')
+          ]);
+          if (sequence !== detailNumber || !detail.open) return;
+          document.querySelector('#detail-subtitle').textContent = 'Artikelgegevens wijzigen';
+          renderArticleDetail(content, article, categories, units, sequence, item);
+        } catch (error) {
+          if (sequence === detailNumber && detail.open) content.textContent = 'Artikelgegevens ophalen mislukt: ' + error.message;
+        } finally { finishLoading(); }
+        return;
+      }
+      if (['medewerkers', 'materieel', 'tarieven'].includes(list) && await planningPermissions) {
+        if (sequence !== detailNumber) return;
+        detail.showModal(); content.textContent = 'Gegevens laden…';
+        const finishLoading = window.VsvkLoading.begin(); stopDetailLoading = finishLoading;
+        try {
+          let endpoint; let readEndpoint; let fields; let record; let references;
+          const options = entries => entries.map(entry => ({ value: entry.id ?? entry.naam, label: entry.naam }));
+          if (list === 'medewerkers') {
+            readEndpoint = '/api/planning/medewerkers/' + encodeURIComponent(item.id);
+            endpoint = readEndpoint + '/gegevens';
+            const [employee, skills, branches] = await Promise.all([request(readEndpoint), request('/api/planning/medewerkers/vaardigheden'), request('/api/planning/medewerkers/vestigingen')]);
+            record = employee;
+            fields = [{ key: 'actief', label: 'Actief', type: 'boolean' }, { key: 'personeelsnummer', label: 'Personeelsnummer' },
+              { key: 'naam', label: 'Naam' }, { key: 'functie', label: 'Functie' }, { key: 'telefoon', label: 'Telefoon' }, { key: 'email', label: 'E-mail' },
+              { key: 'vestiging', label: 'Vestiging', type: 'select', options: options(branches) }, { key: 'skills', label: 'Vaardigheden & certificaten', type: 'skills', options: options(skills) }];
+          } else if (list === 'materieel') {
+            endpoint = '/api/planning/materieel/' + encodeURIComponent(item.id); readEndpoint = endpoint;
+            [record, references] = await Promise.all([request(endpoint), request('/api/planning/materieel/referenties')]);
+            fields = [{ key: 'omschrijving', label: 'Omschrijving' }, { key: 'materieelGroepId', label: 'Groep', type: 'select', options: options(references.groepen) },
+              { key: 'standplaatsId', label: 'Vestiging', type: 'select', options: options(references.vestigingen) }, { key: 'kenteken', label: 'Kenteken' },
+              { key: 'merk', label: 'Merk' }, { key: 'zoeknaam', label: 'Zoeknaam' }, { key: 'serienummer', label: 'Serienummer' }];
+          } else {
+            endpoint = '/api/planning/tarieven/' + encodeURIComponent(item.standaardTariefId) + '/detail'; readEndpoint = endpoint;
+            record = await request(endpoint);
+            fields = [{ key: 'actief', label: 'Actief', type: 'boolean' }, { key: 'functie', label: 'Functie', required: true },
+              { key: 'prijs', label: 'Prijs', type: 'number', required: true }, { key: 'eenheid', label: 'Eenheid', required: true },
+              { key: 'geldigVanaf', label: 'Geldig vanaf', type: 'date', required: true }];
+          }
+          if (sequence !== detailNumber || !detail.open) return;
+          document.querySelector('#detail-subtitle').textContent = definition.title + ' · Wijzigen';
+          detailDraft = window.VsvkPlanningEditor.create({ content, saveButton: detailSave, endpoint, readEndpoint, request, item: record, fields,
+            isCurrent: () => sequence === detailNumber && detail.open,
+            onSaved: saved => {
+              if (list === 'medewerkers') updateEmployee(item, saved);
+              else if (list === 'materieel') {
+                Object.assign(item, saved);
+                item.materieelgroep = references.groepen.find(group => group.id === saved.materieelGroepId)?.naam || null;
+                item.standplaats = references.vestigingen.find(branch => branch.id === saved.standplaatsId)?.naam || null;
+              } else Object.assign(item, { functie: saved.functie, actief: saved.actief, prijs: saved.prijs, eenheid: saved.eenheid, geldigVanaf: saved.geldigVanaf });
+              render();
+            }
+          });
+          if (list === 'medewerkers') {
+            addDetailSection(content, 'Contract & tarief', 'Nog niet beschikbaar.');
+            addDetailSection(content, 'Afwezigheid', 'Nog niet beschikbaar.');
+            addDetailSection(content, 'Komende inzet', 'Nog niet beschikbaar.');
+          } else if (list === 'materieel') {
+            addDetailSection(content, 'Verhuurtarief en keuring', 'Nog niet beschikbaar.');
+            addDetailSection(content, 'Niet beschikbaar en komende inzet', 'Nog niet beschikbaar.');
+          }
+        } catch (error) {
+          if (sequence === detailNumber && detail.open) content.textContent = 'Gegevens ophalen mislukt: ' + error.message;
+        } finally { finishLoading(); }
+        return;
+      }
+      if (sequence !== detailNumber) return;
       const fields = document.createElement('div'); fields.className = 'fg';
       for (const [label, field] of definition.columns) {
         if (field === 'skills') continue;
@@ -305,30 +383,151 @@
       }
       detail.showModal();
     }
-    function renderCustomerDetail(content, customer) {
+    function renderArticleDetail(content, article, categories, units, sequence, item) {
       content.replaceChildren();
-      const billing = customer.facturatie || {};
+      const state = { baseline: article, dirty: false, saving: false, conflict: null };
+      detailDraft = state;
+      const fields = document.createElement('div'); fields.className = 'fg';
+      const controls = {};
+      const optionIds = {};
+      function input(key, label, value, options) {
+        const block = document.createElement('label'); block.className = 'field';
+        const title = document.createElement('strong'); title.textContent = label;
+        const control = document.createElement(options ? 'select' : 'input');
+        control.setAttribute('aria-label', label);
+        if (options) {
+          const selectable = options.filter(option => option.actief !== false || option.id === value);
+          const available = selectable.some(option => option.id === value) ? selectable : [{ id: value, naam: article[key === 'categorieId' ? 'categorie' : 'eenheid'] }, ...selectable];
+          optionIds[key] = new Set(available.map(entry => entry.id));
+          for (const entry of available) { const option = document.createElement('option'); option.value = entry.id; option.textContent = entry.naam; control.append(option); }
+        } else control.type = 'text';
+        control.value = value ?? '';
+        control.addEventListener('input', updateState); control.addEventListener('change', updateState);
+        controls[key] = control; block.append(title, control); fields.append(block);
+      }
+      input('naam', 'Omschrijving', article.naam);
+      input('categorieId', 'Categorie', article.categorieId, categories);
+      input('eenheidId', 'Eenheid', article.eenheidId, units);
+      input('tarief', 'Prijs', article.tarief == null ? '' : String(article.tarief));
+      const activeLabel = document.createElement('label'); activeLabel.className = 'field';
+      const activeTitle = document.createElement('strong'); activeTitle.textContent = 'Actief';
+      const active = switchControl(article.actief, 'Actief');
+      let activeValue = article.actief;
+      active.addEventListener('click', () => { activeValue = !activeValue; active.setAttribute('aria-checked', String(activeValue)); updateState(); });
+      activeLabel.append(activeTitle, active); fields.append(activeLabel);
+      const status = document.createElement('p'); status.className = 'hint'; status.setAttribute('role', 'status');
+      const conflict = document.createElement('div'); conflict.className = 'customer-rate-conflicts';
+      const save = detailSave;
+      content.append(fields, status, conflict);
+      function values() {
+        const price = controls.tarief.value.trim().replace(',', '.');
+        return { naam: controls.naam.value.trim(), categorieId: controls.categorieId.value, eenheidId: controls.eenheidId.value,
+          tariefSoort: price === '' ? 'zie_prijs' : 'vast', tarief: price === '' ? null : Number(price), actief: activeValue };
+      }
+      function comparable(value) { return JSON.stringify([value.naam, value.categorieId, value.eenheidId, value.tariefSoort, value.tarief, value.actief]); }
+      function updateState() {
+        state.dirty = comparable(values()) !== comparable(state.baseline);
+        save.disabled = !state.dirty || state.saving || !!state.conflict;
+        for (const control of Object.values(controls)) control.disabled = state.saving;
+        active.disabled = state.saving;
+      }
+      async function showConflict() {
+        try {
+          const latest = await request('/api/articles/' + encodeURIComponent(article.id));
+          if (sequence !== detailNumber || !detail.open) return;
+          state.conflict = latest;
+          conflict.replaceChildren();
+          const description = document.createElement('p'); description.className = 'hint';
+          description.textContent = 'Nieuwste gegevens: ' + latest.naam + ' · ' + latest.categorie + ' · ' + latest.eenheid + ' · ' + (latest.tarief ?? 'Zie prijs') + ' · ' + (latest.actief ? 'Actief' : 'Inactief') + '. Je invoer blijft staan.';
+          const reapply = document.createElement('button'); reapply.type = 'button'; reapply.className = 'btn sm'; reapply.textContent = 'Mijn wijzigingen opnieuw toepassen';
+          reapply.addEventListener('click', () => {
+            const previous = state.baseline;
+            for (const key of ['naam', 'categorieId', 'eenheidId']) {
+              if (controls[key].value !== String(previous[key] ?? '')) continue;
+              if (optionIds[key] && !optionIds[key].has(latest[key])) {
+                const option = document.createElement('option'); option.value = latest[key]; option.textContent = latest[key === 'categorieId' ? 'categorie' : 'eenheid']; controls[key].append(option); optionIds[key].add(latest[key]);
+              }
+              controls[key].value = latest[key];
+            }
+            if (values().tarief === previous.tarief && values().tariefSoort === previous.tariefSoort) controls.tarief.value = latest.tarief == null ? '' : String(latest.tarief);
+            if (activeValue === previous.actief) { activeValue = latest.actief; active.setAttribute('aria-checked', String(activeValue)); }
+            state.baseline = latest; state.conflict = null; conflict.replaceChildren(); status.textContent = 'Controleer je wijzigingen en sla opnieuw op.'; updateState();
+          });
+          conflict.append(description, reapply);
+        } catch (error) {
+          if (sequence !== detailNumber || !detail.open) return;
+          state.conflict = { unavailable: true };
+          conflict.replaceChildren();
+          const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn sm'; retry.textContent = 'Nieuwste gegevens ophalen'; retry.addEventListener('click', showConflict); conflict.append(retry);
+          status.textContent = 'Nieuwste gegevens ophalen mislukt. Je invoer blijft behouden.';
+        }
+        updateState();
+      }
+      save.onclick = async () => {
+        const data = values();
+        const price = controls.tarief.value.trim().replace(',', '.');
+        if (!data.naam || data.naam.length > 200 || (price && (!/^\d+(?:\.\d{1,4})?$/.test(price) || data.tarief > 9999999999.9999))) {
+          status.textContent = 'Vul een omschrijving en een geldig tarief met maximaal vier decimalen in.'; return;
+        }
+        state.saving = true; status.textContent = ''; updateState();
+        const finishLoading = window.VsvkLoading.begin();
+        try {
+          const saved = await request('/api/articles/' + encodeURIComponent(article.id), { method: 'PUT', headers: { 'Content-Type': 'application/json', 'If-Match': state.baseline.eTag }, body: JSON.stringify(data) });
+          if (sequence !== detailNumber || !detail.open) return;
+          state.baseline = saved; Object.assign(item, saved); status.textContent = 'Artikel opgeslagen.'; render();
+        } catch (error) {
+          if (sequence !== detailNumber || !detail.open) return;
+          if (error.status === 412) { state.conflict = { unavailable: true }; status.textContent = 'Het artikel is door iemand anders gewijzigd.'; await showConflict(); }
+          else status.textContent = 'Opslaan mislukt: ' + error.message;
+        } finally { state.saving = false; finishLoading(); if (sequence === detailNumber && detail.open) updateState(); }
+      };
+      updateState();
+    }
+    function renderCustomerDetail(content, customer, canEdit, sequence, item) {
+      content.replaceChildren();
+      const customerSave = detailSave;
+      customerSave.disabled = true; customerSave.onclick = null;
+      customerSave.title = canEdit ? '' : 'Alleen bekijken';
+      const copy = value => JSON.parse(JSON.stringify(value));
+      const state = { baseline: copy(customer), draft: copy(customer), dirty: false, saving: false, conflict: null };
+      if (canEdit) detailDraft = state;
+      state.draft.facturatie ||= {};
+      state.draft.contactpersonen ||= [];
+      const billing = state.draft.facturatie;
+      const fields = {};
+      const fieldNames = { 'Bedrijfsnaam *': 'bedrijfsnaam', 'Debiteurnummer': 'debiteurnummer', 'KvK-nummer': 'kvkNummer', 'Btw-nummer': 'facturatie.btwNummer', 'Website': 'website', 'Telefoon algemeen': 'telefoon', 'E-mail algemeen': 'email', 'Straat': 'straat', 'Huisnr': 'huisnummer', 'Toev.': 'toevoeging', 'Postcode': 'postcode', 'Plaats': 'plaats', 'Land': 'land', 'Factuur e-mail': 'facturatie.factuurEmail', 'Vaste referentie / kostenplaats': 'facturatie.vasteReferentie', 'IBAN': 'facturatie.iban', 'G-rekening (%)': 'facturatie.gRekeningPercentage', 'Opmerkingen': 'opmerkingen' };
+      const get = (obj, path) => path.split('.').reduce((value, key) => value?.[key], obj);
+      const set = (obj, path, value) => { const parts = path.split('.'); const key = parts.pop(); const target = parts.reduce((value, part) => value[part], obj); target[key] = value; };
+      const comparable = data => JSON.stringify([Object.keys(fieldNames).map(label => get(data, fieldNames[label]) ?? null), data.actief, data.facturatie?.afwijkendFactuuradres, data.facturatie?.btwVerlegd, data.facturatie?.mandagenregisterMeesturen, data.facturatie?.facturerenPer ?? null, data.contactpersonen]);
+      let updateState = () => {};
       const element = (tag, className, text) => { const result = document.createElement(tag); if (className) result.className = className; if (text != null) result.textContent = text; return result; };
-      const input = (value, label) => { const result = element('input'); result.type = 'text'; result.value = value == null ? '' : String(value); result.readOnly = true; if (label) result.setAttribute('aria-label', label); return result; };
+      const input = (value, label) => { const result = element('input'); result.type = 'text'; result.value = value == null ? '' : String(value); result.readOnly = !canEdit; if (label) result.setAttribute('aria-label', label); return result; };
       const field = (label, value, multiline = false) => {
         const result = element('label', 'f', label);
-        const control = multiline ? element('textarea') : input(value);
-        if (multiline) { control.value = value == null ? '' : String(value); control.readOnly = true; control.rows = 2; control.placeholder = 'Bijv. melden bij de bouwkeet, sleutel bij de beheerder'; }
+        const key = fieldNames[label];
+        const control = multiline ? element('textarea') : input(value, label.replace(' *', ''));
+        if (multiline) { control.value = value == null ? '' : String(value); control.readOnly = !canEdit; control.rows = 2; control.placeholder = 'Bijv. melden bij de bouwkeet, sleutel bij de beheerder'; }
+        fields[key] = control;
+        if (canEdit) control.addEventListener('input', () => { const raw = control.value; const numeric = raw.replace(',', '.'); set(state.draft, key, key === 'facturatie.gRekeningPercentage' ? (raw.trim() === '' ? null : /^\d+(?:\.\d{1,2})?$/.test(numeric) ? Number(numeric) : numeric) : (raw === '' && !['bedrijfsnaam', 'debiteurnummer'].includes(key) ? null : raw)); updateState(); });
         result.append(control); return result;
       };
       const group = (className, ...children) => { const result = element('div', className); result.append(...children); return result; };
       const section = title => { const result = element('div', 'ksec'); result.append(element('h3', '', title)); return result; };
+      const booleanKeys = { 'Actief': 'actief', 'Afwijkend factuuradres': 'facturatie.afwijkendFactuuradres', 'Btw verlegd (standaard)': 'facturatie.btwVerlegd', 'Mandagenregister meesturen (bij aanneemsom alleen op verzoek)': 'facturatie.mandagenregisterMeesturen' };
       const boolean = (label, value) => {
         const result = element('span', 'swl');
-        result.append(typeof value === 'boolean' ? switchControl(value, label, true) : element('span', 'hint', '—'), element('span', '', label));
+        const control = typeof value === 'boolean' ? switchControl(value, label, !canEdit) : element('span', 'hint', '—');
+        if (canEdit && typeof value === 'boolean') { const key = booleanKeys[label]; fields[key] = control; control.addEventListener('click', () => { const next = !get(state.draft, key); set(state.draft, key, next); control.setAttribute('aria-checked', String(next)); updateState(); }); }
+        result.append(control, element('span', '', label));
         return result;
       };
       const billingPeriod = element('label', 'f', 'Factureren per');
-      const periodSelect = element('select'); periodSelect.disabled = true;
+      const periodSelect = element('select'); periodSelect.disabled = !canEdit; fields['facturatie.facturerenPer'] = periodSelect;
       const period = billing.facturerenPer == null ? '' : String(billing.facturerenPer);
       const periods = [...new Set([period, 'week', 'dag'])];
       for (const value of periods) { const option = element('option', '', value || '—'); option.value = value; periodSelect.append(option); }
       periodSelect.value = period; billingPeriod.append(periodSelect);
+      if (canEdit) periodSelect.addEventListener('change', () => { state.draft.facturatie.facturerenPer = periodSelect.value || null; updateState(); });
       const company = section('Bedrijf');
       company.append(field('Bedrijfsnaam *', customer.bedrijfsnaam), group('fg', field('Debiteurnummer', customer.debiteurnummer), field('KvK-nummer', customer.kvkNummer)),
         group('fg', field('Btw-nummer', billing.btwNummer), field('Website', customer.website)),
@@ -345,22 +544,36 @@
       content.append(group('kgrid', company, address, invoicing));
 
       const contacts = element('section', 'fsec');
-      const contactAdd = element('button', 'btn sm', '+ Contactpersoon'); contactAdd.type = 'button'; contactAdd.disabled = true; contactAdd.title = 'Nog niet beschikbaar';
+      const contactAdd = element('button', 'btn sm', '+ Contactpersoon'); contactAdd.type = 'button'; contactAdd.disabled = !canEdit;
       contacts.append(group('hd', element('h3', '', 'Contactpersonen & bestellers'), contactAdd));
-      const people = customer.contactpersonen || [];
-      if (people.length) {
-        contacts.append(group('crow2 hd', ...['★', 'Naam', 'Functie', 'Telefoon', 'E-mail', ''].map(label => element('span', '', label))));
+      const contactRows = element('div'); contacts.append(contactRows);
+      let contactControls = [];
+      function renderContacts() {
+        contactRows.replaceChildren();
+        contactControls = [];
+        const people = state.draft.contactpersonen;
+        if (people.length) {
+        contactRows.append(group('crow2 hd', ...['★', 'Naam', 'Functie', 'Telefoon', 'E-mail', ''].map(label => element('span', '', label))));
         for (const person of people) {
-          const standard = element('input'); standard.type = 'radio'; standard.name = 'customer-standard'; standard.checked = person.isStandaardBesteller === true; standard.disabled = true; standard.setAttribute('aria-label', 'Standaard besteller ' + person.naam);
+          const standard = element('input'); standard.type = 'radio'; standard.name = 'customer-standard'; standard.checked = person.isStandaardBesteller === true; standard.disabled = !canEdit; standard.setAttribute('aria-label', 'Standaard besteller ' + person.naam);
           const name = input(person.naam, 'Naam contactpersoon'); name.placeholder = 'Naam';
           const job = input(person.functie, 'Functie ' + person.naam); job.className = 'opt'; job.placeholder = 'Functie';
           const phone = input(person.telefoon, 'Telefoon ' + person.naam); phone.className = 'opt'; phone.placeholder = 'Telefoon';
           const email = input(person.email, 'E-mail ' + person.naam); email.className = 'opt'; email.placeholder = 'E-mail';
-          const remove = element('button', 'btn ghost', '✕'); remove.type = 'button'; remove.disabled = true; remove.title = 'Nog niet beschikbaar'; remove.setAttribute('aria-label', 'Verwijder contactpersoon ' + person.naam);
-          contacts.append(group('crow2', standard, name, job, phone, email, remove));
+          const remove = element('button', 'btn ghost', '✕'); remove.type = 'button'; remove.disabled = !canEdit; remove.setAttribute('aria-label', 'Verwijder contactpersoon ' + person.naam);
+          contactControls.push(standard, name, job, phone, email, remove);
+          if (canEdit) {
+            for (const [control, key] of [[name, 'naam'], [job, 'functie'], [phone, 'telefoon'], [email, 'email']]) control.addEventListener('input', () => { person[key] = control.value || (key === 'naam' ? '' : null); updateState(); });
+            standard.addEventListener('change', () => { people.forEach(p => { p.isStandaardBesteller = p === person; }); updateState(); });
+            remove.addEventListener('click', () => { state.draft.contactpersonen = people.filter(p => p !== person); renderContacts(); updateState(); });
+          }
+          contactRows.append(group('crow2', standard, name, job, phone, email, remove));
         }
-        contacts.append(element('p', 'hint', '★ = standaard besteller, wordt vooringevuld bij een nieuwe werkopdracht.'));
-      } else contacts.append(element('p', 'hint', 'Nog geen contactpersonen. Voeg de besteller toe, dan staat die klaar bij een nieuwe werkopdracht.'));
+        contactRows.append(element('p', 'hint', '★ = standaard besteller, wordt vooringevuld bij een nieuwe werkopdracht.'));
+        } else contactRows.append(element('p', 'hint', 'Nog geen contactpersonen. Voeg de besteller toe, dan staat die klaar bij een nieuwe werkopdracht.'));
+      }
+      if (canEdit) contactAdd.addEventListener('click', () => { state.draft.contactpersonen.push({ id: 0, naam: '', functie: null, telefoon: null, email: null, isStandaardBesteller: false }); renderContacts(); updateState(); });
+      renderContacts();
       content.append(contacts);
 
       const rates = element('section', 'fsec customer-rates');
@@ -369,6 +582,68 @@
       const workOrders = element('section', 'fsec');
       workOrders.append(group('hd', element('h3', '', 'Werkopdrachten')), element('p', 'hint', 'Werkopdrachten zijn nog niet gekoppeld.'));
       content.append(workOrders);
+      if (canEdit) {
+        const status = element('p', 'hint'); status.setAttribute('role', 'status');
+        const conflict = element('div', 'customer-rate-conflicts');
+        const save = customerSave;
+        content.append(status, conflict);
+        updateState = () => {
+          state.dirty = comparable(state.draft) !== comparable(state.baseline);
+          save.disabled = !state.dirty || state.saving || !!state.conflict;
+          for (const control of Object.values(fields)) control.disabled = state.saving;
+          contactAdd.disabled = state.saving;
+          for (const control of contactControls) control.disabled = state.saving;
+        };
+        function refreshControls() {
+          for (const [key, control] of Object.entries(fields)) {
+            const value = get(state.draft, key);
+            if (booleanKeys && Object.values(booleanKeys).includes(key)) control.setAttribute('aria-checked', String(value));
+            else control.value = value == null ? '' : String(value);
+          }
+          renderContacts();
+        }
+        async function showConflict() {
+          try {
+            const latest = await request('/api/planning/klanten/' + encodeURIComponent(customer.id));
+            if (sequence !== detailNumber || !detail.open) return;
+            state.conflict = latest;
+            conflict.replaceChildren();
+            const compare = element('pre', 'hint', 'Nieuwste gegevens:\n' + JSON.stringify(latest, null, 2) + '\n\nJouw invoer:\n' + JSON.stringify(state.draft, null, 2));
+            const reapply = element('button', 'btn sm', 'Mijn klantwijzigingen opnieuw toepassen'); reapply.type = 'button';
+            reapply.addEventListener('click', () => {
+              const keys = [...Object.values(fieldNames), ...Object.values(booleanKeys), 'facturatie.facturerenPer', 'contactpersonen'];
+              for (const key of keys) if (JSON.stringify(get(state.draft, key) ?? null) === JSON.stringify(get(state.baseline, key) ?? null)) set(state.draft, key, copy(get(latest, key) ?? null));
+              state.baseline = latest; state.draft.version = latest.version; state.draft.eTag = latest.eTag; state.conflict = null;
+              conflict.replaceChildren(); refreshControls(); status.textContent = 'Controleer je wijzigingen en sla opnieuw op. Gewijzigde contactpersonen worden als geheel opnieuw toegepast.'; updateState();
+            });
+            conflict.append(compare, reapply);
+          } catch (error) {
+            if (sequence !== detailNumber || !detail.open) return;
+            state.conflict = { unavailable: true }; conflict.replaceChildren();
+            const retry = element('button', 'btn sm', 'Nieuwste klantgegevens ophalen'); retry.type = 'button'; retry.addEventListener('click', showConflict); conflict.append(retry);
+            status.textContent = 'Nieuwste gegevens ophalen mislukt. Je invoer blijft behouden.';
+          }
+          updateState();
+        }
+        save.onclick = async () => {
+          const data = copy(state.draft); const percentage = data.facturatie.gRekeningPercentage;
+          if (!data.bedrijfsnaam?.trim() || !data.debiteurnummer?.trim() || data.contactpersonen.some(person => !person.naam?.trim()) ||
+              (percentage != null && (!/^\d+(?:\.\d{1,2})?$/.test(String(percentage)) || Number(percentage) > 100))) { status.textContent = 'Vul bedrijfsnaam, debiteurnummer, contactnamen en een geldig G-rekeningpercentage in.'; return; }
+          data.facturatie.gRekeningPercentage = percentage == null ? null : Number(percentage);
+          state.saving = true; updateState(); const finishLoading = window.VsvkLoading.begin();
+          try {
+            const saved = await request('/api/planning/klanten/' + encodeURIComponent(customer.id), { method: 'PUT', headers: { 'Content-Type': 'application/json', 'If-Match': state.baseline.eTag }, body: JSON.stringify(data) });
+            if (sequence !== detailNumber || !detail.open) return;
+            state.baseline = copy(saved); state.draft = copy(saved); Object.assign(item, { bedrijfsnaam: saved.bedrijfsnaam, debiteurnummer: saved.debiteurnummer, actief: saved.actief, telefoon: saved.telefoon, plaats: saved.plaats, standaardBesteller: saved.contactpersonen.find(p => p.isStandaardBesteller)?.naam });
+            refreshControls(); render(); status.textContent = 'Klant opgeslagen.';
+          } catch (error) {
+            if (sequence !== detailNumber || !detail.open) return;
+            if (error.status === 412) { state.conflict = { unavailable: true }; status.textContent = 'Deze klant is door iemand anders gewijzigd. Je invoer blijft behouden.'; await showConflict(); }
+            else status.textContent = 'Opslaan mislukt: ' + error.message;
+          } finally { state.saving = false; finishLoading(); if (sequence === detailNumber && detail.open) updateState(); }
+        };
+        updateState();
+      }
       return rates;
     }
     async function loadCustomerRates(section, customerId, sequence) {
@@ -401,7 +676,8 @@
       const status = create('p', 'hint'); status.setAttribute('role', 'status');
       const conflicts = create('div', 'customer-rate-conflicts');
       section.append(heading, explanation, status, conflicts);
-      const comparable = value => value && /^\d+(?:\.\d{1,2})?$/.test(value) ? String(Number(value)) : value || '';
+      const normalize = value => String(value ?? '').trim().replace(',', '.');
+      const comparable = value => { const normalized = normalize(value); return /^\d+(?:\.\d{1,2})?$/.test(normalized) ? String(Number(normalized)) : normalized; };
       const changed = () => standard.some(rate => comparable(draft.get(rate.functieId)) !== comparable(baseline.get(rate.functieId)));
       const updateState = () => { customerRatesDirty = changed(); save.disabled = !customerRatesDirty || customerRatesSaving || !!latest; };
       if (!standard.length) section.append(create('p', 'hint', 'Geen standaardtarieven beschikbaar.'));
@@ -414,7 +690,7 @@
         const row = create('div', 'customer-rate-row');
         const label = create('span', '', rate.functie + (rate.actief ? '' : ' (inactief)'));
         const defaultPrice = create('span', 'hint', 'Standaard ' + formatPrice(rate.prijs) + ' / ' + rate.eenheid);
-        const input = create('input'); input.type = 'number'; input.min = '0'; input.max = '99999999.99'; input.step = '0.01';
+        const input = create('input'); input.type = 'text'; input.inputMode = 'decimal';
         input.placeholder = 'Standaard'; input.value = draft.get(rate.functieId) || '';
         input.disabled = !rate.actief && !baseline.has(rate.functieId);
         input.setAttribute('aria-label', 'Afwijkend tarief ' + rate.functie);
@@ -432,7 +708,7 @@
         if (!changed() || customerRatesSaving || latest) return;
         const overrides = [];
         for (const rate of standard) {
-          const raw = draft.get(rate.functieId) || '';
+          const raw = normalize(draft.get(rate.functieId));
           if (!raw) continue;
           const amount = Number(raw);
           if (!Number.isFinite(amount) || amount < 0 || amount >= 100000000 || !/^\d+(?:\.\d{1,2})?$/.test(raw)) {
@@ -460,7 +736,8 @@
               conflicts.replaceChildren(create('p', 'hint', 'Nieuwste opgeslagen tarieven:'));
               for (const rate of standard) {
                 const current = latestValues.get(rate.functieId);
-                conflicts.append(create('p', 'hint', rate.functie + ': ' + (current == null ? 'standaard ' + formatPrice(rate.prijs) : formatPrice(Number(current))) + ' · jouw invoer: ' + (draft.get(rate.functieId) ? formatPrice(Number(draft.get(rate.functieId))) : 'standaard')));
+                const entered = normalize(draft.get(rate.functieId));
+                conflicts.append(create('p', 'hint', rate.functie + ': ' + (current == null ? 'standaard ' + formatPrice(rate.prijs) : formatPrice(Number(current))) + ' · jouw invoer: ' + (!entered ? 'standaard' : /^\d+(?:\.\d{1,2})?$/.test(entered) ? formatPrice(Number(entered)) : draft.get(rate.functieId))));
               }
               const reapply = create('button', 'btn sm', 'Mijn wijzigingen opnieuw toepassen'); reapply.type = 'button';
               reapply.addEventListener('click', () => {
@@ -487,10 +764,10 @@
     }
     document.querySelectorAll('[data-section]').forEach(button => button.addEventListener('click', () => showSection(button.dataset.section)));
     document.querySelectorAll('[data-list]').forEach(button => button.addEventListener('click', () => load(button.dataset.list)));
-    const mayCloseDetail = () => !customerRatesSaving && (!customerRatesDirty || window.confirm('Niet-opgeslagen tariefwijzigingen verwerpen?'));
+    const mayCloseDetail = () => !customerRatesSaving && !detailDraft?.saving && (!(customerRatesDirty || detailDraft?.dirty) || window.confirm('Niet-opgeslagen wijzigingen verwerpen?'));
     document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => { if (mayCloseDetail()) detail.close(); }));
     detail.addEventListener('cancel', event => { if (!mayCloseDetail()) event.preventDefault(); });
-    detail.addEventListener('close', () => { detailNumber++; customerRatesDirty = false; stopDetailLoading(); });
+    detail.addEventListener('close', () => { detailNumber++; customerRatesDirty = false; detailDraft = null; detailSave.disabled = true; detailSave.onclick = null; stopDetailLoading(); });
     search.addEventListener('input', render);
     document.querySelectorAll('[data-list]').forEach(button => {
       if (!definitions[button.dataset.list].path) return;

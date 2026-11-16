@@ -1,4 +1,5 @@
 using Vsvk.Api.Http;
+using System.Text.Json.Serialization;
 
 namespace Vsvk.Api.DTOs;
 
@@ -22,17 +23,26 @@ public sealed record PlanningCustomerListDto(
   string? Plaats, string? StandaardBesteller);
 
 public sealed record PlanningCustomerContactDto(
-  int Id, string Naam, string? Functie, string? Telefoon, string? Email, bool IsStandaardBesteller);
+  [property: JsonRequired] int Id, [property: JsonRequired] string Naam, [property: JsonRequired] string? Functie,
+  [property: JsonRequired] string? Telefoon, [property: JsonRequired] string? Email, [property: JsonRequired] bool IsStandaardBesteller);
 
 public sealed record PlanningCustomerBillingDto(
-  string? BtwNummer, string? Iban, string? FactuurEmail, bool AfwijkendFactuuradres, string? VasteReferentie,
-  decimal? GRekeningPercentage, string? FacturerenPer, bool BtwVerlegd, bool MandagenregisterMeesturen);
+  [property: JsonRequired] string? BtwNummer, [property: JsonRequired] string? Iban, [property: JsonRequired] string? FactuurEmail,
+  [property: JsonRequired] bool AfwijkendFactuuradres, [property: JsonRequired] string? VasteReferentie,
+  [property: JsonRequired] decimal? GRekeningPercentage, [property: JsonRequired] string? FacturerenPer,
+  [property: JsonRequired] bool BtwVerlegd, [property: JsonRequired] bool MandagenregisterMeesturen);
 
 public sealed record PlanningCustomerDetailDto(
-  int Id, bool Actief, string Debiteurnummer, string Bedrijfsnaam, string? KvkNummer,
-  string? Website, string? Telefoon, string? Email, string? Straat, string? Huisnummer,
-  string? Toevoeging, string? Postcode, string? Plaats, string? Land, string? Opmerkingen,
-  List<PlanningCustomerContactDto> Contactpersonen, PlanningCustomerBillingDto Facturatie);
+  [property: JsonRequired] int Id, [property: JsonRequired] bool Actief, [property: JsonRequired] string Debiteurnummer,
+  [property: JsonRequired] string Bedrijfsnaam, [property: JsonRequired] string? KvkNummer,
+  [property: JsonRequired] string? Website, [property: JsonRequired] string? Telefoon, [property: JsonRequired] string? Email,
+  [property: JsonRequired] string? Straat, [property: JsonRequired] string? Huisnummer,
+  [property: JsonRequired] string? Toevoeging, [property: JsonRequired] string? Postcode, [property: JsonRequired] string? Plaats,
+  [property: JsonRequired] string? Land, [property: JsonRequired] string? Opmerkingen,
+  [property: JsonRequired] List<PlanningCustomerContactDto> Contactpersonen, [property: JsonRequired] PlanningCustomerBillingDto Facturatie, long Version)
+{
+  public string ETag => StrongEtag.Format(Version);
+}
 
 public sealed record PlanningStandardRateDto(
   int FunctieId, string Functie, bool Actief, string? Toelichting,

@@ -25,7 +25,7 @@ public sealed partial class PlanningRepository(VsvkDbContext context)
             contact.Telefoon, contact.Email, contact.IsStandaardBesteller)).ToList(),
         new PlanningCustomerBillingDto(customer.BtwNummer, customer.Iban, customer.FactuurEmail, customer.AfwijkendFactuuradres,
           customer.VasteReferentie, customer.GRekeningPercentage, customer.FacturerenPer,
-          customer.BtwVerlegd, customer.MandagenregisterMeesturen)))
+          customer.BtwVerlegd, customer.MandagenregisterMeesturen), customer.Version))
       .FirstOrDefaultAsync(cancellationToken);
 
   private IQueryable<UserInformation> Employees(string? branch)

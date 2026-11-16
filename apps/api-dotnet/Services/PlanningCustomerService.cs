@@ -11,6 +11,9 @@ public sealed class PlanningCustomerService(PlanningRepository repository) : IPl
   public Task<PlanningCustomerDetailDto?> GetAsync(int id, CancellationToken cancellationToken) =>
     repository.GetCustomerAsync(id, cancellationToken);
 
+  public Task<PlanningCustomerDetailDto?> SaveAsync(int id, long version, PlanningCustomerDetailDto customer, CancellationToken cancellationToken) =>
+    repository.SaveCustomerAsync(id, version, customer, cancellationToken);
+
   public Task<List<PlanningStandardRateDto>> ListRatesAsync(CancellationToken cancellationToken) =>
     repository.ListRatesAsync(cancellationToken);
 

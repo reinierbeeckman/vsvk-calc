@@ -19,6 +19,7 @@
   api:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      DevelopmentAccess__Enabled: "true"
       ConnectionStrings__AppDb: Host=postgres;Port=5432;Database=${PGDATABASE:-vsvk_calc};Username=${PGUSER:-vsvk};Password=${PGPASSWORD:-vsvk}
       Jwt__Authority: ${JWT_AUTHORITY:-http://localhost:8081/realms/vsvk}
       Jwt__MetadataAddress: ${JWT_METADATA_ADDRESS:-http://keycloak:8080/realms/vsvk/.well-known/openid-configuration}
@@ -46,8 +47,11 @@
         condition: service_healthy
 
   bff:
+    ports: !override
+      - "127.0.0.1:8080:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      DevelopmentAccess__Enabled: "true"
       Oidc__Authority: ${OIDC_AUTHORITY:-http://localhost:8081/realms/vsvk}
       Oidc__MetadataAddress: ${OIDC_METADATA_ADDRESS:-http://keycloak:8080/realms/vsvk/.well-known/openid-configuration}
       Oidc__ClientId: ${OIDC_CLIENT_ID:-vsvk-bff}

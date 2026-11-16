@@ -468,8 +468,8 @@ function applyUserClaims(payload){
     .map(v=>String(v).toLowerCase().trim())
     .filter(v=>APPLICATION_ROLES.has(v));
   AUTH.roles=[...new Set(roles)];
-  AUTH.canViewSensitiveData=AUTH.roles.includes("directie")||AUTH.roles.includes("finance");
-  AUTH.canManageSettings=AUTH.roles.includes("directie");
+  AUTH.canViewSensitiveData=payload&&payload.permissions&&payload.permissions.canViewSensitiveData===true;
+  AUTH.canManageSettings=payload&&payload.permissions&&payload.permissions.canManageSettings===true;
   const account=document.getElementById("account");
   const accountName=document.getElementById("account-name");
   const accountRoles=document.getElementById("account-roles");
