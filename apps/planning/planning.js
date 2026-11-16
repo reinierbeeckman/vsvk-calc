@@ -230,9 +230,8 @@
       const selected = drafts.has(item.id) ? drafts.get(item.id) : item.actief;
       const toggle = switchControl(selected, 'Actief ' + (item.naam || item.personeelsnummer || 'medewerker')); toggle.disabled = saving.has(item.id);
       toggle.addEventListener('click', () => { const next = !selected; if (next === item.actief) drafts.delete(item.id); else drafts.set(item.id, next); notices.delete(item.id); render(); });
-      const save = document.createElement('button'); save.type = 'button'; save.className = 'btn sm'; save.textContent = 'Opslaan'; save.disabled = !drafts.has(item.id) || saving.has(item.id); save.addEventListener('click', () => saveStatus(item));
       const notice = document.createElement('small'); notice.setAttribute('role', 'status'); notice.textContent = notices.get(item.id) || '';
-      container.append(toggle, save, notice);
+      container.append(toggle, notice);
     }
     async function saveStatus(item) {
       const selected = drafts.get(item.id);
