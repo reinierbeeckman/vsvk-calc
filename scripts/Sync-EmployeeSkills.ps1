@@ -6,6 +6,12 @@ param(
   [string] $WorkbookPath,
 
   [Parameter()]
+  [string] $MappingPath = 'employee-skills-koppelingen.csv',
+
+  [Parameter()]
+  [switch] $MaakKoppelingen,
+
+  [Parameter()]
   [switch] $Apply
 )
 
@@ -145,6 +151,8 @@ function Read-TrainingWorkbook {
       Rows = @($rows | Select-Object -Skip 1)
       CourseColumn = $headerMap['omschrijving']
       EmployeeNumberColumn = $headerMap['personeelnr']
+      EmployeeNameColumn = 4
+      CompanyColumn = 16
       DiplomaDateColumn = $headerMap['diploma op']
       ValidUntilColumn = $headerMap['geldig tot']
     }
@@ -263,239 +271,208 @@ function Invoke-AppDatabaseCommand {
   return @($output | ForEach-Object { ([string]$_).Trim() } | Where-Object { $_ -ne '' })
 }
 
+if ($MaakKoppelingen -and $Apply) { throw 'Gebruik -MaakKoppelingen en -Apply niet tegelijk.' }
+
 $workbook = Read-TrainingWorkbook -Path $WorkbookPath
-$sourceByEmployee = [System.Collections.Generic.Dictionary[string, object]]::new([StringComparer]::Ordinal)
-$rowsWithoutEmployeeNumber = [System.Collections.Generic.List[int]]::new()
-$duplicateTrainingPairs = 0
+$sources = [System.Collections.Generic.Dictionary[string, object]]::new([StringComparer]::Ordinal)
+$byNumber = [System.Collections.Generic.Dictionary[string, object]]::new([StringComparer]::Ordinal)
+$rowsWithoutNumber = [System.Collections.Generic.List[int]]::new()
 foreach ($row in $workbook.Rows) {
-  $employeeNumber = Get-CellText -Row $row -Column $workbook.EmployeeNumberColumn
-  $courseName = Get-CellText -Row $row -Column $workbook.CourseColumn
-  if ([string]::IsNullOrWhiteSpace($employeeNumber) -and [string]::IsNullOrWhiteSpace($courseName)) { continue }
-  if ([string]::IsNullOrWhiteSpace($employeeNumber) -and -not [string]::IsNullOrWhiteSpace($courseName)) {
-    $rowsWithoutEmployeeNumber.Add($row.RowNumber)
+  $number = Get-CellText -Row $row -Column $workbook.EmployeeNumberColumn
+  $course = Get-CellText -Row $row -Column $workbook.CourseColumn
+  if (-not $number -and -not $course) { continue }
+  if (-not $number) {
+    $rowsWithoutNumber.Add($row.RowNumber)
     continue
   }
-  if ([string]::IsNullOrWhiteSpace($courseName)) { continue }
+  $company = Get-CellText -Row $row -Column $workbook.CompanyColumn
+  $name = Get-CellText -Row $row -Column $workbook.EmployeeNameColumn
+  if (-not $number -or -not $course -or -not $company -or -not $name) {
+    throw "Rij $($row.RowNumber) mist een personeelsnummer, opleiding, bedrijf of naam; import afgebroken."
+  }
+  $key = "$number" + [char]31 + "$company" + [char]31 + "$name"
+  if (-not $sources.ContainsKey($key)) {
+    $sources[$key] = [pscustomobject]@{
+      Company = $company
+      Name = $name
+      Trainings = [System.Collections.Generic.Dictionary[string, object]]::new([StringComparer]::Ordinal)
+    }
+    if (-not $byNumber.ContainsKey($number)) { $byNumber[$number] = [System.Collections.Generic.List[string]]::new() }
+    $byNumber[$number].Add($key)
+  }
   $training = [pscustomobject]@{
-    Name = $courseName
+    Name = $course
     DiplomaOn = ConvertTo-ExcelDate -Value (Get-CellText -Row $row -Column $workbook.DiplomaDateColumn) -RowNumber $row.RowNumber -ColumnName 'Diploma op'
     ValidUntil = ConvertTo-ExcelDate -Value (Get-CellText -Row $row -Column $workbook.ValidUntilColumn) -RowNumber $row.RowNumber -ColumnName 'Geldig tot'
     SourceRow = $row.RowNumber
   }
-  if (-not $sourceByEmployee.ContainsKey($employeeNumber)) {
-    $sourceByEmployee[$employeeNumber] = [System.Collections.Generic.Dictionary[string, object]]::new([StringComparer]::Ordinal)
-  }
-  $employeeTrainings = $sourceByEmployee[$employeeNumber]
-  if ($employeeTrainings.ContainsKey($courseName)) {
-    $duplicateTrainingPairs++
-    if (Test-NewerTrainingRecord -Candidate $training -Existing $employeeTrainings[$courseName]) {
-      $employeeTrainings[$courseName] = $training
-    }
-  }
-  else {
-    $employeeTrainings[$courseName] = $training
+  $trainings = $sources[$key].Trainings
+  if (-not $trainings.ContainsKey($course) -or (Test-NewerTrainingRecord -Candidate $training -Existing $trainings[$course])) {
+    $trainings[$course] = $training
   }
 }
+if ($sources.Count -eq 0) { throw 'Het werkblad bevat geen opleidingen; import afgebroken.' }
 
 $script:appDbUser = Read-DotEnvValue -Path $envFile -Name 'PGUSER' -Default $defaultDbUser
 $script:appDbName = Read-DotEnvValue -Path $envFile -Name 'PGDATABASE' -Default $defaultDbName
-$columnsPresentSql = @'
-select (count(*) = 2)::text
-from information_schema.columns
-where table_schema = 'public'
-  and table_name = 'user_skills'
-  and column_name in ('diploma_on', 'valid_until');
-'@
-$columnsPresentLines = @(Invoke-AppDatabaseCommand -Sql $columnsPresentSql)
-$dateColumnsPresent = $columnsPresentLines.Count -gt 0 -and $columnsPresentLines[-1] -in @('t', 'true')
-$skillJsonSql = if ($dateColumnsPresent) {
-  @'
-         coalesce((
-           select json_agg(json_build_object(
-             'name', skill.name,
-             'diploma_on', link.diploma_on,
-             'valid_until', link.valid_until
-           ) order by skill.name)
-           from public.user_skills link
-           join public.skills skill on skill.id = link.skill_id
-           where link.keycloak_sub = profile.keycloak_sub
-         ), '[]'::json) as skills
-'@
-}
-else {
-  @'
-         coalesce((
-           select json_agg(json_build_object(
-             'name', skill.name,
-             'diploma_on', null,
-             'valid_until', null
-           ) order by skill.name)
-           from public.user_skills link
-           join public.skills skill on skill.id = link.skill_id
-           where link.keycloak_sub = profile.keycloak_sub
-         ), '[]'::json) as skills
-'@
-}
 $profileSql = @'
-select coalesce(json_agg(row_to_json(snapshot) order by snapshot.employee_number), '[]'::json)::text
+select coalesce(json_agg(row_to_json(snapshot) order by snapshot.display_name, snapshot.keycloak_sub), '[]'::json)::text
 from (
   select profile.keycloak_sub::text as keycloak_sub,
-         profile.employee_number,
+         coalesce(profile.employee_number, '') as employee_number,
          coalesce(profile.display_name, '') as display_name,
          profile.version,
-         __SKILL_JSON__
+         coalesce((
+           select json_agg(json_build_object('name', skill.name, 'diploma_on', link.diploma_on, 'valid_until', link.valid_until) order by skill.name)
+           from public.user_skills link
+           join public.skills skill on skill.id = link.skill_id
+           where link.keycloak_sub = profile.keycloak_sub
+         ), '[]'::json) as skills
   from public.user_information profile
-  where profile.employee_number is not null
-    and btrim(profile.employee_number) <> ''
 ) snapshot;
 '@
-$profileSql = $profileSql.Replace('__SKILL_JSON__', $skillJsonSql.Trim())
-$profileJsonLines = @(Invoke-AppDatabaseCommand -Sql $profileSql)
-if ($profileJsonLines.Count -eq 0) { throw 'De database gaf geen profieloverzicht terug.' }
-$profileJson = $profileJsonLines[-1]
-try {
-  $parsedProfiles = ConvertFrom-Json -InputObject $profileJson
-  $profiles = if ($parsedProfiles -is [array]) { $parsedProfiles } else { @($parsedProfiles) }
-}
-catch { throw "Het profieloverzicht uit PostgreSQL kon niet worden gelezen: $($_.Exception.Message)" }
+$profileJson = @(Invoke-AppDatabaseCommand -Sql $profileSql) | Select-Object -Last 1
+if ([string]::IsNullOrWhiteSpace($profileJson)) { throw 'De database gaf geen profieloverzicht terug.' }
+$parsedProfiles = ConvertFrom-Json -InputObject $profileJson
+$profiles = if ($parsedProfiles -is [array]) { $parsedProfiles } else { @($parsedProfiles) }
+if ($profiles.Count -eq 0) { throw 'Geen profielen gevonden; import afgebroken.' }
 
-$profilesByEmployee = [System.Collections.Generic.Dictionary[string, object]]::new([StringComparer]::Ordinal)
+$options = [System.Collections.Generic.Dictionary[string, object]]::new([StringComparer]::Ordinal)
+$mappingRows = [System.Collections.Generic.List[object]]::new()
 foreach ($profile in $profiles) {
-  $employeeNumber = ([string]$profile.employee_number).Trim()
-  if ($profilesByEmployee.ContainsKey($employeeNumber)) {
-    throw "Personeelsnummer '$employeeNumber' komt meer dan één keer voor in user_information."
+  $number = ([string]$profile.employee_number).Trim()
+  $keys = if ($byNumber.ContainsKey($number)) { $byNumber[$number].ToArray() } else { @('') }
+  foreach ($key in $keys) {
+    $source = if ($key -ne '') { $sources[$key] } else { $null }
+    $company = if ($null -ne $source) { $source.Company } else { '' }
+    $name = if ($null -ne $source) { $source.Name } else { '' }
+    $optionKey = "$($profile.keycloak_sub)" + [char]31 + $key
+    $options[$optionKey] = $profile
+    $mappingRows.Add([pscustomobject]@{
+      KeycloakSub = [string]$profile.keycloak_sub
+      Personeelsnummer = $number
+      Profiel = [string]$profile.display_name
+      Bedrijf = $company
+      ExcelNaam = $name
+      Selectie = '?'
+    })
   }
-  $profilesByEmployee[$employeeNumber] = $profile
 }
 
-$changedProfiles = [System.Collections.Generic.List[object]]::new()
-$matchedSourceNumbers = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-$previewRows = [System.Collections.Generic.List[object]]::new()
+if ($MaakKoppelingen) {
+  if (Test-Path -LiteralPath $MappingPath) { throw "Koppelbestand bestaat al: $MappingPath. Kies een ander pad." }
+  $mappingRows | Export-Csv -LiteralPath $MappingPath -Delimiter ';' -Encoding UTF8 -NoTypeInformation
+  Write-Host "Koppelbestand aangemaakt: $((Resolve-Path -LiteralPath $MappingPath).Path)"
+  Write-Host "Bronregels zonder personeelsnummer overgeslagen: $($rowsWithoutNumber.Count)."
+  Write-Host 'Vul elke selectie in: JA voor de juiste persoon, NEE voor de overige rijen; maximaal één JA per profiel.'
+  Write-Host 'Er zijn geen databasegegevens gewijzigd.'
+  return
+}
+
+if (-not (Test-Path -LiteralPath $MappingPath -PathType Leaf)) {
+  throw "Koppelbestand ontbreekt: $MappingPath. Maak het eerst met -MaakKoppelingen."
+}
+$inputRows = @(Import-Csv -LiteralPath $MappingPath -Delimiter ';' -Encoding UTF8)
+$seen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+$selected = [System.Collections.Generic.Dictionary[string, string]]::new([StringComparer]::Ordinal)
+$selectedSources = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+foreach ($row in $inputRows) {
+  foreach ($column in @('KeycloakSub', 'Personeelsnummer', 'Profiel', 'Bedrijf', 'ExcelNaam', 'Selectie')) {
+    if ($null -eq $row.PSObject.Properties[$column]) { throw "Kolom '$column' ontbreekt in het koppelbestand." }
+  }
+  $subject = ([string]$row.KeycloakSub).Trim()
+  $number = ([string]$row.Personeelsnummer).Trim()
+  $company = ([string]$row.Bedrijf).Trim()
+  $name = ([string]$row.ExcelNaam).Trim()
+  $selection = ([string]$row.Selectie).Trim().ToUpperInvariant()
+  if ($selection -notin @('JA', 'NEE')) { throw "Gebruik JA of NEE bij '$($row.Profiel)'." }
+  $key = if ($company -eq '' -and $name -eq '') { '' } else { "$number" + [char]31 + "$company" + [char]31 + "$name" }
+  $optionKey = "$subject" + [char]31 + $key
+  if (-not $options.ContainsKey($optionKey) -or -not $seen.Add($optionKey)) {
+    throw "Onbekende of dubbele koppelregel voor '$($row.Profiel)'. Maak een nieuw koppelbestand."
+  }
+  $profile = $options[$optionKey]
+  if ($number -cne ([string]$profile.employee_number).Trim() -or ([string]$row.Profiel).Trim() -cne ([string]$profile.display_name).Trim()) {
+    throw "Profielgegevens gewijzigd voor '$($row.Profiel)'. Maak een nieuw koppelbestand."
+  }
+  if ($selection -eq 'JA') {
+    if ($key -eq '' -or $selected.ContainsKey($subject) -or -not $selectedSources.Add($key)) {
+      throw "Ongeldige of dubbele JA-keuze voor '$($row.Profiel)'."
+    }
+    $selected[$subject] = $key
+  }
+}
+if ($seen.Count -ne $options.Count) { throw 'Koppelbestand onvolledig of bron/profielen gewijzigd. Maak een nieuw koppelbestand.' }
+if ($selected.Count -eq 0) { throw 'Geen medewerkers geselecteerd; verwijderen en importeren zijn afgebroken.' }
+
+$preview = [System.Collections.Generic.List[object]]::new()
+$targetValues = [System.Collections.Generic.List[string]]::new()
+$skillValues = [System.Collections.Generic.List[string]]::new()
+$existingLinkCount = 0
 foreach ($profile in $profiles) {
-  $employeeNumber = ([string]$profile.employee_number).Trim()
-  $currentSkills = [System.Collections.Generic.Dictionary[string, object]]::new([StringComparer]::Ordinal)
-  foreach ($skill in $profile.skills) {
-    $currentSkills[[string]$skill.name] = [pscustomobject]@{
-      DiplomaOn = ConvertTo-DateText $skill.diploma_on
-      ValidUntil = ConvertTo-DateText $skill.valid_until
-    }
+  $subject = [string]$profile.keycloak_sub
+  $number = ([string]$profile.employee_number).Trim()
+  $existingLinkCount += @($profile.skills).Count
+  $desired = @()
+  $sourceName = '(geen koppeling)'
+  if ($selected.ContainsKey($subject)) {
+    $source = $sources[$selected[$subject]]
+    $sourceName = "$($source.Company) / $($source.Name)"
+    $desired = @($source.Trainings.Values | Sort-Object Name)
   }
-  $desiredSkills = @()
-  if ($sourceByEmployee.ContainsKey($employeeNumber)) {
-    [void]$matchedSourceNumbers.Add($employeeNumber)
-    $desiredSkills = @($sourceByEmployee[$employeeNumber].Values | Sort-Object Name)
+  $targetValues.Add("($(ConvertTo-SqlLiteral $subject)::uuid, $(ConvertTo-SqlLiteral $number), $([long]$profile.version))")
+  foreach ($skill in $desired) {
+    $skillValues.Add("($(ConvertTo-SqlLiteral $subject)::uuid, $(ConvertTo-SqlLiteral $skill.Name), $(ConvertTo-SqlDateLiteral $skill.DiplomaOn), $(ConvertTo-SqlDateLiteral $skill.ValidUntil))")
   }
-  $desiredNames = @($desiredSkills | ForEach-Object { [string]$_.Name })
-  $toAdd = @($desiredSkills | Where-Object { -not $currentSkills.ContainsKey([string]$_.Name) })
-  $toRemove = @($currentSkills.Keys | Where-Object { $desiredNames -cnotcontains $_ })
-  $dateUpdates = [System.Collections.Generic.List[string]]::new()
-  foreach ($skill in $desiredSkills) {
-    if (-not $currentSkills.ContainsKey([string]$skill.Name)) { continue }
-    $current = $currentSkills[[string]$skill.Name]
-    if ($current.DiplomaOn -cne $skill.DiplomaOn -or $current.ValidUntil -cne $skill.ValidUntil) {
-      $oldDiploma = if ($null -eq $current.DiplomaOn) { 'leeg' } else { $current.DiplomaOn }
-      $oldValidUntil = if ($null -eq $current.ValidUntil) { 'leeg' } else { $current.ValidUntil }
-      $newDiploma = if ($null -eq $skill.DiplomaOn) { 'leeg' } else { $skill.DiplomaOn }
-      $newValidUntil = if ($null -eq $skill.ValidUntil) { 'leeg' } else { $skill.ValidUntil }
-      $oldDates = "diploma $oldDiploma, geldig tot $oldValidUntil"
-      $newDates = "diploma $newDiploma, geldig tot $newValidUntil"
-      $dateUpdates.Add("$($skill.Name): $oldDates -> $newDates")
-    }
+  if (@($profile.skills).Count -gt 0 -or $desired.Count -gt 0) {
+    $preview.Add([pscustomobject]@{
+      Profiel = [string]$profile.display_name
+      Personeelsnummer = $number
+      ExcelPersoon = $sourceName
+      Huidig = @($profile.skills).Count
+      Nieuw = $desired.Count
+      Opleidingen = @($desired | ForEach-Object { [string]$_.Name }) -join '; '
+    })
   }
-  if ($toAdd.Count -eq 0 -and $toRemove.Count -eq 0 -and $dateUpdates.Count -eq 0) { continue }
-
-  $changedProfiles.Add([pscustomobject]@{
-    KeycloakSubject = [string]$profile.keycloak_sub
-    EmployeeNumber = $employeeNumber
-    Version = [long]$profile.version
-    DesiredSkills = $desiredSkills
-    Added = $toAdd
-    Removed = $toRemove
-    DateUpdates = @($dateUpdates)
-  })
-  $previewRows.Add([pscustomobject]@{
-    Naam = [string]$profile.display_name
-    Personeelsnummer = $employeeNumber
-    Toevoegen = @($toAdd | ForEach-Object { [string]$_.Name }) -join '; '
-    Verwijderen = $toRemove -join '; '
-    DatumsBijwerken = $dateUpdates -join '; '
-  })
 }
-
-$unmatchedSourceNumbers = @($sourceByEmployee.Keys | Where-Object { -not $profilesByEmployee.ContainsKey($_) } | Sort-Object)
-$profilesWithoutSourceRows = @($profiles | Where-Object { -not $sourceByEmployee.ContainsKey(([string]$_.employee_number).Trim()) })
-$sourceRecordCount = ($sourceByEmployee.Values | ForEach-Object { $_.Count } | Measure-Object -Sum).Sum
-if ($null -eq $sourceRecordCount) { $sourceRecordCount = 0 }
 
 Write-Host "Bron: $((Resolve-Path -LiteralPath $WorkbookPath).Path)"
-Write-Host 'Werkblad: Opleiding; omschrijving uit kolom C; personeelsnummer uit E; diploma op uit J; geldig tot uit K.'
-Write-Host "Opleidingskoppelingen na deduplicatie: $sourceRecordCount verdeeld over $($sourceByEmployee.Count) personeelsnummers."
-Write-Host "Dubbele medewerker-opleidingregels samengevoegd op de nieuwste diploma-/geldigheidsdatum: $duplicateTrainingPairs."
-Write-Host "Bronrijen met opleiding maar zonder personeelsnummer (overgeslagen): $($rowsWithoutEmployeeNumber.Count)."
-Write-Host "Profielen met gevuld employee_number: $($profiles.Count); profielen zonder bronrij (doel: 0 opleidingen): $($profilesWithoutSourceRows.Count)."
-if (-not $dateColumnsPresent) {
-  Write-Host 'De datumkolommen ontbreken nog in user_skills; -Apply maakt ze aan en vult ze in dezelfde transactie.'
-}
-Write-Host "Bronpersoneelsnummers zonder profiel in user_information: $($unmatchedSourceNumbers.Count)."
-if ($unmatchedSourceNumbers.Count -gt 0) {
-  Write-Host "Niet gekoppeld (wordt overgeslagen): $($unmatchedSourceNumbers -join ', ')"
-}
-if ($previewRows.Count -gt 0) {
-  $previewRows | Format-Table Naam, Personeelsnummer, Toevoegen, Verwijderen, DatumsBijwerken -AutoSize -Wrap | Out-String -Width 240 | Write-Host
-}
-else {
-  Write-Host 'Geen verschillen gevonden; user_skills is al gelijk aan de stamdata.'
-}
-
+Write-Host "Koppelbestand: $((Resolve-Path -LiteralPath $MappingPath).Path)"
+Write-Host "Bronregels zonder personeelsnummer overgeslagen: $($rowsWithoutNumber.Count)."
+Write-Host "Geselecteerde profielen: $($selected.Count); niet-geselecteerde bronpersonen: $($sources.Count - $selectedSources.Count)."
+Write-Host "ALLE $existingLinkCount bestaande user_skills-koppelingen worden verwijderd; $($skillValues.Count) geselecteerde koppelingen worden opnieuw aangemaakt."
+Write-Host 'Profielen zonder geselecteerde bronpersoon verliezen hun bestaande skills. De tabel skills blijft behouden.'
+$preview | Format-Table Profiel, Personeelsnummer, ExcelPersoon, Huidig, Nieuw, Opleidingen -AutoSize -Wrap | Out-String -Width 240 | Write-Host
 if (-not $Apply) {
-  Write-Host 'Preview klaar; PostgreSQL is niet gewijzigd. Voeg -Apply toe om de verschillen toe te passen.'
+  Write-Host 'Preview klaar; PostgreSQL is niet gewijzigd. Voeg -Apply toe om de herimport uit te voeren.'
   return
 }
-if (-not $Apply) {
-  Write-Host 'Preview klaar; PostgreSQL is niet gewijzigd. Voeg -Apply toe om de verschillen toe te passen.'
-  return
-}
-
-$confirmation = "Controleer en synchroniseer $($profiles.Count) medewerkerprofielen met de stamdata; alleen afwijkingen worden aangepast en koppelingen zonder bronopleiding worden verwijderd. Typ JA om door te gaan"
-if ((Read-Host $confirmation) -cne 'JA') {
+if ((Read-Host 'ALLE user_skills-koppelingen verwijderen en bovenstaande herimport uitvoeren? Typ JA om door te gaan') -cne 'JA') {
   Write-Host 'Afgebroken; PostgreSQL is niet gewijzigd.'
   return
-}
-
-$values = [System.Collections.Generic.List[string]]::new()
-foreach ($employeeNumber in $sourceByEmployee.Keys) {
-  foreach ($skill in $sourceByEmployee[$employeeNumber].Values) {
-    $values.Add("($(ConvertTo-SqlLiteral $employeeNumber), $(ConvertTo-SqlLiteral $skill.Name), $(ConvertTo-SqlDateLiteral $skill.DiplomaOn), $(ConvertTo-SqlDateLiteral $skill.ValidUntil))")
-  }
-}
-$targetValues = foreach ($profile in $profiles) {
-  "($(ConvertTo-SqlLiteral ([string]$profile.keycloak_sub))::uuid, $(ConvertTo-SqlLiteral ([string]$profile.employee_number)), $([long]$profile.version))"
 }
 
 $sql = @'
 begin;
 set local client_min_messages = warning;
-alter table public.user_skills
-  add column if not exists diploma_on date null,
-  add column if not exists valid_until date null;
-create temporary table import_employee_skill (
+lock table public.user_information in share row exclusive mode;
+lock table public.user_skills in share row exclusive mode;
+create temporary table import_sync_profiles (
+  keycloak_sub uuid primary key,
   employee_number text not null,
+  expected_version bigint not null
+) on commit drop;
+create temporary table import_employee_skill (
+  keycloak_sub uuid not null,
   skill_name text not null,
   diploma_on date null,
   valid_until date null,
-  primary key (employee_number, skill_name)
-) on commit drop;
-create temporary table import_sync_profiles (
-  keycloak_sub uuid primary key,
-  employee_number text not null unique,
-  expected_version bigint not null
+  primary key (keycloak_sub, skill_name)
 ) on commit drop;
 '@
-if ($values.Count -gt 0) {
-  $sql += "`ninsert into import_employee_skill(employee_number, skill_name, diploma_on, valid_until) values $($values -join ', ');"
-}
-if ($profiles.Count -gt 0) {
-  $sql += "`ninsert into import_sync_profiles(keycloak_sub, employee_number, expected_version) values $($targetValues -join ', ');"
+$sql += [Environment]::NewLine + "insert into import_sync_profiles(keycloak_sub, employee_number, expected_version) values $($targetValues -join ', ');"
+if ($skillValues.Count -gt 0) {
+  $sql += [Environment]::NewLine + "insert into import_employee_skill(keycloak_sub, skill_name, diploma_on, valid_until) values $($skillValues -join ', ');"
 }
 $sql += @'
 
@@ -503,86 +480,37 @@ do $sync$
 declare
   expected_count integer;
   updated_count integer;
-  matched_count integer;
 begin
-  select count(*) into matched_count
-  from import_sync_profiles target
-  join public.user_information profile
-    on profile.keycloak_sub = target.keycloak_sub
-   and profile.employee_number = target.employee_number
-   and profile.version = target.expected_version;
-  if matched_count <> (select count(*) from import_sync_profiles) then
-    raise exception 'Profiel gewijzigd sinds de preview; geen opleidingen zijn bijgewerkt. Voer het script opnieuw uit.';
+  if (select count(*) from public.user_information) <> (select count(*) from import_sync_profiles)
+     or exists (
+       select 1
+       from import_sync_profiles target
+       left join public.user_information profile on profile.keycloak_sub = target.keycloak_sub
+       where profile.keycloak_sub is null
+          or coalesce(btrim(profile.employee_number), '') <> target.employee_number
+          or profile.version <> target.expected_version
+     ) then
+    raise exception 'Profielen gewijzigd sinds de preview; geen opleidingen bijgewerkt. Voer het script opnieuw uit.';
   end if;
 
   select count(*) into expected_count
   from import_sync_profiles target
-  join public.user_information profile on profile.keycloak_sub = target.keycloak_sub
-  where exists (
-    select 1
-    from public.user_skills link
-    where link.keycloak_sub = profile.keycloak_sub
-      and not exists (
-        select 1
-        from import_employee_skill desired
-        join public.skills desired_skill on desired_skill.name = desired.skill_name
-        where desired.employee_number = profile.employee_number
-          and desired_skill.id = link.skill_id
-      )
-  )
-  or exists (
-    select 1
-    from import_employee_skill desired
-    join public.skills desired_skill on desired_skill.name = desired.skill_name
-    left join public.user_skills link
-      on link.keycloak_sub = profile.keycloak_sub
-     and link.skill_id = desired_skill.id
-    where desired.employee_number = profile.employee_number
-      and (
-        link.skill_id is null
-        or link.diploma_on is distinct from desired.diploma_on
-        or link.valid_until is distinct from desired.valid_until
-      )
-  );
+  where exists (select 1 from public.user_skills link where link.keycloak_sub = target.keycloak_sub)
+     or exists (select 1 from import_employee_skill desired where desired.keycloak_sub = target.keycloak_sub);
 
   update public.user_information profile
   set version = profile.version + 1,
       updated_at = now()
   from import_sync_profiles target
   where profile.keycloak_sub = target.keycloak_sub
-    and profile.employee_number = target.employee_number
     and profile.version = target.expected_version
     and (
-      exists (
-        select 1
-        from public.user_skills link
-        where link.keycloak_sub = profile.keycloak_sub
-          and not exists (
-            select 1
-            from import_employee_skill desired
-            join public.skills desired_skill on desired_skill.name = desired.skill_name
-            where desired.employee_number = profile.employee_number
-              and desired_skill.id = link.skill_id
-          )
-      )
-      or exists (
-        select 1
-        from import_employee_skill desired
-        join public.skills desired_skill on desired_skill.name = desired.skill_name
-        left join public.user_skills link
-          on link.keycloak_sub = profile.keycloak_sub
-         and link.skill_id = desired_skill.id
-        where desired.employee_number = profile.employee_number
-          and (
-            link.skill_id is null
-            or link.diploma_on is distinct from desired.diploma_on
-            or link.valid_until is distinct from desired.valid_until
-          )
-      )
+      exists (select 1 from public.user_skills link where link.keycloak_sub = target.keycloak_sub)
+      or exists (select 1 from import_employee_skill desired where desired.keycloak_sub = target.keycloak_sub)
     );
   get diagnostics updated_count = row_count;
   if updated_count <> expected_count then
-    raise exception 'Profiel gewijzigd sinds de preview; geen opleidingen zijn bijgewerkt. Voer het script opnieuw uit.';
+    raise exception 'Profiel gewijzigd sinds de preview; geen opleidingen bijgewerkt. Voer het script opnieuw uit.';
   end if;
 end
 $sync$;
@@ -592,44 +520,17 @@ select distinct source.skill_name
 from import_employee_skill source
 on conflict (name) do nothing;
 
-delete from public.user_skills link
-using import_sync_profiles target, public.user_information profile
-where profile.keycloak_sub = target.keycloak_sub
-  and link.keycloak_sub = profile.keycloak_sub
-  and not exists (
-    select 1
-    from import_employee_skill desired
-    join public.skills desired_skill on desired_skill.name = desired.skill_name
-    where desired.employee_number = profile.employee_number
-      and desired_skill.id = link.skill_id
-  );
-
-update public.user_skills link
-set diploma_on = desired.diploma_on,
-    valid_until = desired.valid_until
-from import_sync_profiles target
-join public.user_information profile on profile.keycloak_sub = target.keycloak_sub
-join import_employee_skill desired on desired.employee_number = profile.employee_number
-join public.skills skill on skill.name = desired.skill_name
-where link.keycloak_sub = profile.keycloak_sub
-  and link.skill_id = skill.id
-  and (
-    link.diploma_on is distinct from desired.diploma_on
-    or link.valid_until is distinct from desired.valid_until
-  );
+delete from public.user_skills;
 
 insert into public.user_skills(keycloak_sub, skill_id, diploma_on, valid_until)
-select profile.keycloak_sub, skill.id, desired.diploma_on, desired.valid_until
-from import_sync_profiles target
-join public.user_information profile on profile.keycloak_sub = target.keycloak_sub
-join import_employee_skill desired on desired.employee_number = profile.employee_number
-join public.skills skill on skill.name = desired.skill_name
-on conflict (keycloak_sub, skill_id) do nothing;
+select desired.keycloak_sub, skill.id, desired.diploma_on, desired.valid_until
+from import_employee_skill desired
+join public.skills skill on skill.name = desired.skill_name;
 
 commit;
 select 'SYNC_DONE';
 '@
 
 $result = Invoke-AppDatabaseCommand -Sql $sql
-Write-Host 'Synchronisatie voltooid. PostgreSQL-resultaat:'
+Write-Host 'Herimport voltooid. PostgreSQL-resultaat:'
 $result | ForEach-Object { Write-Host $_ }
