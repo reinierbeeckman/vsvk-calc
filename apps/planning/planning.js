@@ -1,7 +1,7 @@
     'use strict';
     const definitions = {
-      medewerkers: { title: 'Medewerkers', singular: 'Medewerker', description: 'Contactgegevens en vaardigheden. Open een medewerker voor certificaten en vervaldata. Zet iemand uit om hem of haar van het planbord te halen.', path: '/api/planning/medewerkers', columns: [['Aan','actief'],['Personeelsnr','personeelsnummer'],['Naam','naam'],['Functie','functie'],['Telefoon','telefoon'],['E-mail','email'],['Vestiging','vestiging'],['Vaardigheden','skills']] },
-      klanten: { title: 'Klanten' },
+      medewerkers: { title: 'Medewerkers', singular: 'Medewerker', description: 'Contactgegevens en vaardigheden. Open een medewerker voor certificaten en vervaldata. Zet iemand uit om hem of haar van het planbord te halen.', path: '/api/planning/medewerkers', columns: [['Actief','actief'],['Personeelsnr','personeelsnummer'],['Naam','naam'],['Functie','functie'],['Telefoon','telefoon'],['E-mail','email'],['Vestiging','vestiging'],['Vaardigheden','skills']] },
+      klanten: { title: 'Klanten', singular: 'Klant', description: 'Klantgegevens en contactpersonen. Open een klant voor de volledige beschikbare gegevens.', path: '/api/planning/klanten', columns: [['Actief','actief'],['Debiteurnr','debiteurnummer'],['Bedrijfsnaam','bedrijfsnaam'],['Telefoon','telefoon'],['Plaats','plaats'],['Standaard besteller','standaardBesteller']] },
       materieel: { title: 'Materieel', singular: 'Materieel', description: 'Machines, voertuigen en gereedschap. Bekijk de gegevens uit de bestaande materieellijst.', path: '/api/planning/materieel', columns: [['Omschrijving','omschrijving'],['Groep','materieelgroep'],['Vestiging','standplaats'],['Kenteken','kenteken'],['Merk','merk'],['Zoeknaam','zoeknaam'],['Serienummer','serienummer']] },
       artikelen: { title: 'Artikelen', singular: 'Artikel', description: 'Materialen uit de bestaande artikelcatalogus.', path: '/api/articles', columns: [['Omschrijving','naam'],['Categorie','categorie'],['Eenheid','eenheid'],['Prijs','tarief'],['Actief','actief']] },
       ordernummers: { title: 'Ordernummers' }, tarieven: { title: 'Tarieven' }, leveranciers: { title: 'Leveranciers' }, instellingen: { title: 'Instellingen' }, huisstijl: { title: 'Huisstijl' }, rollen: { title: 'Rollen & rechten' }
@@ -16,6 +16,7 @@
     let rows = [];
     let loading = false;
     let loadNumber = 0;
+    let detailNumber = 0;
     const drafts = new Map();
     const notices = new Map();
     const saving = new Set();
@@ -85,6 +86,16 @@
       if (typeof item[field] === 'boolean') return item[field] ? 'Ja' : 'Nee';
       return item[field];
     }
+    function switchControl(value, label, readOnly = false) {
+      const control = document.createElement('button'); control.type = 'button'; control.className = 'vsvk-switch';
+      control.setAttribute('role', 'switch'); control.setAttribute('aria-checked', String(value)); control.setAttribute('aria-label', label);
+      if (readOnly) { control.setAttribute('aria-readonly', 'true'); control.title = 'Alleen bekijken'; }
+      return control;
+    }
+    function fieldValue(item, field, label) {
+      if (typeof item[field] === 'boolean') return switchControl(item[field], label, true);
+      const value = document.createElement('span'); const text = displayValue(item, field); value.textContent = text == null || text === '' ? '—' : text; return value;
+    }
     function render() {
       const definition = definitions[current];
       if (!definition.path || currentSection !== 'Lijsten') return;
@@ -98,8 +109,9 @@
       for (const item of filtered) {
         const row = body.insertRow();
         if (item.actief === false) row.classList.add('off');
-        for (const [, field] of definition.columns) {
+        for (const [label, field] of definition.columns) {
           if (current === 'medewerkers' && field === 'actief') { statusCell(row, item); continue; }
+          if (typeof item[field] === 'boolean') { row.insertCell().append(switchControl(item[field], label + ' ' + (item.bedrijfsnaam || item.naam || definition.singular), true)); continue; }
           if (field === 'skills') {
             const container = row.insertCell();
             for (const skill of item.skills || []) { const chip = document.createElement('span'); chip.className = 'chip'; chip.textContent = skill.naam; container.append(chip); }
@@ -113,7 +125,7 @@
     function statusCell(row, item) {
       const container = row.insertCell(); container.className = 'status-cell';
       const selected = drafts.has(item.id) ? drafts.get(item.id) : item.actief;
-      const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'sw'; toggle.setAttribute('role', 'switch'); toggle.setAttribute('aria-checked', String(selected)); toggle.setAttribute('aria-label', 'Actief ' + (item.naam || item.personeelsnummer || 'medewerker')); toggle.disabled = saving.has(item.id);
+      const toggle = switchControl(selected, 'Actief ' + (item.naam || item.personeelsnummer || 'medewerker')); toggle.disabled = saving.has(item.id);
       toggle.addEventListener('click', () => { const next = !selected; if (next === item.actief) drafts.delete(item.id); else drafts.set(item.id, next); notices.delete(item.id); render(); });
       const save = document.createElement('button'); save.type = 'button'; save.className = 'btn sm'; save.textContent = 'Opslaan'; save.disabled = !drafts.has(item.id) || saving.has(item.id); save.addEventListener('click', () => saveStatus(item));
       const notice = document.createElement('small'); notice.setAttribute('role', 'status'); notice.textContent = notices.get(item.id) || '';
@@ -145,15 +157,29 @@
     function addDetailSection(container, title, text) {
       const section = document.createElement('section'); section.className = 'fsec'; const heading = document.createElement('h3'); heading.textContent = title; const paragraph = document.createElement('p'); paragraph.className = 'hint'; paragraph.textContent = text; section.append(heading, paragraph); container.append(section);
     }
-    function openDetail(list, item) {
+    async function openDetail(list, item) {
       const definition = definitions[list];
-      document.querySelector('#detail-title').textContent = item.naam || item.omschrijving || definition.singular;
+      const sequence = ++detailNumber;
+      document.querySelector('#detail-title').textContent = item.bedrijfsnaam || item.naam || item.omschrijving || definition.singular;
       document.querySelector('#detail-subtitle').textContent = definition.title + ' · Alleen bekijken';
       const content = document.querySelector('#detail-body'); content.replaceChildren();
+      if (list === 'klanten') {
+        content.textContent = 'Klantgegevens laden…';
+        detail.showModal();
+        try {
+          const customer = await request('/api/planning/klanten/' + encodeURIComponent(item.id));
+          if (sequence !== detailNumber || !detail.open) return;
+          renderCustomerDetail(content, customer);
+        } catch (error) {
+          if (sequence !== detailNumber || !detail.open) return;
+          content.textContent = 'Klantgegevens ophalen mislukt: ' + error.message;
+        }
+        return;
+      }
       const fields = document.createElement('div'); fields.className = 'fg';
       for (const [label, field] of definition.columns) {
         if (field === 'skills') continue;
-        const block = document.createElement('div'); block.className = 'field'; const name = document.createElement('strong'); name.textContent = label; const value = document.createElement('span'); value.textContent = displayValue(item, field) ?? '—'; block.append(name, value); fields.append(block);
+        const block = document.createElement('div'); block.className = 'field'; const name = document.createElement('strong'); name.textContent = label; block.append(name, fieldValue(item, field, label)); fields.append(block);
       }
       content.append(fields);
       if (list === 'medewerkers') {
@@ -168,9 +194,47 @@
       }
       detail.showModal();
     }
+    function renderCustomerDetail(content, customer) {
+      content.replaceChildren();
+      const fields = document.createElement('div'); fields.className = 'fg';
+      const customerFields = [['Actief','actief'],['Debiteurnummer','debiteurnummer'],['Bedrijfsnaam','bedrijfsnaam'],['KvK-nummer','kvkNummer'],['Website','website'],['Telefoon','telefoon'],['E-mail','email'],['Straat','straat'],['Huisnummer','huisnummer'],['Toevoeging','toevoeging'],['Postcode','postcode'],['Plaats','plaats'],['Land','land'],['Opmerkingen','opmerkingen']];
+      for (const [label, field] of customerFields) {
+        const block = document.createElement('div'); block.className = 'field';
+        const name = document.createElement('strong'); name.textContent = label;
+        block.append(name, fieldValue(customer, field, label)); fields.append(block);
+      }
+      content.append(fields);
+      if (customer.facturatie) {
+        const section = document.createElement('section'); section.className = 'fsec';
+        const heading = document.createElement('h3'); heading.textContent = 'Facturatie'; section.append(heading);
+        const fields = document.createElement('div'); fields.className = 'fg';
+        for (const [label, field] of [['Btw-nummer','btwNummer'],['Factuur e-mail','factuurEmail'],['Afwijkend factuuradres','afwijkendFactuuradres'],['Vaste referentie','vasteReferentie'],['G-rekening (%)','gRekeningPercentage'],['Factureren per','facturerenPer'],['Btw verlegd','btwVerlegd'],['Mandagenregister meesturen','mandagenregisterMeesturen']]) {
+          const block = document.createElement('div'); block.className = 'field';
+          const name = document.createElement('strong'); name.textContent = label;
+          block.append(name, fieldValue(customer.facturatie, field, label)); fields.append(block);
+        }
+        section.append(fields); content.append(section);
+      }
+      const section = document.createElement('section'); section.className = 'fsec';
+      const heading = document.createElement('h3'); heading.textContent = 'Contactpersonen & bestellers'; section.append(heading);
+      if (!customer.contactpersonen.length) {
+        const empty = document.createElement('p'); empty.className = 'hint'; empty.textContent = 'Geen contactpersonen geregistreerd.'; section.append(empty);
+      }
+      for (const contact of customer.contactpersonen) {
+        const fields = document.createElement('div'); fields.className = 'fg';
+        for (const [label, field] of [['Naam','naam'],['Functie','functie'],['Telefoon','telefoon'],['E-mail','email'],['Standaard besteller','isStandaardBesteller']]) {
+          const block = document.createElement('div'); block.className = 'field';
+          const name = document.createElement('strong'); name.textContent = label;
+          block.append(name, fieldValue(contact, field, label)); fields.append(block);
+        }
+        section.append(fields);
+      }
+      content.append(section);
+    }
     document.querySelectorAll('[data-section]').forEach(button => button.addEventListener('click', () => showSection(button.dataset.section)));
     document.querySelectorAll('[data-list]').forEach(button => button.addEventListener('click', () => load(button.dataset.list)));
     document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => detail.close()));
+    detail.addEventListener('close', () => { detailNumber++; });
     search.addEventListener('input', render);
     document.querySelectorAll('[data-list]').forEach(button => {
       if (!definitions[button.dataset.list].path) return;

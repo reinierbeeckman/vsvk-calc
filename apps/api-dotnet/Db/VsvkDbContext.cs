@@ -17,9 +17,52 @@ public sealed class VsvkDbContext : DbContext
   public DbSet<UserSkill> Skills => Set<UserSkill>();
   public DbSet<Materieel> MaterieelItems => Set<Materieel>();
   public DbSet<MaterieelGroep> MaterieelGroepen => Set<MaterieelGroep>();
+  public DbSet<Klant> Klanten => Set<Klant>();
+  public DbSet<KlantContactpersoon> KlantContactpersonen => Set<KlantContactpersoon>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
+    var klant = modelBuilder.Entity<Klant>();
+    klant.ToTable("klanten");
+    klant.HasKey(item => item.Id);
+    klant.Property(item => item.Id).HasColumnName("id");
+    klant.Property(item => item.Aan).HasColumnName("aan");
+    klant.Property(item => item.Debiteurnummer).HasColumnName("debiteurnummer");
+    klant.Property(item => item.Bedrijfsnaam).HasColumnName("bedrijfsnaam");
+    klant.Property(item => item.KvkNummer).HasColumnName("kvk_nummer");
+    klant.Property(item => item.BtwNummer).HasColumnName("btw_nummer");
+    klant.Property(item => item.Iban).HasColumnName("iban").HasMaxLength(50);
+    klant.Property(item => item.Website).HasColumnName("website");
+    klant.Property(item => item.TelefoonAlgemeen).HasColumnName("telefoon_algemeen");
+    klant.Property(item => item.EmailAlgemeen).HasColumnName("email_algemeen");
+    klant.Property(item => item.Straat).HasColumnName("straat");
+    klant.Property(item => item.Huisnummer).HasColumnName("huisnummer");
+    klant.Property(item => item.Toevoeging).HasColumnName("toevoeging");
+    klant.Property(item => item.Postcode).HasColumnName("postcode");
+    klant.Property(item => item.Plaats).HasColumnName("plaats");
+    klant.Property(item => item.Land).HasColumnName("land");
+    klant.Property(item => item.FactuurEmail).HasColumnName("factuur_email");
+    klant.Property(item => item.AfwijkendFactuuradres).HasColumnName("afwijkend_factuuradres");
+    klant.Property(item => item.VasteReferentie).HasColumnName("vaste_referentie");
+    klant.Property(item => item.GRekeningPercentage).HasColumnName("g_rekening_percentage").HasPrecision(5, 2);
+    klant.Property(item => item.FacturerenPer).HasColumnName("factureren_per");
+    klant.Property(item => item.BtwVerlegd).HasColumnName("btw_verlegd");
+    klant.Property(item => item.MandagenregisterMeesturen).HasColumnName("mandagenregister_meesturen");
+    klant.Property(item => item.Opmerkingen).HasColumnName("opmerkingen");
+
+    var contact = modelBuilder.Entity<KlantContactpersoon>();
+    contact.ToTable("klant_contactpersonen");
+    contact.HasKey(item => item.Id);
+    contact.Property(item => item.Id).HasColumnName("id");
+    contact.Property(item => item.KlantId).HasColumnName("klant_id");
+    contact.Property(item => item.IsStandaardBesteller).HasColumnName("is_standaard_besteller");
+    contact.Property(item => item.Naam).HasColumnName("naam");
+    contact.Property(item => item.Functie).HasColumnName("functie");
+    contact.Property(item => item.Telefoon).HasColumnName("telefoon");
+    contact.Property(item => item.Email).HasColumnName("email");
+    contact.HasOne(item => item.Klant).WithMany(item => item.Contactpersonen)
+      .HasForeignKey(item => item.KlantId).OnDelete(DeleteBehavior.Cascade);
+
     var instellingen = modelBuilder.Entity<InstellingenAlgemeen>();
 
     instellingen.ToTable("instellingen_algemeen");

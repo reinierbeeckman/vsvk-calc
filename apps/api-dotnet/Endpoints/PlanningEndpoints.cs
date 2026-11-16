@@ -1,8 +1,11 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text.Json;
 using Vsvk.Api.Auth;
 using Vsvk.Api.Db;
 using Vsvk.Api.DTOs;
 using Vsvk.Api.Http;
+using Vsvk.Api.Services;
 
 namespace Vsvk.Api.Endpoints;
 
@@ -11,6 +14,21 @@ public static class PlanningEndpoints
   public static WebApplication MapPlanningEndpoints(this WebApplication app)
   {
     var group = app.MapGroup("/api/planning").RequireAuthorization("planning-lijsten");
+
+    group.MapGet("/klanten", async (HttpContext context, IPlanningCustomerService service, CancellationToken cancellationToken) =>
+      CustomerResponse(context, await service.ListAsync(cancellationToken)))
+      .RequireAuthorization(policy => policy.RequireRole(VsvkRoles.Directie))
+      .WithSummary("Klanten voor planning ophalen")
+      .Produces<List<PlanningCustomerListDto>>(200).Produces(401).Produces(403);
+
+    group.MapGet("/klanten/{id:int}", async (int id, HttpContext context, IPlanningCustomerService service, CancellationToken cancellationToken) =>
+    {
+      if (id <= 0) return Results.BadRequest();
+      var customer = await service.GetAsync(id, cancellationToken);
+      return customer is null ? Results.NotFound() : CustomerResponse(context, customer);
+    }).RequireAuthorization(policy => policy.RequireRole(VsvkRoles.Directie))
+      .WithSummary("Klant met contactpersonen ophalen")
+      .Produces<PlanningCustomerDetailDto>(200).Produces(400).Produces(401).Produces(403).Produces(404);
 
     group.MapGet("/medewerkers", async (ClaimsPrincipal user, PlanningRepository repository, CancellationToken cancellationToken) =>
     {
@@ -52,4 +70,12 @@ public static class PlanningEndpoints
 
   private static string? Branch(ClaimsPrincipal user) =>
     VsvkRoles.HasOrganizationWideAccess(user) ? null : VsvkRoles.GetVestiging(user);
+
+  private static IResult CustomerResponse<T>(HttpContext context, T value)
+  {
+    var json = JsonSerializer.SerializeToUtf8Bytes(value, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+    context.Response.Headers.ETag = '"' + Convert.ToHexString(SHA256.HashData(json)) + '"';
+    context.Response.Headers.CacheControl = "private, no-store";
+    return Results.Bytes(json, "application/json; charset=utf-8");
+  }
 }

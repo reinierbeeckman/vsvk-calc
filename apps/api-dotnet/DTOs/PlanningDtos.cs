@@ -16,3 +16,20 @@ public sealed record PlanningMaterieelDto(
   string? Serienummer, string? Standplaats, string? Materieelgroep, long Version);
 
 public sealed record PlanningActiveRequest(bool? Actief);
+
+public sealed record PlanningCustomerListDto(
+  int Id, bool Actief, string Debiteurnummer, string Bedrijfsnaam, string? Telefoon,
+  string? Plaats, string? StandaardBesteller);
+
+public sealed record PlanningCustomerContactDto(
+  int Id, string Naam, string? Functie, string? Telefoon, string? Email, bool IsStandaardBesteller);
+
+public sealed record PlanningCustomerBillingDto(
+  string? BtwNummer, string? Iban, string? FactuurEmail, bool AfwijkendFactuuradres, string? VasteReferentie,
+  decimal? GRekeningPercentage, string? FacturerenPer, bool BtwVerlegd, bool MandagenregisterMeesturen);
+
+public sealed record PlanningCustomerDetailDto(
+  int Id, bool Actief, string Debiteurnummer, string Bedrijfsnaam, string? KvkNummer,
+  string? Website, string? Telefoon, string? Email, string? Straat, string? Huisnummer,
+  string? Toevoeging, string? Postcode, string? Plaats, string? Land, string? Opmerkingen,
+  List<PlanningCustomerContactDto> Contactpersonen, PlanningCustomerBillingDto Facturatie);

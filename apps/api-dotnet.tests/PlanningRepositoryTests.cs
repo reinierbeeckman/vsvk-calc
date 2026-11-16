@@ -17,6 +17,7 @@ using Testcontainers.PostgreSql;
 using Vsvk.Api.Auth;
 using Vsvk.Api.Db;
 using Vsvk.Api.Endpoints;
+using Vsvk.Api.Services;
 using Xunit;
 
 namespace Vsvk.Api.Tests;
@@ -140,6 +141,7 @@ public sealed class PlanningRepositoryTests : IAsyncLifetime
     builder.WebHost.UseUrls("http://127.0.0.1:0");
     builder.Services.AddDbContext<VsvkDbContext>(options => options.UseNpgsql(_postgres.GetConnectionString()));
     builder.Services.AddScoped<PlanningRepository>();
+    builder.Services.AddScoped<IPlanningCustomerService, PlanningCustomerService>();
     builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, PlanningTestAuthenticationHandler>("Test", _ => { });
     builder.Services.AddAuthorization(options => options.AddPolicy("planning-lijsten", policy =>
       policy.RequireAssertion(context => VsvkRoles.CanManagePlanning(context.User))));

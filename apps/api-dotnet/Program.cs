@@ -32,6 +32,7 @@ builder.Services.AddScoped<InstellingenRepository>();
 builder.Services.AddScoped<VestigingRepository>();
 builder.Services.AddScoped<ArtikelRepository>();
 builder.Services.AddScoped<PlanningRepository>();
+builder.Services.AddScoped<IPlanningCustomerService, PlanningCustomerService>();
 builder.Services.AddScoped<IUserProfileRepository, UserProfileRepository>();
 builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddSingleton<DatabaseMigrator>();

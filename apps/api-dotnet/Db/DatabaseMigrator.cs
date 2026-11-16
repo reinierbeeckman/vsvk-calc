@@ -295,6 +295,47 @@ where id = 1
     await MigrateSkillsNormalizedNameUniquenessAsync(cancellationToken);
     await MigrateMaterieelAsync(cancellationToken);
     await MigrateRemoveMaterieelImportStateAsync(cancellationToken);
+    await MigrateCustomersAsync(cancellationToken);
+  }
+
+  private async Task MigrateCustomersAsync(CancellationToken cancellationToken)
+  {
+    const string sql = """
+      create table if not exists klanten (
+        id serial primary key,
+        aan boolean not null default true,
+        debiteurnummer varchar(50) unique not null,
+        bedrijfsnaam varchar(255) not null,
+        kvk_nummer varchar(20), btw_nummer varchar(30), iban varchar(50), website varchar(255),
+        telefoon_algemeen varchar(50), email_algemeen varchar(255),
+        straat varchar(255), huisnummer varchar(20), toevoeging varchar(20),
+        postcode varchar(10), plaats varchar(100), land varchar(100) default 'Nederland',
+        factuur_email varchar(255), afwijkend_factuuradres boolean not null default false,
+        vaste_referentie varchar(100), g_rekening_percentage numeric(5,2) default 0.00,
+        factureren_per varchar(50), btw_verlegd boolean not null default false,
+        mandagenregister_meesturen boolean not null default false,
+        opmerkingen text, aangemaakt_op timestamptz default current_timestamp
+      );
+      alter table klanten add column if not exists iban varchar(50);
+      create table if not exists klant_contactpersonen (
+        id serial primary key,
+        klant_id integer not null references klanten(id) on delete cascade,
+        is_standaard_besteller boolean not null default false,
+        naam varchar(255) not null, functie varchar(100), telefoon varchar(50),
+        email varchar(255), aangemaakt_op timestamptz default current_timestamp
+      );
+      create unique index if not exists idx_unieke_standaard_besteller
+        on klant_contactpersonen (klant_id) where is_standaard_besteller = true;
+      create index if not exists ix_klant_contactpersonen_klant_id on klant_contactpersonen (klant_id);
+      create table if not exists klant_afwijkende_tarieven (
+        id serial primary key,
+        klant_id integer not null references klanten(id) on delete cascade,
+        omschrijving varchar(255) not null, tarief numeric(10,2) not null,
+        eenheid varchar(50), aangemaakt_op timestamptz default current_timestamp
+      );
+      """;
+    await using var command = _dataSource.CreateCommand(sql);
+    await command.ExecuteNonQueryAsync(cancellationToken);
   }
 
   private async Task ImportArticleCatalogAsync(CancellationToken cancellationToken)

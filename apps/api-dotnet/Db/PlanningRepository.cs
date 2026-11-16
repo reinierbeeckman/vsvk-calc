@@ -5,6 +5,29 @@ namespace Vsvk.Api.Db;
 
 public sealed class PlanningRepository(VsvkDbContext context)
 {
+  public Task<List<PlanningCustomerListDto>> ListCustomersAsync(CancellationToken cancellationToken) =>
+    context.Klanten.AsNoTracking().OrderBy(customer => customer.Bedrijfsnaam).ThenBy(customer => customer.Id)
+      .Select(customer => new PlanningCustomerListDto(customer.Id, customer.Aan, customer.Debiteurnummer,
+        customer.Bedrijfsnaam, customer.TelefoonAlgemeen, customer.Plaats,
+        customer.Contactpersonen.Where(contact => contact.IsStandaardBesteller)
+          .Select(contact => contact.Naam).FirstOrDefault()))
+      .ToListAsync(cancellationToken);
+
+  public Task<PlanningCustomerDetailDto?> GetCustomerAsync(int id, CancellationToken cancellationToken) =>
+    context.Klanten.AsNoTracking().Where(customer => customer.Id == id)
+      .Select(customer => new PlanningCustomerDetailDto(customer.Id, customer.Aan, customer.Debiteurnummer,
+        customer.Bedrijfsnaam, customer.KvkNummer, customer.Website, customer.TelefoonAlgemeen,
+        customer.EmailAlgemeen, customer.Straat, customer.Huisnummer, customer.Toevoeging,
+        customer.Postcode, customer.Plaats, customer.Land, customer.Opmerkingen,
+        customer.Contactpersonen.OrderByDescending(contact => contact.IsStandaardBesteller)
+          .ThenBy(contact => contact.Naam).ThenBy(contact => contact.Id)
+          .Select(contact => new PlanningCustomerContactDto(contact.Id, contact.Naam, contact.Functie,
+            contact.Telefoon, contact.Email, contact.IsStandaardBesteller)).ToList(),
+        new PlanningCustomerBillingDto(customer.BtwNummer, customer.Iban, customer.FactuurEmail, customer.AfwijkendFactuuradres,
+          customer.VasteReferentie, customer.GRekeningPercentage, customer.FacturerenPer,
+          customer.BtwVerlegd, customer.MandagenregisterMeesturen)))
+      .FirstOrDefaultAsync(cancellationToken);
+
   private IQueryable<UserInformation> Employees(string? branch)
   {
     var query = context.UserInformation.AsNoTracking();
