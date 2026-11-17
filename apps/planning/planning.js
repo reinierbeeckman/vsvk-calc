@@ -288,7 +288,7 @@
       saving.add(item.id); notices.delete(item.id); render();
       try {
         const updated = await request('/api/planning/medewerkers/' + encodeURIComponent(item.id) + '/actief', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'If-Match': item.eTag }, body: JSON.stringify({ actief: selected }) });
-        updateEmployee(item, updated); drafts.delete(item.id); notices.set(item.id, 'Opgeslagen.');
+        updateEmployee(item, updated); drafts.delete(item.id);
       } catch (error) {
         if (error.status === 412) {
           statusConflicts.set(item.id, 'unavailable');

@@ -86,6 +86,7 @@ test('de medewerkerstatus wordt direct opgeslagen zonder rijknop', async () => {
   assert.equal(write.options.headers['If-Match'], '"1"');
   assert.equal(JSON.parse(write.options.body).actief, false);
   assert.equal(employeeSwitch(view).attributes['aria-checked'], 'false');
+  assert.equal(descendants(view.elements.body).some(element => element.textContent === 'Opgeslagen.'), false);
 });
 
 test('een mislukte statuswijziging blijft behouden en kan expliciet opnieuw worden geprobeerd', async () => {
