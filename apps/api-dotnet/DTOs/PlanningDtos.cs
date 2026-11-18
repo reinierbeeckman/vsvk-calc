@@ -22,6 +22,29 @@ public sealed record PlanningCustomerListDto(
   int Id, bool Actief, string Debiteurnummer, string Bedrijfsnaam, string? Telefoon,
   string? Plaats, string? StandaardBesteller);
 
+public sealed record PlanningSupplierListDto(
+  int Id, bool Actief, string Crediteurnummer, string Bedrijfsnaam, string? Telefoon, string? Plaats);
+
+public sealed record PlanningSupplierWriteDto(
+  string? Crediteurnummer, string? Bedrijfsnaam, bool Actief = true, string? KvkNummer = null,
+  string? BtwNummer = null, string? Website = null, string? Telefoon = null, string? Email = null,
+  string? Straat = null, string? Huisnummer = null, string? Toevoeging = null, string? Postcode = null,
+  string? Plaats = null, string? Land = "Nederland", string? FactuurEmail = null,
+  bool AfwijkendFactuuradres = false, string? VasteReferentie = null, string? Iban = null,
+  decimal? GRekeningPercentage = null, string? FacturerenPer = null, bool BtwVerlegd = false,
+  bool MandagenregisterMeesturen = false, string? Opmerkingen = null);
+
+public sealed record PlanningSupplierDetailDto(
+  int Id, bool Actief, string Crediteurnummer, string Bedrijfsnaam, string? KvkNummer,
+  string? BtwNummer, string? Website, string? Telefoon, string? Email, string? Straat,
+  string? Huisnummer, string? Toevoeging, string? Postcode, string? Plaats, string? Land,
+  string? FactuurEmail, bool AfwijkendFactuuradres, string? VasteReferentie, string? Iban,
+  decimal? GRekeningPercentage, string? FacturerenPer, bool BtwVerlegd,
+  bool MandagenregisterMeesturen, string? Opmerkingen, long Version)
+{
+  public string ETag => StrongEtag.Format(Version);
+}
+
 /// <summary>De verplichte gegevens voor het aanmaken van een klant.</summary>
 public sealed record CreatePlanningCustomerRequest(string? Debiteurnummer, string? Bedrijfsnaam);
 

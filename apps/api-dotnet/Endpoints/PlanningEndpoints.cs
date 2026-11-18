@@ -24,6 +24,73 @@ public static class PlanningEndpoints
       .WithSummary("Klanten voor planning ophalen")
       .Produces<List<PlanningCustomerListDto>>(200).Produces(401).Produces(403);
 
+    group.MapGet("/leveranciers", async (HttpContext context, PlanningRepository repository, CancellationToken cancellationToken) =>
+      CustomerResponse(context, await repository.ListSuppliersAsync(cancellationToken)))
+      .RequireAuthorization(policy => policy.RequireRole(VsvkRoles.Directie))
+      .WithSummary("Leveranciers voor planning ophalen")
+      .Produces<List<PlanningSupplierListDto>>(200).Produces(401).Produces(403);
+
+    group.MapGet("/leveranciers/{id:int}", async (int id, HttpContext context, PlanningRepository repository, CancellationToken cancellationToken) =>
+    {
+      if (id <= 0) return Results.BadRequest();
+      var supplier = await repository.GetSupplierAsync(id, cancellationToken);
+      if (supplier is null) return Results.NotFound();
+      context.Response.Headers.ETag = supplier.ETag;
+      context.Response.Headers.CacheControl = "private, no-store";
+      return Results.Ok(supplier);
+    }).RequireAuthorization(policy => policy.RequireRole(VsvkRoles.Directie))
+      .WithSummary("Leveranciergegevens ophalen")
+      .Produces<PlanningSupplierDetailDto>(200).Produces(400).Produces(401).Produces(403).Produces(404);
+
+    group.MapPost("/leveranciers", async (PlanningSupplierWriteDto request, HttpContext context,
+      PlanningRepository repository, IHostEnvironment environment, IConfiguration configuration,
+      CancellationToken cancellationToken) =>
+    {
+      if (!CanWriteInDevelopment(context.User, environment, configuration)) return Results.Forbid();
+      if (!ValidSupplier(request))
+        return Results.BadRequest("Controleer de leveranciersgegevens.");
+      try
+      {
+        var saved = await repository.CreateSupplierAsync(request, cancellationToken);
+        context.Response.Headers.ETag = saved.ETag;
+        context.Response.Headers.CacheControl = "private, no-store";
+        return Results.Created($"/api/planning/leveranciers/{saved.Id}", saved);
+      }
+      catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+      {
+        return Results.Conflict("Dit crediteurnummer bestaat al.");
+      }
+    }).RequireAuthorization(policy => policy.RequireRole(VsvkRoles.Directie))
+      .WithSummary("Leverancier toevoegen voor ontwikkeling")
+      .Produces<PlanningSupplierDetailDto>(201).Produces(400).Produces(401).Produces(403).Produces(409);
+
+    group.MapPut("/leveranciers/{id:int}", async (int id, PlanningSupplierWriteDto request, HttpContext context,
+      PlanningRepository repository, IHostEnvironment environment, IConfiguration configuration,
+      CancellationToken cancellationToken) =>
+    {
+      if (!CanWriteInDevelopment(context.User, environment, configuration)) return Results.Forbid();
+      if (id <= 0 || !ValidSupplier(request)) return Results.BadRequest();
+      var precondition = IfMatchParser.Parse(context.Request.Headers.TryGetValue("If-Match", out var values) ? values.ToString() : null);
+      if (!precondition.IsValid) return Results.StatusCode(precondition.StatusCode);
+      var current = await repository.GetSupplierAsync(id, cancellationToken);
+      if (current is null) return Results.NotFound();
+      if (current.Version != precondition.Version) return Results.StatusCode(StatusCodes.Status412PreconditionFailed);
+      try
+      {
+        var saved = await repository.SaveSupplierAsync(id, precondition.Version!.Value, request, cancellationToken);
+        if (saved is null) return Results.StatusCode(StatusCodes.Status412PreconditionFailed);
+        context.Response.Headers.ETag = saved.ETag;
+        context.Response.Headers.CacheControl = "private, no-store";
+        return Results.Ok(saved);
+      }
+      catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+      {
+        return Results.BadRequest("Dit crediteurnummer bestaat al.");
+      }
+    }).RequireAuthorization(policy => policy.RequireRole(VsvkRoles.Directie))
+      .WithSummary("Leverancier opslaan met If-Match")
+      .Produces<PlanningSupplierDetailDto>(200).Produces(400).Produces(401).Produces(403).Produces(404).Produces(412).Produces(428);
+
     group.MapGet("/klanten/{id:int}", async (int id, HttpContext context, IPlanningCustomerService service, CancellationToken cancellationToken) =>
     {
       if (id <= 0) return Results.BadRequest();
@@ -201,6 +268,27 @@ public static class PlanningEndpoints
 
   private static string? Branch(ClaimsPrincipal user) =>
     VsvkRoles.HasOrganizationWideAccess(user) ? null : VsvkRoles.GetVestiging(user);
+
+  private static bool CanWriteInDevelopment(ClaimsPrincipal user, IHostEnvironment environment, IConfiguration configuration) =>
+    environment.IsDevelopment() && configuration.GetValue<bool>("DevelopmentAccess:Enabled") &&
+    user.Identity?.IsAuthenticated == true && VsvkRoles.IsApplicationUser(user) &&
+    user.IsInRole(VsvkRoles.Development);
+
+  private static bool ValidSupplier(PlanningSupplierWriteDto supplier)
+  {
+    static bool Length(string? value, int max) => value is null || value.Length <= max;
+    static bool Email(string? value) => string.IsNullOrWhiteSpace(value) || new EmailAddressAttribute().IsValid(value);
+    return !string.IsNullOrWhiteSpace(supplier.Bedrijfsnaam) && Length(supplier.Bedrijfsnaam, 255) &&
+      !string.IsNullOrWhiteSpace(supplier.Crediteurnummer) && Length(supplier.Crediteurnummer, 50) &&
+      Length(supplier.KvkNummer, 20) && Length(supplier.BtwNummer, 30) && Length(supplier.Website, 255) &&
+      Length(supplier.Telefoon, 50) && Length(supplier.Email, 255) && Email(supplier.Email) &&
+      Length(supplier.Straat, 255) && Length(supplier.Huisnummer, 20) && Length(supplier.Toevoeging, 20) &&
+      Length(supplier.Postcode, 10) && Length(supplier.Plaats, 100) && Length(supplier.Land, 100) &&
+      Length(supplier.Iban, 50) && Length(supplier.FactuurEmail, 255) && Email(supplier.FactuurEmail) &&
+      Length(supplier.VasteReferentie, 100) && Length(supplier.FacturerenPer, 50) &&
+      (supplier.GRekeningPercentage is null || (supplier.GRekeningPercentage >= 0 &&
+        supplier.GRekeningPercentage <= 100 && decimal.Round(supplier.GRekeningPercentage.Value, 2) == supplier.GRekeningPercentage));
+  }
 
   private static bool ValidCustomer(PlanningCustomerDetailDto c)
   {

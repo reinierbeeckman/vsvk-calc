@@ -296,6 +296,7 @@ where id = 1
     await MigrateMaterieelAsync(cancellationToken);
     await MigrateRemoveMaterieelImportStateAsync(cancellationToken);
     await MigrateCustomersAsync(cancellationToken);
+    await MigrateSuppliersAsync(cancellationToken);
     await MigratePlanningRatesAsync(cancellationToken);
   }
 
@@ -340,9 +341,36 @@ where id = 1
     await command.ExecuteNonQueryAsync(cancellationToken);
   }
 
+  private async Task MigrateSuppliersAsync(CancellationToken cancellationToken)
+  {
+    const string sql = """
+      create table if not exists leveranciers (
+        id serial primary key,
+        aan boolean not null default true,
+        debiteurnummer varchar(50) unique not null,
+        bedrijfsnaam varchar(255) not null,
+        kvk_nummer varchar(20), btw_nummer varchar(30), iban varchar(50), website varchar(255),
+        telefoon_algemeen varchar(50), email_algemeen varchar(255),
+        straat varchar(255), huisnummer varchar(20), toevoeging varchar(20),
+        postcode varchar(10), plaats varchar(100), land varchar(100) default 'Nederland',
+        factuur_email varchar(255), afwijkend_factuuradres boolean not null default false,
+        vaste_referentie varchar(100), g_rekening_percentage numeric(5,2) default 0.00,
+        factureren_per varchar(50), btw_verlegd boolean not null default false,
+        mandagenregister_meesturen boolean not null default false,
+        opmerkingen text, aangemaakt_op timestamptz default current_timestamp,
+        tarieven_version bigint not null default 1, version bigint not null default 1
+      );
+      alter table leveranciers add column if not exists version bigint not null default 1;
+      update leveranciers set version = 1 where version < 1;
+      """;
+    await using var command = _dataSource.CreateCommand(sql);
+    await command.ExecuteNonQueryAsync(cancellationToken);
+  }
+
   public async Task MigratePlanningRecordsAsync(CancellationToken cancellationToken = default)
   {
     await MigrateCustomersAsync(cancellationToken);
+    await MigrateSuppliersAsync(cancellationToken);
     await MigratePlanningRatesAsync(cancellationToken);
   }
 

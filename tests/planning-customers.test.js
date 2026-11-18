@@ -25,7 +25,7 @@ class Element {
 }
 
 function setup(detailResponse, fixtures = {}, loading = { begin: () => () => {} }) {
-  const ids = ['head', 'body', 'message', 'search', 'detail', 'title', 'description', 'list-nav', 'list-panel', 'unavailable', 'add', 'count', 'empty', 'detail-title', 'detail-subtitle', 'detail-body', 'detail-save'];
+  const ids = ['head', 'body', 'message', 'search', 'detail', 'title', 'description', 'list-nav', 'list-panel', 'unavailable', 'add', 'list-hint', 'count', 'empty', 'detail-title', 'detail-subtitle', 'detail-body', 'detail-save'];
   const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
   const lists = ['medewerkers', 'klanten', 'materieel', 'artikelen', 'ordernummers', 'tarieven', 'leveranciers', 'instellingen', 'huisstijl', 'rollen'].map(list => new Element({ list }));
   const sections = [new Element({ section: 'Lijsten' })];
@@ -87,6 +87,51 @@ test('lijst en details stoppen hun laadindicatie bij navigeren of sluiten', asyn
 function descendants(element) {
   return element.children.filter(child => child instanceof Element).flatMap(child => [child, ...descendants(child)]);
 }
+
+test('leveranciers worden uit de planning-api geladen en weergegeven', async () => {
+  const view = setup(async () => ({}), {
+    '/api/planning/leveranciers': [{ id: 1, actief: true, crediteurnummer: 'L1', bedrijfsnaam: 'Leverancier Een', telefoon: '010123', plaats: 'Delft' }]
+  });
+  await flush();
+  view.lists.find(element => element.dataset.list === 'leveranciers').click();
+  await flush();
+
+  assert(view.requests.includes('/api/planning/leveranciers'));
+  assert.equal(view.elements.title.textContent, 'Leveranciers');
+  assert.equal(view.elements.body.children.length, 1);
+  assert(view.elements.body.children[0].textContent.includes('Leverancier Een'));
+  assert.equal(view.elements.unavailable.hidden, true);
+});
+
+test('development kan leverancierdetails wijzigen en opslaan', async () => {
+  const supplier = { id: 1, actief: true, crediteurnummer: 'L1', bedrijfsnaam: 'Leverancier', kvkNummer: null,
+    btwNummer: null, website: null, telefoon: '010', email: null, straat: null, huisnummer: null, toevoeging: null,
+    postcode: null, plaats: 'Delft', land: 'Nederland', factuurEmail: null, afwijkendFactuuradres: false,
+    vasteReferentie: null, iban: null, gRekeningPercentage: null, facturerenPer: null, btwVerlegd: false,
+    mandagenregisterMeesturen: false, opmerkingen: null, version: 1, eTag: '"1"' };
+  let saved;
+  const view = setup(async () => ({}), {
+    '/bff/user': { permissions: { canEditPlanningRecords: true } },
+    '/api/planning/leveranciers': [supplier],
+    '/api/planning/leveranciers/1': options => {
+      if (options?.method === 'PUT') { saved = options; return { ...supplier, bedrijfsnaam: 'Nieuwe leverancier', version: 2, eTag: '"2"' }; }
+      return supplier;
+    }
+  });
+  await flush();
+  view.lists.find(element => element.dataset.list === 'leveranciers').click();
+  await flush();
+  view.elements.body.children[0].children.at(-1).children[0].click();
+  await flush();
+  const input = descendants(view.elements['detail-body']).find(element => element.attributes['aria-label'] === 'Bedrijfsnaam');
+  input.value = 'Nieuwe leverancier';
+  input.events.input();
+  view.elements['detail-save'].click();
+  await flush();
+
+  assert.equal(saved.headers['If-Match'], '"1"');
+  assert.equal(JSON.parse(saved.body).bedrijfsnaam, 'Nieuwe leverancier');
+});
 
 test('ontwikkelaar kan materieeldetails wijzigen en opslaan', async () => {
   const equipment = { id: 'm1', omschrijving: 'Kraan', standplaatsId: null, materieelGroepId: null, eTag: '"1"' };

@@ -101,6 +101,32 @@ public sealed class PlanningMigrationTests
   }
 
   [Fact]
+  public async Task Supplier_table_is_created_and_existing_data_is_preserved()
+  {
+    await using var postgres = new PostgreSqlBuilder().WithImage("postgres:16-alpine").Build();
+    await postgres.StartAsync();
+    await using var source = NpgsqlDataSource.Create(postgres.GetConnectionString());
+    await using (var existing = source.CreateCommand("""
+      create table leveranciers (
+        id serial primary key, aan boolean not null default true,
+        debiteurnummer varchar(50) unique not null, bedrijfsnaam varchar(255) not null,
+        telefoon_algemeen varchar(50), plaats varchar(100), iban varchar(50), version bigint not null default 0);
+      insert into leveranciers(debiteurnummer, bedrijfsnaam) values ('L1', 'Bestaande leverancier');
+      """)) await existing.ExecuteNonQueryAsync();
+
+    var migrator = new DatabaseMigrator(source);
+    await migrator.MigrateAsync();
+    await migrator.MigrateAsync();
+    await using var query = source.CreateCommand("""
+      select bedrijfsnaam, version from leveranciers where debiteurnummer = 'L1'
+      """);
+    await using var reader = await query.ExecuteReaderAsync();
+    Assert.True(await reader.ReadAsync());
+    Assert.Equal("Bestaande leverancier", reader.GetString(0));
+    Assert.Equal(1, reader.GetInt64(1));
+  }
+
+  [Fact]
   public async Task Employee_active_migration_is_repeatable_and_preserves_new_status()
   {
     await using var postgres = new PostgreSqlBuilder().WithImage("postgres:16-alpine").Build();

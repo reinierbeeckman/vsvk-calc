@@ -5,7 +5,8 @@
       materieel: { title: 'Materieel', singular: 'Materieel', description: 'Machines, voertuigen en gereedschap. Bekijk de gegevens uit de bestaande materieellijst.', path: '/api/planning/materieel', columns: [['Omschrijving','omschrijving'],['Groep','materieelgroep'],['Vestiging','standplaats'],['Kenteken','kenteken'],['Merk','merk'],['Zoeknaam','zoeknaam'],['Serienummer','serienummer']] },
       artikelen: { title: 'Artikelen', singular: 'Artikel', description: 'Materialen uit de bestaande artikelcatalogus.', path: '/api/articles', columns: [['Omschrijving','naam'],['Categorie','categorie'],['Eenheid','eenheid'],['Prijs','tarief'],['Actief','actief']] },
       tarieven: { title: 'Tarieven', singular: 'Tarief', description: 'Actuele standaardtarieven per functie. Klantspecifieke afwijkingen beheer je in het klantvenster.', path: '/api/planning/tarieven', columns: [['Actief','actief'],['Functie','functie'],['Prijs','prijs'],['Eenheid','eenheid'],['Geldig vanaf','geldigVanaf']] },
-      ordernummers: { title: 'Ordernummers' }, leveranciers: { title: 'Leveranciers' }, instellingen: { title: 'Instellingen' }, huisstijl: { title: 'Huisstijl' }, rollen: { title: 'Rollen & rechten' }
+      leveranciers: { title: 'Leveranciers', singular: 'Leverancier', description: 'Leveranciersgegevens uit de bestaande leverancierstabel.', path: '/api/planning/leveranciers', columns: [['Actief','actief'],['Crediteurnr','crediteurnummer'],['Bedrijfsnaam','bedrijfsnaam'],['Telefoon','telefoon'],['Plaats','plaats']] },
+      ordernummers: { title: 'Ordernummers' }, instellingen: { title: 'Instellingen' }, huisstijl: { title: 'Huisstijl' }, rollen: { title: 'Rollen & rechten' }
     };
     const head = document.querySelector('#head');
     const body = document.querySelector('#body');
@@ -96,7 +97,7 @@
             : 'Nieuwe records toevoegen is alleen beschikbaar voor development. Import en export zijn nog niet beschikbaar.';
           return;
         }
-        if (!['medewerkers', 'klanten', 'materieel', 'artikelen', 'tarieven'].includes(list)) return;
+        if (!['medewerkers', 'klanten', 'materieel', 'artikelen', 'tarieven', 'leveranciers'].includes(list)) return;
         add.disabled = false; add.title = '';
         document.querySelector('#list-hint').textContent = 'Import en export zijn nog niet beschikbaar.';
       });
@@ -309,9 +310,26 @@
         { key: 'naam', label: 'Naam', required: requiredName }, { key: 'functie', label: 'Functie' }, { key: 'telefoon', label: 'Telefoon' }, { key: 'email', label: 'E-mail' },
         { key: 'vestiging', label: 'Vestiging', type: 'select', options: options(branches) }, { key: 'skills', label: 'Vaardigheden & certificaten', type: 'skills', options: options(skills) }];
     }
+    function supplierFields(requiredIdentity = false) {
+      return [{ key: 'actief', label: 'Actief', type: 'boolean' },
+        { key: 'crediteurnummer', label: 'Crediteurnummer', required: requiredIdentity },
+        { key: 'bedrijfsnaam', label: 'Bedrijfsnaam', required: true }, { key: 'kvkNummer', label: 'KvK-nummer' },
+        { key: 'btwNummer', label: 'Btw-nummer' }, { key: 'website', label: 'Website' },
+        { key: 'telefoon', label: 'Telefoon algemeen' }, { key: 'email', label: 'E-mail algemeen' },
+        { key: 'straat', label: 'Straat' }, { key: 'huisnummer', label: 'Huisnummer' },
+        { key: 'toevoeging', label: 'Toevoeging' }, { key: 'postcode', label: 'Postcode' },
+        { key: 'plaats', label: 'Plaats' }, { key: 'land', label: 'Land' },
+        { key: 'factuurEmail', label: 'Factuur e-mail' },
+        { key: 'afwijkendFactuuradres', label: 'Afwijkend factuuradres', type: 'boolean' },
+        { key: 'vasteReferentie', label: 'Vaste referentie / kostenplaats' }, { key: 'iban', label: 'IBAN' },
+        { key: 'gRekeningPercentage', label: 'G-rekening (%)', type: 'number' },
+        { key: 'facturerenPer', label: 'Factureren per' }, { key: 'btwVerlegd', label: 'Btw verlegd', type: 'boolean' },
+        { key: 'mandagenregisterMeesturen', label: 'Mandagenregister meesturen', type: 'boolean' },
+        { key: 'opmerkingen', label: 'Opmerkingen' }];
+    }
     async function openCreate() {
       const list = current;
-      if (!['medewerkers', 'klanten', 'materieel', 'artikelen', 'tarieven'].includes(list) || !await planningPermissions || current !== list || currentSection !== 'Lijsten') return;
+      if (!['medewerkers', 'klanten', 'materieel', 'artikelen', 'tarieven', 'leveranciers'].includes(list) || !await planningPermissions || current !== list || currentSection !== 'Lijsten') return;
       const sequence = ++detailNumber;
       stopDetailLoading(); customerRatesDirty = false;
       detailSave.disabled = true; detailSave.onclick = null; detailSave.title = '';
@@ -334,6 +352,16 @@
           detailDraft = window.VsvkPlanningEditor.create({ content, saveButton: detailSave, method: 'POST',
             endpoint: '/api/planning/klanten', request, item: { debiteurnummer: '', bedrijfsnaam: '' },
             fields: [{ key: 'debiteurnummer', label: 'Debiteurnummer', required: true }, { key: 'bedrijfsnaam', label: 'Bedrijfsnaam', required: true }],
+            isCurrent: () => sequence === detailNumber && detail.open,
+            onSaved: () => { detailDraft = null; detail.close(); if (current === list) load(list); } });
+        } else if (list === 'leveranciers') {
+          const item = { actief: true, crediteurnummer: '', bedrijfsnaam: '', kvkNummer: null, btwNummer: null,
+            website: null, telefoon: null, email: null, straat: null, huisnummer: null, toevoeging: null,
+            postcode: null, plaats: null, land: 'Nederland', factuurEmail: null, afwijkendFactuuradres: false,
+            vasteReferentie: null, iban: null, gRekeningPercentage: null, facturerenPer: null, btwVerlegd: false,
+            mandagenregisterMeesturen: false, opmerkingen: null };
+          detailDraft = window.VsvkPlanningEditor.create({ content, saveButton: detailSave, method: 'POST',
+            endpoint: '/api/planning/leveranciers', request, item, fields: supplierFields(true),
             isCurrent: () => sequence === detailNumber && detail.open,
             onSaved: () => { detailDraft = null; detail.close(); if (current === list) load(list); } });
         } else if (list === 'tarieven') {
@@ -396,6 +424,41 @@
         } finally {
           finishLoading();
         }
+        return;
+      }
+      if (list === 'leveranciers') {
+        content.textContent = 'Leveranciersgegevens laden…';
+        detail.showModal();
+        const finishLoading = window.VsvkLoading.begin(); stopDetailLoading = finishLoading;
+        try {
+          const [supplier, canEdit] = await Promise.all([
+            request('/api/planning/leveranciers/' + encodeURIComponent(item.id)), planningPermissions
+          ]);
+          if (sequence !== detailNumber || !detail.open) return;
+          document.querySelector('#detail-subtitle').textContent = 'Leveranciersgegevens ' + (canEdit ? 'wijzigen' : 'alleen bekijken');
+          const fields = supplierFields(true);
+          if (canEdit) {
+            detailDraft = window.VsvkPlanningEditor.create({ content, saveButton: detailSave,
+              endpoint: '/api/planning/leveranciers/' + encodeURIComponent(item.id),
+              readEndpoint: '/api/planning/leveranciers/' + encodeURIComponent(item.id),
+              request, item: supplier, fields, isCurrent: () => sequence === detailNumber && detail.open,
+              onSaved: saved => {
+                Object.assign(item, { actief: saved.actief, crediteurnummer: saved.crediteurnummer,
+                  bedrijfsnaam: saved.bedrijfsnaam, telefoon: saved.telefoon, plaats: saved.plaats });
+                render();
+              } });
+          } else {
+            const grid = document.createElement('div'); grid.className = 'fg';
+            for (const field of fields) {
+              const block = document.createElement('div'); block.className = 'field';
+              const name = document.createElement('strong'); name.textContent = field.label;
+              block.append(name, fieldValue(supplier, field.key, field.label)); grid.append(block);
+            }
+            content.replaceChildren(grid);
+          }
+        } catch (error) {
+          if (sequence === detailNumber && detail.open) content.textContent = 'Leveranciersgegevens ophalen mislukt: ' + error.message;
+        } finally { finishLoading(); }
         return;
       }
       if (list === 'artikelen' && await planningPermissions) {

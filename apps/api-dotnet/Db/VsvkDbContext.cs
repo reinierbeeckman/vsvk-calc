@@ -19,12 +19,42 @@ public sealed class VsvkDbContext : DbContext
   public DbSet<MaterieelGroep> MaterieelGroepen => Set<MaterieelGroep>();
   public DbSet<Klant> Klanten => Set<Klant>();
   public DbSet<KlantContactpersoon> KlantContactpersonen => Set<KlantContactpersoon>();
+  public DbSet<Leverancier> Leveranciers => Set<Leverancier>();
   public DbSet<PlanningFunctie> PlanningFuncties => Set<PlanningFunctie>();
   public DbSet<PlanningStandaardTarief> PlanningStandaardTarieven => Set<PlanningStandaardTarief>();
   public DbSet<PlanningKlantTarief> PlanningKlantTarieven => Set<PlanningKlantTarief>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
+    var leverancier = modelBuilder.Entity<Leverancier>();
+    leverancier.ToTable("leveranciers");
+    leverancier.HasKey(item => item.Id);
+    leverancier.Property(item => item.Id).HasColumnName("id");
+    leverancier.Property(item => item.Aan).HasColumnName("aan");
+    leverancier.Property(item => item.Debiteurnummer).HasColumnName("debiteurnummer");
+    leverancier.Property(item => item.Bedrijfsnaam).HasColumnName("bedrijfsnaam");
+    leverancier.Property(item => item.KvkNummer).HasColumnName("kvk_nummer");
+    leverancier.Property(item => item.BtwNummer).HasColumnName("btw_nummer");
+    leverancier.Property(item => item.Iban).HasColumnName("iban").HasMaxLength(50);
+    leverancier.Property(item => item.Website).HasColumnName("website");
+    leverancier.Property(item => item.TelefoonAlgemeen).HasColumnName("telefoon_algemeen");
+    leverancier.Property(item => item.EmailAlgemeen).HasColumnName("email_algemeen");
+    leverancier.Property(item => item.Straat).HasColumnName("straat");
+    leverancier.Property(item => item.Huisnummer).HasColumnName("huisnummer");
+    leverancier.Property(item => item.Toevoeging).HasColumnName("toevoeging");
+    leverancier.Property(item => item.Postcode).HasColumnName("postcode");
+    leverancier.Property(item => item.Plaats).HasColumnName("plaats");
+    leverancier.Property(item => item.Land).HasColumnName("land");
+    leverancier.Property(item => item.FactuurEmail).HasColumnName("factuur_email");
+    leverancier.Property(item => item.AfwijkendFactuuradres).HasColumnName("afwijkend_factuuradres");
+    leverancier.Property(item => item.VasteReferentie).HasColumnName("vaste_referentie");
+    leverancier.Property(item => item.GRekeningPercentage).HasColumnName("g_rekening_percentage").HasPrecision(5, 2);
+    leverancier.Property(item => item.FacturerenPer).HasColumnName("factureren_per");
+    leverancier.Property(item => item.BtwVerlegd).HasColumnName("btw_verlegd");
+    leverancier.Property(item => item.MandagenregisterMeesturen).HasColumnName("mandagenregister_meesturen");
+    leverancier.Property(item => item.Opmerkingen).HasColumnName("opmerkingen");
+    leverancier.Property(item => item.Version).HasColumnName("version").IsConcurrencyToken();
+
     var klant = modelBuilder.Entity<Klant>();
     klant.ToTable("klanten");
     klant.HasKey(item => item.Id);

@@ -28,7 +28,7 @@ async function setup(canEdit, options = {}) {
   const ids = ['head', 'body', 'message', 'search', 'detail', 'detail-save', 'title', 'description',
     'list-nav', 'list-panel', 'unavailable', 'add', 'list-hint', 'count', 'empty', 'detail-title', 'detail-subtitle', 'detail-body'];
   const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
-  const lists = ['medewerkers', 'klanten', 'materieel', 'artikelen', 'tarieven'].map(name => {
+  const lists = ['medewerkers', 'klanten', 'materieel', 'artikelen', 'tarieven', 'leveranciers'].map(name => {
     const element = new Element('button'); element.dataset.list = name; return element;
   });
   const sections = [];
@@ -148,7 +148,8 @@ for (const [list, fields, endpoint] of [
   ['klanten', { Debiteurnummer: '101', Bedrijfsnaam: 'Klant' }, '/api/planning/klanten'],
   ['materieel', { Omschrijving: 'Machine' }, '/api/planning/materieel'],
   ['artikelen', { Omschrijving: 'Artikel', Categorie: '123', Eenheid: '123' }, '/api/articles'],
-  ['tarieven', { Functie: 'Planner', Prijs: '55', Eenheid: 'uur', 'Geldig vanaf': '2026-01-01' }, '/api/planning/tarieven']
+  ['tarieven', { Functie: 'Planner', Prijs: '55', Eenheid: 'uur', 'Geldig vanaf': '2026-01-01' }, '/api/planning/tarieven'],
+  ['leveranciers', { Crediteurnummer: 'L1', Bedrijfsnaam: 'Leverancier Een', 'Telefoon algemeen': '010123', IBAN: 'NL91ABNA0417164300' }, '/api/planning/leveranciers']
 ]) {
   test(`development kan ${list} toevoegen via POST`, async () => {
     const view = await setup(true);

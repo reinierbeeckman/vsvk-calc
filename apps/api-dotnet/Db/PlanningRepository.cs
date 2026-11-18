@@ -5,6 +5,12 @@ namespace Vsvk.Api.Db;
 
 public sealed partial class PlanningRepository(VsvkDbContext context)
 {
+  public Task<List<PlanningSupplierListDto>> ListSuppliersAsync(CancellationToken cancellationToken) =>
+    context.Leveranciers.AsNoTracking().OrderBy(supplier => supplier.Bedrijfsnaam).ThenBy(supplier => supplier.Id)
+      .Select(supplier => new PlanningSupplierListDto(supplier.Id, supplier.Aan, supplier.Debiteurnummer,
+        supplier.Bedrijfsnaam, supplier.TelefoonAlgemeen, supplier.Plaats))
+      .ToListAsync(cancellationToken);
+
   public Task<List<PlanningCustomerListDto>> ListCustomersAsync(CancellationToken cancellationToken) =>
     context.Klanten.AsNoTracking().OrderBy(customer => customer.Bedrijfsnaam).ThenBy(customer => customer.Id)
       .Select(customer => new PlanningCustomerListDto(customer.Id, customer.Aan, customer.Debiteurnummer,
