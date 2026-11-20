@@ -3,7 +3,8 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Vsvk.Bff.Auth;
 
-public sealed record UserPermissions(bool CanManageSettings, bool CanViewSensitiveData, bool CanEditPlanningRecords);
+public sealed record UserPermissions(
+  bool CanManageSettings, bool CanViewSensitiveData, bool CanEditPlanningRecords, bool CanEditWorkOrders);
 
 public static class KeycloakAccessTokenClaims
 {
@@ -60,6 +61,7 @@ public static class KeycloakAccessTokenClaims
       || (isDevelopment && roles.Contains("development", StringComparer.Ordinal)));
     return new UserPermissions(management,
       management || (hasAccess && roles.Contains("finance", StringComparer.Ordinal)),
-      hasAccess && isDevelopment && roles.Contains("development", StringComparer.Ordinal));
+      hasAccess && isDevelopment && roles.Contains("development", StringComparer.Ordinal),
+      hasAccess && roles.Contains("planning", StringComparer.Ordinal));
   }
 }

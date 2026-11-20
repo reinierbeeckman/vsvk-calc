@@ -32,6 +32,7 @@ builder.Services.AddScoped<InstellingenRepository>();
 builder.Services.AddScoped<VestigingRepository>();
 builder.Services.AddScoped<ArtikelRepository>();
 builder.Services.AddScoped<PlanningRepository>();
+builder.Services.AddScoped<PlanningBoardRepository>();
 builder.Services.AddScoped<IPlanningEmployeeDevelopmentRepository>(services => services.GetRequiredService<PlanningRepository>());
 builder.Services.AddPlanningMaterieelMutations();
 builder.Services.AddScoped<IPlanningTariffDetailService, PlanningTariffDetailService>();
@@ -84,6 +85,8 @@ builder.Services.AddAuthorization(options =>
   options.AddPolicy(VsvkRoles.Default, policy => policy.RequireAssertion(context => VsvkRoles.IsApplicationUser(context.User)));
   options.AddPolicy("directie", policy => policy.RequireRole(VsvkRoles.Directie));
   options.AddPolicy("planning-lijsten", policy => policy.RequireAssertion(context => VsvkRoles.CanManagePlanning(context.User)));
+  options.AddPolicy("planning-bord-muteer", policy => policy.RequireAuthenticatedUser()
+    .RequireAssertion(context => VsvkRoles.CanEditWorkOrders(context.User)));
 });
 
 var app = builder.Build();
@@ -93,6 +96,13 @@ if (args.Contains("--migrate-planning-records"))
 {
   var migrator = app.Services.GetRequiredService<DatabaseMigrator>();
   await migrator.MigratePlanningRecordsAsync(app.Lifetime.ApplicationStopping);
+  return;
+}
+
+if (args.Contains("--migrate-planning-board"))
+{
+  var migrator = app.Services.GetRequiredService<DatabaseMigrator>();
+  await migrator.MigratePlanningBoardAsync(app.Lifetime.ApplicationStopping);
   return;
 }
 
@@ -333,6 +343,7 @@ app.MapArtikelEndpoints();
 app.MapPlanningEndpoints();
 app.MapPlanningEmployeeDevelopmentEndpoints();
 app.MapPlanningMaterieelMutationEndpoints();
+app.MapPlanningBoardEndpoints();
 app.MapPlanningTariffDetailEndpoints();
 app.MapUserProfileEndpoints();
 

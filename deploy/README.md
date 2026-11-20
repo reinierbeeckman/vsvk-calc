@@ -51,6 +51,8 @@ De API biedt `GET`/`POST /api/planning/leveranciers`, `GET`/`PUT /api/planning/l
 
 Voor uitsluitend de klant- en tariefstructuur, inclusief versiebeheer, gebruik `--profile migrate run --rm --no-deps migrate --migrate-planning-records` met dezelfde Compose-opties. Deze migratie voert geen overige kernmigraties uit.
 
+Het weekplanbord gebruikt relationele tabellen voor `werkopdrachten`, `klussen`, `inzet`, `inhuurmedewerkers` en `werkbonnen`. De volledige `--migrate` voert deze uit nadat klanten, leveranciers en medewerkers zijn gemigreerd. Op een bestaande kerninstallatie kan de migratie gericht worden uitgevoerd met `--profile migrate run --rm --no-deps migrate --migrate-planning-board`. De oude `--migrate-planning-records` blijft bewust onafhankelijk van die kerntabellen. Lezen van het planbord is beschikbaar voor `planning` en `directie`; aanmaken en wijzigen, inclusief inhuurmedewerkers, vereist de Keycloak-rol `planning` in iedere omgeving. Werkopdrachten zijn versiebeheerde aggregates: PUT vereist de sterke ETag uit GET als `If-Match`, en klussen, inzet en werkbonnen worden atomair opgeslagen of teruggedraaid.
+
 Bij de eerste aanmelding maakt `GET /api/user/profile` een leeg profiel aan met de UUID uit het gevalideerde Keycloak-token. De SPA stuurt gebruikers met een onvolledig profiel direct naar **Mijn profiel** en laat de overige tabbladen pas zien nadat het telefoonnummer en alternatieve e-mailadres zijn opgeslagen. Een digitale handtekening is optioneel. Profielwijzigingen gebruiken een strong ETag en vereisen `If-Match`, net als andere updates van bestaande gegevens.
 
 Open daarna:

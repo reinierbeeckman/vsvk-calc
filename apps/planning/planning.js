@@ -26,9 +26,11 @@
     let customerRatesSaving = false;
     let detailDraft = null;
     let planningPermissionsFailed = false;
-    const planningPermissions = request('/bff/user').then(user => user.permissions?.canEditPlanningRecords === true).catch(error => {
+    const currentUser = request('/bff/user').catch(error => {
       planningPermissionsFailed = true; console.error('Rechten ophalen mislukt:', error); return false;
     });
+    const planningPermissions = currentUser.then(user => user && user.permissions?.canEditPlanningRecords === true);
+    const workOrderPermissions = currentUser.then(user => user && user.permissions?.canEditWorkOrders === true);
     const drafts = new Map();
     const notices = new Map();
     const statusConflicts = new Map();
@@ -40,7 +42,17 @@
     window.addEventListener('beforeunload', event => { if (drafts.size || customerRatesDirty || detailDraft?.dirty || [...priceDrafts.values()].some(priceDirty)) { event.preventDefault(); event.returnValue = ''; } });
     async function request(path, options) {
       const response = await fetch(path, { credentials: 'same-origin', cache: 'no-store', ...options });
-      if (!response.ok) { const error = new Error('Aanvraag mislukt (' + response.status + ').'); error.status = response.status; throw error; }
+      if (!response.ok) {
+        let detail = '';
+        if (response.json) {
+          try {
+            const body = await response.json();
+            detail = typeof body === 'string' ? body : body?.detail || body?.title || '';
+          } catch {}
+        }
+        const error = new Error(detail ? detail + ' (' + response.status + ').' : 'Aanvraag mislukt (' + response.status + ').');
+        error.status = response.status; throw error;
+      }
       return response.json();
     }
     async function requestList(list) {
@@ -64,14 +76,20 @@
       currentSection = section;
       document.querySelectorAll('[data-section]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.section === section)));
       document.querySelector('#list-nav').hidden = section !== 'Lijsten';
+      document.querySelector('#planbord-panel').hidden = section !== 'Planbord';
       if (section === 'Lijsten') { refreshCounts(current); return load(current); }
       ++loadNumber;
       stopListLoading();
       loading = false;
       document.querySelector('#title').textContent = section;
-      document.querySelector('#description').textContent = 'Dit onderdeel van de planning wordt later gekoppeld.';
       document.querySelector('#list-panel').hidden = true;
-      document.querySelector('#unavailable').hidden = false;
+      document.querySelector('#unavailable').hidden = section === 'Planbord';
+      if (section === 'Planbord') {
+        document.querySelector('#description').textContent = 'Weekplanning van werkopdrachten, klussen, personeel, inhuur en werkbonnen.';
+        window.VsvkPlanBoard.open({ container: document.querySelector('#planbord-panel'), request, canEdit: workOrderPermissions });
+        return;
+      }
+      document.querySelector('#description').textContent = 'Dit onderdeel van de planning wordt later gekoppeld.';
     }
     async function load(list) {
       const sequence = ++loadNumber;
@@ -83,6 +101,7 @@
       document.querySelector('#description').textContent = definition.description || 'Dit onderdeel van de planning wordt later gekoppeld.';
       document.querySelectorAll('[data-list]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.list === list)));
       document.querySelector('#list-panel').hidden = !definition.path;
+      document.querySelector('#planbord-panel').hidden = true;
       document.querySelector('#unavailable').hidden = !!definition.path;
       if (!definition.path) return;
       const add = document.querySelector('#add');

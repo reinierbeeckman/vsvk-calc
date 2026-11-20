@@ -35,6 +35,18 @@ public sealed class KeycloakAccessTokenClaimsTests
     Assert.Equal(expected, permissions.CanEditPlanningRecords);
   }
 
+  [Theory]
+  [InlineData(true, "planning", true)]
+  [InlineData(false, "planning", true)]
+  [InlineData(true, "directie", false)]
+  [InlineData(true, "development", false)]
+  public void Work_order_editing_requires_planning_role_in_every_environment(
+    bool development, string role, bool expected)
+  {
+    var permissions = KeycloakAccessTokenClaims.GetPermissions(["default-roles-vsvk", role], development);
+    Assert.Equal(expected, permissions.CanEditWorkOrders);
+  }
+
   [Fact]
   public void GetRealmRoles_returns_roles_from_access_token()
   {

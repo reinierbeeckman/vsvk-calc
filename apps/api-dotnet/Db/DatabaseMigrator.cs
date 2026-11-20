@@ -298,6 +298,7 @@ where id = 1
     await MigrateCustomersAsync(cancellationToken);
     await MigrateSuppliersAsync(cancellationToken);
     await MigratePlanningRatesAsync(cancellationToken);
+    await MigratePlanningBoardAsync(cancellationToken);
   }
 
   private async Task MigrateCustomersAsync(CancellationToken cancellationToken)
@@ -372,6 +373,18 @@ where id = 1
     await MigrateCustomersAsync(cancellationToken);
     await MigrateSuppliersAsync(cancellationToken);
     await MigratePlanningRatesAsync(cancellationToken);
+  }
+
+  public async Task MigratePlanningBoardAsync(CancellationToken cancellationToken = default)
+  {
+    var resourceName = Assembly.GetExecutingAssembly().GetManifestResourceNames()
+      .Single(name => name.EndsWith("Db.PlanningBoardMigration.sql", StringComparison.Ordinal));
+    await using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName)
+      ?? throw new InvalidOperationException("Planning planbordmigratie ontbreekt.");
+    using var reader = new StreamReader(stream);
+    var migration = await reader.ReadToEndAsync(cancellationToken);
+    await using var command = _dataSource.CreateCommand(migration);
+    await command.ExecuteNonQueryAsync(cancellationToken);
   }
 
   public async Task MigratePlanningRatesAsync(CancellationToken cancellationToken = default)

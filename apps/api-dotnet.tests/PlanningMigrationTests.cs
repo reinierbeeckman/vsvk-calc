@@ -127,6 +127,29 @@ public sealed class PlanningMigrationTests
   }
 
   [Fact]
+  public async Task Planning_board_migration_creates_relational_tables_repeatably()
+  {
+    await using var postgres = new PostgreSqlBuilder().WithImage("postgres:16-alpine").Build();
+    await postgres.StartAsync();
+    await using var source = NpgsqlDataSource.Create(postgres.GetConnectionString());
+    var migrator = new DatabaseMigrator(source);
+    await migrator.MigrateAsync();
+    await migrator.MigrateAsync();
+    await using var query = source.CreateCommand("""
+      select
+        to_regclass('werkopdrachten') is not null,
+        to_regclass('klussen') is not null,
+        to_regclass('inzet') is not null,
+        to_regclass('inhuurmedewerkers') is not null,
+        to_regclass('werkbonnen') is not null,
+        exists(select 1 from information_schema.columns where table_name='werkopdrachten' and column_name='version')
+      """);
+    await using var reader = await query.ExecuteReaderAsync();
+    Assert.True(await reader.ReadAsync());
+    for (var index = 0; index < 6; index++) Assert.True(reader.GetBoolean(index));
+  }
+
+  [Fact]
   public async Task Employee_active_migration_is_repeatable_and_preserves_new_status()
   {
     await using var postgres = new PostgreSqlBuilder().WithImage("postgres:16-alpine").Build();

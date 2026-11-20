@@ -23,9 +23,92 @@ public sealed class VsvkDbContext : DbContext
   public DbSet<PlanningFunctie> PlanningFuncties => Set<PlanningFunctie>();
   public DbSet<PlanningStandaardTarief> PlanningStandaardTarieven => Set<PlanningStandaardTarief>();
   public DbSet<PlanningKlantTarief> PlanningKlantTarieven => Set<PlanningKlantTarief>();
+  public DbSet<Werkopdracht> Werkopdrachten => Set<Werkopdracht>();
+  public DbSet<Klus> Klussen => Set<Klus>();
+  public DbSet<Inhuurmedewerker> Inhuurmedewerkers => Set<Inhuurmedewerker>();
+  public DbSet<Inzet> Inzetten => Set<Inzet>();
+  public DbSet<Werkbon> Werkbonnen => Set<Werkbon>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
+    var workOrder = modelBuilder.Entity<Werkopdracht>();
+    workOrder.ToTable("werkopdrachten");
+    workOrder.HasKey(item => item.Id);
+    workOrder.Property(item => item.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+    workOrder.Property(item => item.Nummer).HasColumnName("nummer").HasMaxLength(50).IsRequired();
+    workOrder.Property(item => item.KlantId).HasColumnName("klant_id");
+    workOrder.Property(item => item.Omschrijving).HasColumnName("omschrijving").HasMaxLength(500).IsRequired();
+    workOrder.Property(item => item.StartDatum).HasColumnName("start_datum").HasColumnType("date");
+    workOrder.Property(item => item.EindDatum).HasColumnName("eind_datum").HasColumnType("date");
+    workOrder.Property(item => item.IsOptie).HasColumnName("is_optie");
+    workOrder.Property(item => item.Kleur).HasColumnName("kleur").HasMaxLength(20);
+    workOrder.Property(item => item.Version).HasColumnName("version").IsConcurrencyToken();
+    workOrder.HasIndex(item => item.Nummer).IsUnique();
+    workOrder.HasIndex(item => new { item.StartDatum, item.EindDatum });
+    workOrder.HasOne(item => item.Klant).WithMany().HasForeignKey(item => item.KlantId).OnDelete(DeleteBehavior.Restrict);
+
+    var job = modelBuilder.Entity<Klus>();
+    job.ToTable("klussen");
+    job.HasKey(item => item.Id);
+    job.Property(item => item.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+    job.Property(item => item.WerkopdrachtId).HasColumnName("werkopdracht_id");
+    job.Property(item => item.Omschrijving).HasColumnName("omschrijving").HasMaxLength(500).IsRequired();
+    job.Property(item => item.StartDatum).HasColumnName("start_datum").HasColumnType("date");
+    job.Property(item => item.EindDatum).HasColumnName("eind_datum").HasColumnType("date");
+    job.Property(item => item.BenodigdeMedewerkers).HasColumnName("benodigde_medewerkers");
+    job.Property(item => item.StartTijd).HasColumnName("start_tijd");
+    job.Property(item => item.EindTijd).HasColumnName("eind_tijd");
+    job.Property(item => item.Sorteervolgorde).HasColumnName("sorteervolgorde");
+    job.HasIndex(item => new { item.WerkopdrachtId, item.Sorteervolgorde });
+    job.HasOne(item => item.Werkopdracht).WithMany(item => item.Klussen).HasForeignKey(item => item.WerkopdrachtId).OnDelete(DeleteBehavior.Cascade);
+
+    var subcontractor = modelBuilder.Entity<Inhuurmedewerker>();
+    subcontractor.ToTable("inhuurmedewerkers");
+    subcontractor.HasKey(item => item.Id);
+    subcontractor.Property(item => item.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+    subcontractor.Property(item => item.LeverancierId).HasColumnName("leverancier_id");
+    subcontractor.Property(item => item.Naam).HasColumnName("naam").HasMaxLength(255).IsRequired();
+    subcontractor.Property(item => item.Functie).HasColumnName("functie").HasMaxLength(200);
+    subcontractor.Property(item => item.Telefoon).HasColumnName("telefoon").HasMaxLength(50);
+    subcontractor.Property(item => item.Email).HasColumnName("email").HasMaxLength(255);
+    subcontractor.Property(item => item.Actief).HasColumnName("actief");
+    subcontractor.Property(item => item.Version).HasColumnName("version").IsConcurrencyToken();
+    subcontractor.HasIndex(item => new { item.LeverancierId, item.Naam });
+    subcontractor.HasOne(item => item.Leverancier).WithMany().HasForeignKey(item => item.LeverancierId).OnDelete(DeleteBehavior.Restrict);
+
+    var assignment = modelBuilder.Entity<Inzet>();
+    assignment.ToTable("inzet");
+    assignment.HasKey(item => item.Id);
+    assignment.Property(item => item.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+    assignment.Property(item => item.KlusId).HasColumnName("klus_id");
+    assignment.Property(item => item.Datum).HasColumnName("datum").HasColumnType("date");
+    assignment.Property(item => item.MedewerkerId).HasColumnName("medewerker_id");
+    assignment.Property(item => item.InhuurmedewerkerId).HasColumnName("inhuurmedewerker_id");
+    assignment.Property(item => item.StartTijd).HasColumnName("start_tijd");
+    assignment.Property(item => item.EindTijd).HasColumnName("eind_tijd");
+    assignment.HasIndex(item => new { item.KlusId, item.Datum });
+    assignment.HasIndex(item => new { item.MedewerkerId, item.Datum }).IsUnique()
+      .HasFilter("medewerker_id is not null");
+    assignment.HasIndex(item => new { item.InhuurmedewerkerId, item.Datum }).IsUnique()
+      .HasFilter("inhuurmedewerker_id is not null");
+    assignment.HasOne(item => item.Klus).WithMany(item => item.Inzetten).HasForeignKey(item => item.KlusId).OnDelete(DeleteBehavior.Cascade);
+    assignment.HasOne(item => item.Medewerker).WithMany().HasForeignKey(item => item.MedewerkerId).OnDelete(DeleteBehavior.Restrict);
+    assignment.HasOne(item => item.Inhuurmedewerker).WithMany().HasForeignKey(item => item.InhuurmedewerkerId).OnDelete(DeleteBehavior.Restrict);
+
+    var workSlip = modelBuilder.Entity<Werkbon>();
+    workSlip.ToTable("werkbonnen");
+    workSlip.HasKey(item => item.Id);
+    workSlip.Property(item => item.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+    workSlip.Property(item => item.InzetId).HasColumnName("inzet_id");
+    workSlip.Property(item => item.Nummer).HasColumnName("nummer").HasMaxLength(50).IsRequired();
+    workSlip.Property(item => item.Status).HasColumnName("status").HasMaxLength(30).IsRequired();
+    workSlip.Property(item => item.GewijzigdNaUitgifte).HasColumnName("gewijzigd_na_uitgifte");
+    workSlip.Property(item => item.UitgereiktOp).HasColumnName("uitgereikt_op");
+    workSlip.Property(item => item.BinnenOp).HasColumnName("binnen_op");
+    workSlip.HasIndex(item => item.Nummer).IsUnique();
+    workSlip.HasIndex(item => item.InzetId).IsUnique();
+    workSlip.HasOne(item => item.Inzet).WithOne(item => item.Werkbon).HasForeignKey<Werkbon>(item => item.InzetId).OnDelete(DeleteBehavior.Cascade);
+
     var leverancier = modelBuilder.Entity<Leverancier>();
     leverancier.ToTable("leveranciers");
     leverancier.HasKey(item => item.Id);
