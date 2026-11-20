@@ -1,0 +1,56 @@
+{
+  "realm": "vsvk",
+  "enabled": true,
+  "displayName": "VSVK Acceptatie",
+  "loginTheme": "vsvk",
+  "roles": {
+    "realm": [
+      { "name": "development" },
+      { "name": "directie" },
+      { "name": "finance" },
+      { "name": "operationeel" },
+      { "name": "planning" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "vsvk-api",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "bearerOnly": true
+    },
+    {
+      "clientId": "vsvk-bff",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "https://vsvk-acc.vsvk.nl/signin-oidc",
+        "https://vsvk-acc.vsvk.nl/signout-callback-oidc"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "https://vsvk-acc.vsvk.nl/signout-callback-oidc"
+      },
+      "webOrigins": [
+        "https://vsvk-acc.vsvk.nl"
+      ],
+      "secret": "__OIDC_CLIENT_SECRET__",
+      "protocolMappers": [
+        {
+          "name": "audience-vsvk-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "vsvk-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -65,7 +65,11 @@ builder.Services
     {
       options.MetadataAddress = jwtMetadataAddress;
     }
-    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+    var usesTrustedContainerMetadata =
+      Uri.TryCreate(jwtMetadataAddress, UriKind.Absolute, out var metadataUri)
+      && metadataUri.Scheme == Uri.UriSchemeHttp
+      && string.Equals(metadataUri.Host, "keycloak", StringComparison.OrdinalIgnoreCase);
+    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment() && !usesTrustedContainerMetadata;
 
     options.TokenValidationParameters = new TokenValidationParameters
     {

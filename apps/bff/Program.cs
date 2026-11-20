@@ -63,7 +63,11 @@ builder.Services
     options.SaveTokens = true;
     options.GetClaimsFromUserInfoEndpoint = true;
 
-    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+    var usesTrustedContainerMetadata =
+      Uri.TryCreate(options.MetadataAddress, UriKind.Absolute, out var metadataUri)
+      && metadataUri.Scheme == Uri.UriSchemeHttp
+      && string.Equals(metadataUri.Host, "keycloak", StringComparison.OrdinalIgnoreCase);
+    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment() && !usesTrustedContainerMetadata;
 
     options.Events = new OpenIdConnectEvents
     {
