@@ -150,11 +150,12 @@ public sealed class PlanningMigrationTests
         to_regclass('werkopdracht_ordernummers') is not null,
         to_regclass('werkopdracht_vrije_dagen') is not null,
         to_regclass('werkopdracht_materialen') is not null,
-        to_regclass('werkopdracht_teller') is not null
+        to_regclass('werkopdracht_teller') is not null,
+        to_regclass('klus_materieelinzet') is not null
       """);
     await using var reader = await query.ExecuteReaderAsync();
     Assert.True(await reader.ReadAsync());
-    for (var index = 0; index < 14; index++) Assert.True(reader.GetBoolean(index));
+    for (var index = 0; index < 15; index++) Assert.True(reader.GetBoolean(index));
   }
 
   [Fact]

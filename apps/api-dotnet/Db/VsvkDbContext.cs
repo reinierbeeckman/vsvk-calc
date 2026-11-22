@@ -31,6 +31,7 @@ public sealed class VsvkDbContext : DbContext
   public DbSet<WerkopdrachtMateriaal> WerkopdrachtMaterialen => Set<WerkopdrachtMateriaal>();
   public DbSet<Inhuurmedewerker> Inhuurmedewerkers => Set<Inhuurmedewerker>();
   public DbSet<Inzet> Inzetten => Set<Inzet>();
+  public DbSet<MaterieelInzet> MaterieelInzetten => Set<MaterieelInzet>();
   public DbSet<Werkbon> Werkbonnen => Set<Werkbon>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -180,6 +181,19 @@ public sealed class VsvkDbContext : DbContext
     assignment.HasOne(item => item.Klus).WithMany(item => item.Inzetten).HasForeignKey(item => item.KlusId).OnDelete(DeleteBehavior.Cascade);
     assignment.HasOne(item => item.Medewerker).WithMany().HasForeignKey(item => item.MedewerkerId).OnDelete(DeleteBehavior.Restrict);
     assignment.HasOne(item => item.Inhuurmedewerker).WithMany().HasForeignKey(item => item.InhuurmedewerkerId).OnDelete(DeleteBehavior.Restrict);
+
+    var materialAssignment = modelBuilder.Entity<MaterieelInzet>();
+    materialAssignment.ToTable("klus_materieelinzet");
+    materialAssignment.HasKey(item => item.Id);
+    materialAssignment.Property(item => item.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+    materialAssignment.Property(item => item.KlusId).HasColumnName("klus_id");
+    materialAssignment.Property(item => item.Datum).HasColumnName("datum").HasColumnType("date");
+    materialAssignment.Property(item => item.MaterieelId).HasColumnName("materieel_id");
+    materialAssignment.HasIndex(item => new { item.KlusId, item.Datum, item.MaterieelId }).IsUnique();
+    materialAssignment.HasOne(item => item.Klus).WithMany(item => item.MaterieelInzetten)
+      .HasForeignKey(item => item.KlusId).OnDelete(DeleteBehavior.Cascade);
+    materialAssignment.HasOne(item => item.Materieel).WithMany()
+      .HasForeignKey(item => item.MaterieelId).OnDelete(DeleteBehavior.Restrict);
 
     var workSlip = modelBuilder.Entity<Werkbon>();
     workSlip.ToTable("werkbonnen");

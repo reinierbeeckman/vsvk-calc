@@ -67,6 +67,7 @@ public sealed class Klus
   public string? DienstNaam { get; set; }
   public ICollection<KlusBehoefte> Behoeften { get; set; } = new List<KlusBehoefte>();
   public ICollection<Inzet> Inzetten { get; set; } = new List<Inzet>();
+  public ICollection<MaterieelInzet> MaterieelInzetten { get; set; } = new List<MaterieelInzet>();
 }
 
 public sealed class WerkopdrachtOrdernummer
@@ -139,6 +140,16 @@ public sealed class Inzet
   public TimeOnly? StartTijd { get; set; }
   public TimeOnly? EindTijd { get; set; }
   public Werkbon? Werkbon { get; set; }
+}
+
+public sealed class MaterieelInzet
+{
+  public Guid Id { get; set; }
+  public Guid KlusId { get; set; }
+  public Klus Klus { get; set; } = null!;
+  public DateOnly Datum { get; set; }
+  public Guid MaterieelId { get; set; }
+  public Materieel Materieel { get; set; } = null!;
 }
 
 public sealed class Werkbon

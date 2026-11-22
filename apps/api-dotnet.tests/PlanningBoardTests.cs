@@ -34,6 +34,8 @@ public sealed class PlanningBoardTests
       on conflict do nothing;
       insert into klanten(id, debiteurnummer, bedrijfsnaam) values (1, 'D1', 'Klant');
       insert into leveranciers(id, debiteurnummer, bedrijfsnaam) values (1, 'L1', 'Leverancier');
+      insert into materieel(id, omschrijving, standplaats_id)
+      values ('00000000-0000-0000-0000-000000000701', 'MG-02', '00000000-0000-0000-0000-000000000011');
       """))
     {
       await seed.ExecuteNonQueryAsync();
@@ -71,22 +73,37 @@ public sealed class PlanningBoardTests
     Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(
       "/api/planning/werkopdrachten", doubleBooked)).StatusCode);
 
+    var orderWithEquipment = WorkOrder(employeeId) with
+    {
+      Klussen =
+      [
+        WorkOrder(employeeId).Klussen![0] with
+        {
+          MaterieelInzetten =
+          [
+            new PlanningBoardMaterialAssignmentWriteDto(new DateOnly(2026, 11, 16),
+              Guid.Parse("00000000-0000-0000-0000-000000000701"))
+          ]
+        }
+      ]
+    };
     using var createdResponse = await client.PostAsJsonAsync(
-      "/api/planning/werkopdrachten", WorkOrder(employeeId));
+      "/api/planning/werkopdrachten", orderWithEquipment);
     Assert.Equal(HttpStatusCode.Created, createdResponse.StatusCode);
     var created = (await createdResponse.Content.ReadFromJsonAsync<PlanningBoardWorkOrderDto>())!;
     Assert.Equal("\"1\"", createdResponse.Headers.ETag?.ToString());
     Assert.Equal("GEPLAND", created.Status);
     Assert.Single(created.Klussen);
     Assert.Single(created.Klussen[0].Inzetten);
+    Assert.Equal("MG-02", Assert.Single(created.Klussen[0].MaterieelInzetten!).Materieel);
     var outside = await client.GetFromJsonAsync<List<PlanningBoardWorkOrderDto>>(
       "/api/planning/planbord?from=2026-11-23&to=2026-11-29");
     Assert.Empty(outside!);
 
     var read = await client.GetAsync($"/api/planning/werkopdrachten/{created.Id}");
     Assert.Equal("\"1\"", read.Headers.ETag?.ToString());
-    var firstUpdate = WorkOrder(employeeId) with { Omschrijving = "Eerste wijziging" };
-    var secondUpdate = WorkOrder(employeeId) with { Omschrijving = "Tweede wijziging" };
+    var firstUpdate = orderWithEquipment with { Omschrijving = "Eerste wijziging" };
+    var secondUpdate = orderWithEquipment with { Omschrijving = "Tweede wijziging" };
     Assert.Equal((HttpStatusCode)428, (await client.PutAsJsonAsync(
       $"/api/planning/werkopdrachten/{created.Id}", firstUpdate)).StatusCode);
     using var firstRequest = new HttpRequestMessage(HttpMethod.Put, $"/api/planning/werkopdrachten/{created.Id}")
@@ -200,9 +217,9 @@ public sealed class PlanningBoardTests
       values ('00000000-0000-0000-0000-000000000101', 1, 'R. Smit', 'Grondwerker');
       insert into werkopdrachten(id, nummer, klant_id, omschrijving, start_datum, eind_datum, is_optie, kleur)
       values ('00000000-0000-0000-0000-000000000201', 'WO-26-0412', 1, 'Kabeltracé Parkweg vervangen', '2026-11-16', '2026-11-20', false, '#2f6fb5');
-      insert into klussen(id, werkopdracht_id, omschrijving, start_datum, eind_datum, benodigde_medewerkers, start_tijd, eind_tijd)
+      insert into klussen(id, werkopdracht_id, omschrijving, start_datum, eind_datum, benodigde_medewerkers, start_tijd, eind_tijd, datum)
       values
-        ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000201', 'Hoofddienst', '2026-11-16', '2026-11-20', 2, '06:45', '17:15');
+        ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000201', 'Hoofddienst', '2026-11-16', '2026-11-20', 2, '06:45', '17:15', '2026-11-18');
       insert into klus_behoeften(id, klus_id, aantal, rol, soort) values
         ('00000000-0000-0000-0000-000000000311', '00000000-0000-0000-0000-000000000301', 2, 'Grondwerker', 'mens'),
         ('00000000-0000-0000-0000-000000000312', '00000000-0000-0000-0000-000000000301', 14, '33 - Transportmiddelen', 'materieel');

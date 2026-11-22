@@ -38,7 +38,12 @@ public sealed class PlanningBoardRepository(
                   assignment.Werkbon.BinnenOp) : null)).ToList(),
             job.Behoeften.OrderBy(need => need.Id)
               .Select(need => new PlanningJobNeedDto(need.Aantal, need.Rol, need.Skill, need.MaterieelId, need.LosseVerhuur, need.MaterieelGroepId, need.Soort)).ToList(),
-            job.Datum, job.ReisHeen, job.ReisTerug)).ToList(),
+            job.Datum, job.ReisHeen, job.ReisTerug,
+            job.MaterieelInzetten.Where(assignment => assignment.Datum >= from && assignment.Datum <= to)
+              .OrderBy(assignment => assignment.Datum)
+              .Select(assignment => new PlanningBoardMaterialAssignmentDto(
+                assignment.Id, assignment.Datum, assignment.MaterieelId,
+                assignment.Materieel.Omschrijving ?? assignment.Materieel.Zoeknaam ?? assignment.Materieel.Kenteken)).ToList())).ToList(),
         order.VestigingId, order.OptieTot, order.Soort, order.InternProjectnummer, order.BestellerId,
         order.BestellerNaam, order.BestellerTelefoon, order.BestellerEmail, order.OptieReden,
         order.WeekendOverslaan, order.VrijeDagen.Select(item => item.Datum).ToList(), order.Voorraad,
@@ -323,10 +328,14 @@ public sealed class PlanningBoardRepository(
       .Where(item => item.MedewerkerId.HasValue).Select(item => item.MedewerkerId!.Value).Distinct().ToList();
     var subcontractorIds = jobs.SelectMany(job => job.Inzetten ?? [])
       .Where(item => item.InhuurmedewerkerId.HasValue).Select(item => item.InhuurmedewerkerId!.Value).Distinct().ToList();
+    var equipmentIds = jobs.SelectMany(job => job.MaterieelInzetten ?? [])
+      .Select(item => item.MaterieelId).Distinct().ToList();
     return await context.UserInformation.AsNoTracking().CountAsync(
       item => employeeIds.Contains(item.KeycloakSubject), cancellationToken) == employeeIds.Count
       && await context.Inhuurmedewerkers.AsNoTracking().CountAsync(
-        item => subcontractorIds.Contains(item.Id), cancellationToken) == subcontractorIds.Count;
+        item => subcontractorIds.Contains(item.Id), cancellationToken) == subcontractorIds.Count
+      && await context.MaterieelItems.AsNoTracking().CountAsync(
+        item => equipmentIds.Contains(item.Id), cancellationToken) == equipmentIds.Count;
   }
 
   private static void AddJobs(Werkopdracht order, IEnumerable<PlanningBoardJobWriteDto> requests)
@@ -367,6 +376,12 @@ public sealed class PlanningBoardRepository(
           };
         job.Inzetten.Add(assignment);
       }
+      foreach (var materialRequest in jobRequest.MaterieelInzetten ?? [])
+        job.MaterieelInzetten.Add(new MaterieelInzet
+        {
+          Id = Guid.NewGuid(), KlusId = job.Id, Datum = materialRequest.Datum,
+          MaterieelId = materialRequest.MaterieelId
+        });
 
       order.Klussen.Add(job);
     }

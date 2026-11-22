@@ -177,6 +177,15 @@ create unique index if not exists ux_inzet_inhuur on inzet(klus_id, datum, inhuu
 drop index if exists ux_inzet_intern_per_dag;
 drop index if exists ux_inzet_inhuur_per_dag;
 
+create table if not exists klus_materieelinzet (
+  id uuid primary key default gen_random_uuid(),
+  klus_id uuid not null references klussen(id) on delete cascade,
+  datum date not null,
+  materieel_id uuid not null references materieel(id) on delete restrict
+);
+create unique index if not exists ux_klus_materieelinzet on klus_materieelinzet(klus_id, datum, materieel_id);
+create index if not exists ix_klus_materieelinzet_materieel_datum on klus_materieelinzet(materieel_id, datum);
+
 create table if not exists werkbonnen (
   id uuid primary key default gen_random_uuid(),
   inzet_id uuid not null unique references inzet(id) on delete cascade,

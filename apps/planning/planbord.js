@@ -7,7 +7,9 @@
     references: null, formReferences: null, orders: [], timeline: null, filter: 'all', query: '', expanded: new Set(),
     loading: false, mode: storage.getItem('vsvk-pbwo') === 'true' ? 'workorders' : 'board',
     zoom: storage.getItem('vsvk-tlzoom') || 'week',
-    detailCache: new Map(), detailHover: null, detailTimer: null, detailSequence: 0
+    detailCache: new Map(), detailHover: null, detailTimer: null, detailSequence: 0,
+    dockSide: storage.getItem('vsvk-pbdock') || 'left', dockTab: 'people', dragging: null,
+    dropBusy: false, dockOpen: true
   };
   const dayNames = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
   const longDayNames = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
@@ -16,6 +18,100 @@
   function iso(value) {
     const date = new Date(value); date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
     return date.toISOString().slice(0, 10);
+  }
+
+  function bindBarDropTarget(bar, grid, order, dates) {
+    let active = false;
+    let targetKey = '';
+    const targetDate = event => {
+      const rect = grid.getBoundingClientRect?.();
+      if (rect?.width) {
+        const index = Math.max(0, Math.min(dates.length - 1,
+          Math.floor((event.clientX - rect.left) / (rect.width / dates.length))));
+        return dates[index];
+      }
+      const index = Number(bar.dataset.dropIndex || 0);
+      return dates[index] || dates[0];
+    };
+    const showTarget = event => {
+      if (!state.dragging || state.dropBusy) return false;
+      event.preventDefault();
+      event.stopPropagation();
+      const jobDates = concreteJobDates(order, dates);
+      const valid = jobDates.length > 0;
+      const nextKey = 'all:' + valid + ':' + jobDates.length;
+      if (!active || targetKey !== nextKey) {
+        bar.classList.remove('drag-target', 'drag-invalid');
+        bar.classList.add(valid ? 'drag-target' : 'drag-invalid');
+        targetKey = nextKey;
+        active = true;
+        dropTip(event, state.dragging.title + ' → ' + order.nummer + ' · alle ' +
+          jobDates.length + ' ' + (jobDates.length === 1 ? 'dag' : 'dagen'), valid);
+      }
+      if (event.dataTransfer) event.dataTransfer.dropEffect = valid ? 'copy' : 'none';
+      return valid;
+    };
+    bar.addEventListener('dragenter', showTarget);
+    bar.addEventListener('dragover', showTarget);
+    bar.addEventListener('dragleave', event => {
+      if (bar.contains?.(event.relatedTarget)) return;
+      bar.classList.remove('drag-target', 'drag-invalid');
+      active = false; targetKey = ''; hideDropTip();
+    });
+    bar.addEventListener('drop', async event => {
+      if (state.dropBusy) return;
+      const jobDates = concreteJobDates(order, dates);
+      const valid = jobDates.length > 0;
+      event.preventDefault(); event.stopPropagation();
+      let resource = state.dragging;
+      if (!resource) {
+        try { resource = JSON.parse(event.dataTransfer?.getData('application/json') || 'null'); } catch {}
+      }
+      state.dragging = null;
+      state.dropBusy = true;
+      bar.classList.remove('drag-target', 'drag-invalid');
+      active = false; targetKey = '';
+      clearBoardDropTargets(); hideDropTip();
+      state.container?.querySelectorAll?.('.board-dock-card.dragging')
+        .forEach(card => card.classList.remove('dragging'));
+      if (!valid || !resource) {
+        state.dropBusy = false;
+        return;
+      }
+      try { await assignDraggedResource(order, jobDates, resource, bar); }
+      finally { state.dropBusy = false; }
+    });
+  }
+
+  function clearBoardDropTargets() {
+    state.container?.querySelectorAll?.('.board-bar.drag-target,.board-bar.drag-invalid,.board-day-drop.drag-target,.board-day-drop.drag-invalid')
+      .forEach(target => target.classList.remove('drag-target', 'drag-invalid'));
+    hideDropTip();
+  }
+  function shortDate(value) {
+    return new Intl.DateTimeFormat('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' }).format(value);
+  }
+  function dropTip(event, text, valid) {
+    let tip = state.container?.querySelector?.('#planning-drop-tip');
+    if (!tip) {
+      tip = element('div', 'planning-drop-tip');
+      tip.id = 'planning-drop-tip'; tip.setAttribute('role', 'status');
+      document.body?.appendChild(tip);
+      if (!document.body) state.container.append(tip);
+    }
+    tip.textContent = (valid ? '✓ Laat los: ' : '✕ ') + text;
+    tip.className = 'planning-drop-tip ' + (valid ? 'ok' : 'invalid');
+    tip.style.left = Math.min(Number(event.clientX || 0) + 16,
+      (window.innerWidth || 1200) - 360) + 'px';
+    tip.style.top = (Number(event.clientY || 0) + 12) + 'px';
+  }
+  function hideDropTip() {
+    document.getElementById?.('planning-drop-tip')?.remove();
+    state.container?.querySelector?.('.planning-drop-tip')?.remove();
+  }
+  function concreteJobDates(order, dates) {
+    const visible = new Set(dates.map(iso));
+    return [...new Set(order.klussen.map(job => job.datum).filter(date => date && visible.has(date)))].sort();
   }
   function parse(value) { return new Date(value + 'T00:00:00'); }
   function addDays(value, count) { const result = new Date(value); result.setDate(result.getDate() + count); return result; }
@@ -96,6 +192,7 @@
     const monthZoom = action('Maand', 'board-toggle'); monthZoom.disabled = true; monthZoom.title = 'Buiten week-MVP';
     zoom.append(dayZoom, action('Week', 'board-toggle active'), monthZoom);
     toolbar.append(element('span', 'board-spacer'), zoom);
+    if (!state.dockOpen) toolbar.append(action('Planninglade', 'board-btn', () => { state.dockOpen = true; render(); }));
     if (state.canEdit) toolbar.append(
       action('+ Werkopdracht', 'board-btn primary', () => editOrder(null)),
       action('Inhuurmedewerkers', 'board-btn', editSubcontractors));
@@ -114,7 +211,12 @@
     });
     filters.append(search, all, open, slips, expand);
     const grid = element('div', 'board-scroll');
-    root.append(toolbar, filters, grid, legend());
+    const workspace = element('div', 'board-workspace');
+    workspace.append(toolbar, filters, grid, legend());
+    const layout = element('div', 'board-layout dock-' + state.dockSide + (state.dockOpen ? '' : ' dock-closed'));
+    if (state.dockOpen) layout.append(boardDock());
+    layout.append(workspace);
+    root.append(layout);
     state.container.replaceChildren(root);
     state.grid = grid;
     renderGrid();
@@ -126,6 +228,85 @@
     const workorders = action('Werkopdrachten', 'board-toggle' + (state.mode === 'workorders' ? ' active' : ''), () => setMode('workorders'));
     group.append(board, workorders);
     return group;
+  }
+
+  function boardDock() {
+    const dock = element('aside', 'board-dock');
+    dock.setAttribute('aria-label', 'Inplanbare middelen');
+    const head = element('div', 'board-dock-head');
+    head.append(element('strong', '', 'PLANNING'),
+      action('◀/▶', 'board-btn ghost board-dock-side', () => {
+        state.dockSide = state.dockSide === 'left' ? 'right' : 'left';
+        storage.setItem('vsvk-pbdock', state.dockSide); render();
+      }),
+      action('✕', 'board-btn ghost', () => { state.dockOpen = false; render(); }));
+    const tabs = element('div', 'board-dock-tabs');
+    for (const [key, label] of [['people','Mensen'],['equipment','Materieel'],['customers','Klanten'],['stock','Voorraad']]) {
+      const tab = action(label, 'board-dock-tab' + (state.dockTab === key ? ' active' : ''),
+        () => { state.dockTab = key; render(); });
+      tabs.append(tab);
+    }
+    const search = input('', 'Zoek in planninglade'); search.type = 'search';
+    search.placeholder = 'Zoeken…';
+    const list = element('div', 'board-dock-list');
+    const query = () => search.value.trim().toLocaleLowerCase('nl');
+    const renderItems = () => {
+      list.replaceChildren();
+      let items = [];
+      if (state.dockTab === 'people') {
+        items = (state.references?.medewerkers || []).map(item => ({
+          id: item.id, kind: 'employee', title: item.naam, subtitle: 'Eigen medewerker'
+        }));
+        items.push(...(state.references?.inhuurmedewerkers || []).map(item => ({
+          id: item.id, kind: 'subcontractor', title: item.naam, subtitle: item.functie || item.leverancier
+        })));
+      } else if (state.dockTab === 'equipment') {
+        items = (state.formReferences?.materieel || []).map(item => ({
+          id: item.id, kind: 'equipment', title: item.naam, subtitle: 'Materieel'
+        }));
+      } else if (state.dockTab === 'customers') {
+        items = (state.references?.klanten || []).map(item => ({
+          id: item.id, kind: 'customer', title: item.naam, subtitle: 'Klant'
+        }));
+      } else {
+        items = state.orders.filter(order => order.werkvoorraad).map(order => ({
+          id: order.id, kind: 'stock', title: order.nummer || 'Nieuwe opdracht', subtitle: order.klant
+        }));
+      }
+      for (const item of items.filter(item => !query() ||
+        (item.title + ' ' + item.subtitle).toLocaleLowerCase('nl').includes(query()))) {
+        list.append(dockCard(item));
+      }
+      if (!list.children.length) list.append(element('div', 'empty', 'Niets gevonden.'));
+    };
+    search.addEventListener('input', renderItems);
+    renderItems();
+    dock.append(head, tabs, search, element('small', 'hint', state.canEdit
+      ? 'Sleep mensen of materieel naar een werkdag op het planbord.'
+      : 'Alleen bekijken: inplannen is niet toegestaan.'), list);
+    return dock;
+  }
+  function dockCard(item) {
+    const card = element('div', 'board-dock-card');
+    card.append(element('strong', '', item.title), element('small', '', item.subtitle));
+    const draggable = item.kind === 'employee' || item.kind === 'subcontractor' || item.kind === 'equipment';
+    if (draggable && state.canEdit) {
+      card.draggable = true;
+      card.setAttribute('aria-label', 'Sleep ' + item.title + ' naar een werkdag');
+      card.addEventListener('dragstart', event => {
+        if (state.dropBusy) { event.preventDefault?.(); return; }
+        state.dragging = item;
+        hideWorkOrderPopover();
+        event.dataTransfer?.setData('application/json', JSON.stringify(item));
+        event.dataTransfer && (event.dataTransfer.effectAllowed = 'copy');
+        card.classList.add('dragging');
+      });
+      card.addEventListener('dragend', () => {
+        state.dragging = null; card.classList.remove('dragging');
+        clearBoardDropTargets(); hideDropTip();
+      });
+    } else card.classList.add('readonly');
+    return card;
   }
   function setMode(mode) {
     state.mode = mode; storage.setItem('vsvk-pbwo', String(mode === 'workorders')); load();
@@ -409,9 +590,15 @@
       const expanded = state.expanded.has(order.id);
       table.append(workOrderRow(order, dates, expanded));
       if (expanded) {
-        for (const job of order.klussen) {
-          table.append(jobRow(job, dates));
-          for (const person of groupAssignments(job.inzetten)) table.append(assignmentRow(person, dates));
+        const jobs = order.klussen.filter(job =>
+          job.datum && dates.some(date => iso(date) === job.datum));
+        const groupedJobs = groupJobs(jobs);
+        for (const group of groupedJobs) {
+          table.append(jobRow(group, dates, order));
+          for (const person of groupAssignments(group.jobs.flatMap(job => job.inzetten)))
+            table.append(assignmentRow(person, dates, order));
+          for (const item of groupMaterialAssignments(group.jobs))
+            table.append(materialAssignmentRow(item, dates, order));
         }
       }
     }
@@ -438,9 +625,12 @@
     const start = parse(order.startDatum), end = parse(order.eindDatum);
     const first = dates.findIndex(date => date >= start && date <= end);
     const last = dates.map(date => date >= start && date <= end).lastIndexOf(true);
+    for (const date of dates) cells.append(boardCell(date));
     if (first >= 0) {
       const bar = element('div', 'board-bar', order.nummer + ' · ' + order.klussen.reduce((sum, job) => sum + job.inzetten.length, 0) + ' inzetten');
       bar.style.gridColumn = (first + 1) + '/' + (last + 2); bar.style.borderColor = order.kleur; bar.style.backgroundColor = colorMix(order.kleur, .16);
+      bar.setAttribute('aria-label', 'Sleep inzet naar een werkdag van ' + order.nummer);
+      if (state.canEdit) bindBarDropTarget(bar, cells, order, dates);
       cells.append(bar);
     }
     row.append(label, cells);
@@ -451,6 +641,7 @@
   function bindWorkOrderPopover(target, summary) {
     let timer = null;
     const show = event => {
+      if (state.dragging) return;
       clearTimeout(timer);
       timer = setTimeout(() => showWorkOrderPopover(target, summary, event), 120);
     };
@@ -596,26 +787,116 @@
     return match ? `${match[1]}:${match[2]}` : String(value);
   }
 
-  function jobRow(job, dates) {
+  function groupJobs(jobs) {
+    const groups = new Map();
+    for (const job of jobs) {
+      const key = [job.dienstNaam || '', job.omschrijving].join('|');
+      if (!groups.has(key)) groups.set(key, {
+        omschrijving: job.omschrijving, dienstNaam: job.dienstNaam, jobs: []
+      });
+      groups.get(key).jobs.push(job);
+    }
+    return [...groups.values()];
+  }
+
+  function jobRow(group, dates, order) {
+    const jobs = group.jobs;
     const row = element('div', 'board-row board-job');
     const label = element('div', 'board-job-label');
-    label.append(element('b', '', 'Klussen'), element('small', '', job.omschrijving + ' · ' + countWorkdays(job.startDatum, job.eindDatum) + ' dagen · ' + job.benodigdeMedewerkers + ' mensen per dag'));
+    const needed = Math.max(0, ...jobs.map(job => job.benodigdeMedewerkers));
+    const materialNeeded = Math.max(0, ...jobs.map(job =>
+      (job.behoeften || []).filter(need => need.soort === 'materieel')
+        .reduce((sum, need) => sum + Number(need.aantal || 0), 0)));
+    label.append(element('b', '', 'Klussen'),
+      element('small', '', group.omschrijving + ' · ' + jobs.length + ' dagen · ' +
+        needed + ' mensen' + (materialNeeded ? ' · ' + materialNeeded + ' materieel' : '') + ' per dag'));
     row.append(label);
     const cells = element('div', 'board-days');
     for (const date of dates) {
       const cell = boardCell(date);
-      const dayAssignments = job.inzetten.filter(item => iso(date) === item.datum).length;
-      if (iso(date) >= job.startDatum && iso(date) <= job.eindDatum && ![0, 6].includes(date.getDay())) {
+      const job = jobs.find(item => item.datum === iso(date));
+      if (job) {
+        const dayAssignments = job.inzetten.filter(item => iso(date) === item.datum).length;
         const complete = dayAssignments >= job.benodigdeMedewerkers;
-        const chip = element('span', 'board-chip ' + (complete ? 'complete' : dayAssignments ? 'partial' : 'empty'), complete ? '✓ P ' + dayAssignments + '/' + job.benodigdeMedewerkers : 'P ' + dayAssignments + '/' + job.benodigdeMedewerkers);
+        const chip = element('span', 'board-chip ' + (complete ? 'complete' : dayAssignments ? 'partial' : 'empty'),
+          complete ? '✓ P ' + dayAssignments + '/' + job.benodigdeMedewerkers
+            : 'P ' + dayAssignments + '/' + job.benodigdeMedewerkers);
         cell.append(chip);
+        const equipment = (job.materieelInzetten || []).filter(item => item.datum === iso(date)).length;
+        const requiredEquipment = (job.behoeften || []).filter(need => need.soort === 'materieel')
+          .reduce((sum, need) => sum + Number(need.aantal || 0), 0);
+        if (requiredEquipment) cell.append(element('small', 'board-material-count',
+          'M ' + equipment + '/' + requiredEquipment));
       }
+
       cells.append(cell);
     }
     row.append(cells); return row;
   }
 
-  function assignmentRow(person, dates) {
+  async function assignDraggedResource(summary, selectedDates, resource, target) {
+    const dates = Array.isArray(selectedDates) ? selectedDates : [selectedDates];
+    const order = await state.request('/api/planning/werkopdrachten/' + summary.id);
+    if (resource.sourceDate && resource.kind !== 'dock' && !dates.includes(resource.sourceDate)) {
+      const sourceJob = order.klussen.find(item => item.datum === resource.sourceDate);
+      if (sourceJob && (resource.kind === 'employee' || resource.kind === 'subcontractor'))
+        sourceJob.inzetten = (sourceJob.inzetten || []).filter(item =>
+          item.medewerkerId !== resource.id && item.inhuurmedewerkerId !== resource.id);
+      if (sourceJob && resource.kind === 'equipment')
+        sourceJob.materieelInzetten = (sourceJob.materieelInzetten || [])
+          .filter(item => item.materieelId !== resource.id);
+    }
+    for (const date of dates) {
+      const job = order.klussen.find(item => item.datum === date);
+      if (!job) continue;
+      if (resource.kind === 'employee' || resource.kind === 'subcontractor') {
+        job.inzetten = job.inzetten || [];
+        const duplicate = job.inzetten.some(item =>
+          item.medewerkerId === resource.id || item.inhuurmedewerkerId === resource.id);
+        if (!duplicate) job.inzetten.push({
+          datum: date, medewerkerId: resource.kind === 'employee' ? resource.id : null,
+          inhuurmedewerkerId: resource.kind === 'subcontractor' ? resource.id : null,
+          startTijd: job.startTijd, eindTijd: job.eindTijd, werkbon: null
+        });
+      } else if (resource.kind === 'equipment') {
+        job.materieelInzetten = job.materieelInzetten || [];
+        if (!job.materieelInzetten.some(item => item.materieelId === resource.id))
+          job.materieelInzetten.push({ datum: date, materieelId: resource.id });
+      }
+    }
+    const payload = richValue(order);
+    payload.klussen = order.klussen.map(item => ({
+      omschrijving: item.omschrijving, startDatum: item.startDatum, eindDatum: item.eindDatum,
+      benodigdeMedewerkers: item.benodigdeMedewerkers, startTijd: item.startTijd,
+      eindTijd: item.eindTijd, sorteervolgorde: item.sorteervolgorde,
+      inzetten: (item.inzetten || []).map(assignment => ({
+        datum: assignment.datum, medewerkerId: assignment.medewerkerId,
+        inhuurmedewerkerId: assignment.inhuurmedewerkerId,
+        startTijd: assignment.startTijd, eindTijd: assignment.eindTijd, werkbon: assignment.werkbon
+      })),
+      behoeften: item.behoeften || [], datum: item.datum, reisHeen: item.reisHeen,
+      reisTerug: item.reisTerug, materieelInzetten: (item.materieelInzetten || []).map(assignment => ({
+        datum: assignment.datum, materieelId: assignment.materieelId
+      }))
+    }));
+    try {
+      await state.request('/api/planning/werkopdrachten/' + order.id, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json', 'If-Match': order.eTag },
+        body: JSON.stringify(payload)
+      });
+      target.classList.add('drag-saved');
+      setTimeout(() => target.classList.remove('drag-saved'), 1200);
+      await load();
+    } catch (error) {
+      target.classList.add('drag-error');
+      target.title = error.status === 412
+        ? 'De planning is gewijzigd. Ververs en sleep opnieuw.'
+        : 'Inplannen mislukt: ' + error.message;
+      setTimeout(() => target.classList.remove('drag-error'), 2500);
+    }
+  }
+
+  function assignmentRow(person, dates, order) {
     const row = element('div', 'board-row board-person' + (person.external ? ' external' : ''));
     const label = element('div', 'board-person-label');
     label.append(person.external ? element('span', 'board-external', 'INH') : element('span', '', ''),
@@ -629,8 +910,13 @@
         const text = status ? slipStatuses[status][0] : '·';
         const chip = element('span', 'board-chip ' + className, text);
         chip.title = person.name + ', ' + longDayNames[date.getDay()] + ' ' + date.getDate() + ': ' + (status ? slipStatuses[status][1] : 'nog geen bon');
+        makeDayResourceDraggable(chip, {
+          id: person.id, kind: person.external ? 'subcontractor' : 'employee',
+          title: person.name, sourceDate: iso(date)
+        });
         cell.append(chip, element('small', '', assignment.werkbon?.nummer || ''));
       }
+      if (state.canEdit) bindSingleDayDrop(cell, order, iso(date));
       cells.append(cell);
     }
     row.append(label, cells); return row;
@@ -642,6 +928,7 @@
       const external = !!assignment.inhuurmedewerkerId;
       const key = (external ? 'e:' + assignment.inhuurmedewerkerId : 'i:' + assignment.medewerkerId);
       if (!result.has(key)) result.set(key, {
+        id: external ? assignment.inhuurmedewerkerId : assignment.medewerkerId,
         external, name: assignment.medewerker || assignment.inhuurmedewerker,
         role: external && assignment.leverancier
           ? [assignment.functie, assignment.leverancier].filter(Boolean).join(' · ')
@@ -650,6 +937,146 @@
       result.get(key).days[assignment.datum] = assignment;
     }
     return [...result.values()];
+  }
+
+  function groupMaterialAssignments(jobs) {
+    const result = new Map();
+    for (const assignment of jobs.flatMap(job => job.materieelInzetten || [])) {
+      if (!result.has(assignment.materieelId)) result.set(assignment.materieelId, {
+        id: assignment.materieelId, name: assignment.materieel || 'Materieel', days: {}
+      });
+      result.get(assignment.materieelId).days[assignment.datum] = assignment;
+    }
+    return [...result.values()];
+  }
+
+  function makeDayResourceDraggable(element, resource) {
+    if (!state.canEdit) return;
+    element.draggable = true;
+    element.classList.add('board-draggable-day');
+    element.addEventListener('dragstart', event => {
+      if (state.dropBusy) { event.preventDefault?.(); return; }
+      state.dragging = resource;
+      event.dataTransfer?.setData('application/json', JSON.stringify(resource));
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+      hideWorkOrderPopover();
+      clearBoardDropTargets();
+      element.classList.add('dragging');
+    });
+    element.addEventListener('dragend', () => {
+      state.dragging = null;
+      element.classList.remove('dragging');
+      clearBoardDropTargets();
+    });
+  }
+
+  function bindSingleDayDrop(cell, order, date) {
+    const valid = order.klussen.some(job => job.datum === date);
+    cell.classList.add('board-day-drop');
+    cell.addEventListener('dragover', event => {
+      if (!state.dragging || state.dropBusy) return;
+      event.preventDefault(); event.stopPropagation();
+      const active = valid ? 'drag-target' : 'drag-invalid';
+      if (!String(cell.className || '').split(/\s+/).includes(active)) {
+        clearBoardDropTargets();
+        cell.classList.add(active);
+        dropTip(event, state.dragging.title + ' → ' + shortDate(parse(date)), valid);
+      }
+      if (event.dataTransfer) event.dataTransfer.dropEffect = valid ? 'move' : 'none';
+    });
+    cell.addEventListener('dragleave', event => {
+      if (cell.contains?.(event.relatedTarget)) return;
+      cell.classList.remove('drag-target', 'drag-invalid');
+      hideDropTip();
+    });
+    cell.addEventListener('drop', async event => {
+      if (state.dropBusy) return;
+      event.preventDefault(); event.stopPropagation();
+      const resource = state.dragging;
+      state.dragging = null; state.dropBusy = true;
+      clearBoardDropTargets();
+      state.container?.querySelectorAll?.('.dragging')
+        .forEach(item => item.classList.remove('dragging'));
+      if (!valid || !resource) { state.dropBusy = false; return; }
+      try { await assignDraggedResource(order, [date], resource, cell); }
+      finally { state.dropBusy = false; }
+    });
+  }
+
+  function materialAssignmentRow(item, dates, order) {
+    const row = element('div', 'board-row board-person material');
+    const label = element('div', 'board-person-label');
+    label.append(element('span', 'board-material-label', 'MAT'),
+      element('span', 'board-person-name', item.name),
+      element('small', '', 'Materieel'));
+    const cells = element('div', 'board-days');
+    for (const date of dates) {
+      const cell = boardCell(date);
+      if (item.days[iso(date)]) {
+        const chip = element('span', 'board-chip complete', '✓ ingepland');
+        makeDayResourceDraggable(chip, {
+          id: item.id, kind: 'equipment', title: item.name, sourceDate: iso(date)
+        });
+        cell.append(chip);
+      }
+      if (state.canEdit) bindSingleDayDrop(cell, order, iso(date));
+      cells.append(cell);
+    }
+
+    function makeDayResourceDraggable(element, resource) {
+      if (!state.canEdit) return;
+      element.draggable = true;
+      element.classList.add('board-draggable-day');
+      element.addEventListener('dragstart', event => {
+        if (state.dropBusy) { event.preventDefault?.(); return; }
+        state.dragging = resource;
+        event.dataTransfer?.setData('application/json', JSON.stringify(resource));
+        if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+        hideWorkOrderPopover();
+        clearBoardDropTargets();
+        element.classList.add('dragging');
+      });
+      element.addEventListener('dragend', () => {
+        state.dragging = null;
+        element.classList.remove('dragging');
+        clearBoardDropTargets();
+      });
+    }
+
+    function bindSingleDayDrop(cell, order, date) {
+      const valid = order.klussen.some(job => job.datum === date);
+      cell.classList.add('board-day-drop');
+      cell.addEventListener('dragover', event => {
+        if (!state.dragging || state.dropBusy) return;
+        event.preventDefault(); event.stopPropagation();
+        const active = valid ? 'drag-target' : 'drag-invalid';
+        if (!cell.classList.contains(active)) {
+          clearBoardDropTargets();
+          cell.classList.add(active);
+          dropTip(event, state.dragging.title + ' → ' + shortDate(parse(date)), valid);
+        }
+        if (event.dataTransfer) event.dataTransfer.dropEffect = valid ? 'move' : 'none';
+      });
+      cell.addEventListener('dragleave', event => {
+        if (cell.contains?.(event.relatedTarget)) return;
+        cell.classList.remove('drag-target', 'drag-invalid');
+        hideDropTip();
+      });
+      cell.addEventListener('drop', async event => {
+        if (state.dropBusy) return;
+        event.preventDefault(); event.stopPropagation();
+        const resource = state.dragging;
+        state.dragging = null; state.dropBusy = true;
+        clearBoardDropTargets();
+        state.container?.querySelectorAll?.('.dragging')
+          .forEach(item => item.classList.remove('dragging'));
+        if (!valid || !resource) { state.dropBusy = false; return; }
+        try { await assignDraggedResource(order, [date], resource, cell); }
+        finally { state.dropBusy = false; }
+      });
+    }
+    row.append(label, cells);
+    return row;
   }
 
   function boardCell(date) {

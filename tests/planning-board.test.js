@@ -7,8 +7,13 @@ const vm = require('node:vm');
 class Element {
   constructor(tag = 'div') {
     this.tagName = tag.toUpperCase();
-    this.children = []; this.attributes = {}; this.events = {}; this._text = ''; this.style = { setProperty: () => {} };
-    this.classList = { add: (...names) => names.forEach(name => this.className += ' ' + name) };
+    this.children = []; this.attributes = {}; this.events = {}; this.dataset = {}; this._text = ''; this.style = { setProperty: () => {} };
+    const classes = () => new Set(this.className.split(/\s+/).filter(Boolean));
+    this.classList = {
+      add: (...names) => { const values = classes(); names.forEach(name => values.add(name)); this.className = [...values].join(' '); },
+      remove: (...names) => { const values = classes(); names.forEach(name => values.delete(name)); this.className = [...values].join(' '); },
+      toggle: (name, active) => { const values = classes(); active ? values.add(name) : values.delete(name); this.className = [...values].join(' '); }
+    };
   }
   set textContent(value) { this._text = String(value); this.children = []; }
   get textContent() { return this._text + this.children.map(child => child.textContent || '').join(''); }
@@ -25,14 +30,14 @@ class Element {
   querySelector(selector) {
     const match = selector.startsWith('.') && selector.slice(1);
     if (match) {
-      for (const child of this.children) if (String(child.className || '').split(/\s+/).includes(match)) return child;
-      for (const child of this.children) { const found = child.querySelector?.(selector); if (found) return found; }
+      for (const child of this.children) if (!child.removed && String(child.className || '').split(/\s+/).includes(match)) return child;
+      for (const child of this.children) { if (!child.removed) { const found = child.querySelector?.(selector); if (found) return found; } }
     }
     return null;
   }
   showModal() { this.open = true; }
   close() { this.open = false; this.events.close?.(); }
-  remove() {}
+  remove() { this.removed = true; }
   getBoundingClientRect() { return { left: 180, top: 500 }; }
 }
 
@@ -44,7 +49,8 @@ const formReferences = {
     telefoon: '010123', email: 'info@klant.test', contacten: [
       { id: 10, naam: 'Arjen Pelders', telefoon: '06123', email: 'arjen@klant.test', isStandaardBesteller: true }
     ] }],
-  vestigingen: [], functies: ['Grondwerker'], materieelTypes: [], materieel: [], artikelen: []
+  vestigingen: [], functies: ['Grondwerker'], materieelTypes: [],
+  materieel: [{ id: 'eq1', naam: 'Graafmachine MG-02', groepId: 'g1' }], artikelen: []
 };
 const orders = [{
   id: 'w1', nummer: 'WO-26-0422', klantId: 1, klant: 'Klant', omschrijving: 'Werk buiten',
@@ -53,6 +59,8 @@ const orders = [{
   materieel: [], materialen: [], weekendOverslaan: true, vrijeDagen: [], soort: 'regie', pauzeMinuten: 30,
   eTag: '"1"', klussen: [{ id: 'j1', omschrijving: 'Sleuf', startDatum: '2026-11-16', eindDatum: '2026-11-20',
     benodigdeMedewerkers: 1, startTijd: '07:00', eindTijd: '16:00', sorteervolgorde: 0,
+    datum: '2026-11-16', dienstNaam: 'Dagdienst',
+    materieelInzetten: [],
     inzetten: [{ id: 'a1', datum: '2026-11-16', medewerkerId: null, medewerker: null, functie: 'Grondwerker',
       inhuurmedewerkerId: 'h1', inhuurmedewerker: 'R. Smit', leverancier: 'Inhuur BV', startTijd: '07:00', eindTijd: '16:00', werkbon: null }] }]
 }];
@@ -106,6 +114,33 @@ test('planbord laadt werkopdracht, klussen en inhuur als geneste rijen', async (
   assert.match(view.container.textContent, /Inhuur BV/);
 });
 
+test('planbord groepeert dagklussen en toont materieel als aparte resource', async () => {
+  const originalJobs = orders[0].klussen;
+  orders[0].klussen = [
+    { ...orders[0].klussen[0], datum: '2026-11-16', dienstNaam: 'Dagdienst' },
+    { ...orders[0].klussen[0], id: 'j2', datum: '2026-11-17', dienstNaam: 'Dagdienst' },
+    { ...orders[0].klussen[0], id: 'legacy', datum: null, omschrijving: 'Oude taak' }
+  ];
+  orders[0].klussen[0].materieelInzetten = [
+    { id: 'mi1', datum: '2026-11-16', materieelId: 'eq1', materieel: 'MG-02' }
+  ];
+  const view = await setup(false);
+  view.container.querySelector('.board-order-label').events.click();
+  const jobRows = [];
+  const walk = node => {
+    for (const child of node.children || []) {
+      if (String(child.className || '').split(/\s+/).includes('board-job')) jobRows.push(child);
+      walk(child);
+    }
+  };
+  walk(view.container);
+  assert.equal(jobRows.length, 1);
+  assert.match(jobRows[0].textContent, /2 dagen/);
+  assert.match(view.container.textContent, /MG-02/);
+  assert.doesNotMatch(view.container.textContent, /Oude taak/);
+  orders[0].klussen = originalJobs;
+});
+
 test('hover op een werkopdracht toont materieel, bezetting en instructies', async () => {
   orders[0].instructies = 'Neem graafmachine mee';
   orders[0].materieel = [{ aantal: 1, rol: 'MG-02 Midigraver', soort: 'materieel' }];
@@ -125,6 +160,98 @@ test('planning-permission toont mutatieknoppen op het planbord', async () => {
   const view = await setup(true);
   assert.match(view.container.textContent, /\+ Werkopdracht/);
   assert.match(view.container.textContent, /Inhuurmedewerkers/);
+});
+
+test('planninglade sleept een medewerker en materieel atomair naar een werkdag', async () => {
+  const originalJobs = orders[0].klussen;
+  orders[0].klussen = [
+    ...originalJobs,
+    { ...originalJobs[0], id: 'j2', datum: '2026-11-17', sorteervolgorde: 1, inzetten: [], materieelInzetten: [] }
+  ];
+  const view = await setup(true);
+  const descendants = root => root.children.filter(child => child && Array.isArray(child.children))
+    .flatMap(child => [child, ...descendants(child)]);
+  const dock = view.container.querySelector('.board-dock');
+  assert.ok(dock);
+  const employee = descendants(dock).find(node =>
+    String(node.className || '').split(/\s+/).includes('board-dock-card') && node.textContent.includes('Intern'));
+  assert.equal(employee.draggable, true);
+  const target = view.container.querySelector('.board-bar');
+  target.dataset.dropIndex = '0';
+  employee.events.dragstart({ dataTransfer: { setData() {}, effectAllowed: null } });
+  target.events.dragover({ preventDefault() {}, stopPropagation() {}, clientX: 500, clientY: 300,
+    dataTransfer: { dropEffect: null } });
+  assert.match(String(target.className), /drag-target/);
+  assert.match(view.container.querySelector('.planning-drop-tip').textContent,
+    /Laat los: Intern → WO-26-0422 · alle 2 dagen/);
+  target.events.drop({ preventDefault() {}, stopPropagation() {}, dataTransfer: { getData: () => JSON.stringify({
+    id: 'm1', kind: 'employee', title: 'Intern'
+  }) } });
+  target.events.dragover({ preventDefault() {}, stopPropagation() {}, clientX: 500, clientY: 300,
+    dataTransfer: { dropEffect: null } });
+  assert.equal(view.container.querySelector('.planning-drop-tip'), null);
+  assert.doesNotMatch(String(target.className), /drag-target|drag-invalid/);
+  await new Promise(resolve => setImmediate(resolve));
+  const write = view.requests.find(item => item.options?.method === 'PUT');
+  assert.equal(write.options.headers['If-Match'], '"1"');
+  const savedJobs = JSON.parse(write.options.body).klussen;
+  assert.equal(savedJobs[0].inzetten.length, 2);
+  assert.equal(savedJobs[1].inzetten.length, 1);
+  orders[0].klussen = originalJobs;
+
+  const materialView = await setup(true);
+  const materialDock = materialView.container.querySelector('.board-dock');
+  const materialTab = descendants(materialDock).find(node => node.textContent === 'Materieel');
+  materialTab.events.click();
+  await new Promise(resolve => setImmediate(resolve));
+  const currentDock = materialView.container.querySelector('.board-dock');
+  const equipment = descendants(currentDock).find(node =>
+    String(node.className || '').split(/\s+/).includes('board-dock-card') && node.textContent.includes('Graafmachine MG-02'));
+  assert.equal(equipment.draggable, true);
+  equipment.events.dragstart({ dataTransfer: { setData() {}, effectAllowed: null } });
+  const materialTarget = materialView.container.querySelector('.board-bar');
+  materialTarget.dataset.dropIndex = '0';
+  materialTarget.events.dragover({ preventDefault() {}, stopPropagation() {},
+    dataTransfer: { dropEffect: null } });
+  materialTarget.events.drop({ preventDefault() {}, stopPropagation() {}, dataTransfer: { getData: () => JSON.stringify({
+    id: 'eq1', kind: 'equipment', title: 'Graafmachine MG-02'
+  }) } });
+  await new Promise(resolve => setImmediate(resolve));
+  const materialWrite = materialView.requests.find(item => item.options?.method === 'PUT');
+  assert.equal(materialWrite.options.headers['If-Match'], '"1"');
+  assert.equal(JSON.parse(materialWrite.options.body).klussen[0].materieelInzetten[0].materieelId, 'eq1');
+});
+
+test('een bestaande inzet kan naar één losse dag onder de werkopdracht worden gesleept', async () => {
+  const originalJobs = orders[0].klussen;
+  orders[0].klussen = [
+    { ...originalJobs[0], datum: '2026-11-16',
+      inzetten: originalJobs[0].inzetten.filter(item => item.inhuurmedewerkerId).slice(0, 1).map(item => ({ ...item })) },
+    { ...originalJobs[0], id: 'j2', datum: '2026-11-17', sorteervolgorde: 1,
+      inzetten: [], materieelInzetten: [] }
+  ];
+  const view = await setup(true);
+  view.container.querySelector('.board-order-label').events.click();
+  const descendants = root => root.children.filter(child => child && Array.isArray(child.children))
+    .flatMap(child => [child, ...descendants(child)]);
+  const chips = descendants(view.container).filter(node =>
+    String(node.className || '').split(/\s+/).includes('board-draggable-day'));
+  assert.ok(chips.length);
+  chips[0].events.dragstart({ dataTransfer: { setData() {}, effectAllowed: null } });
+  const target = descendants(view.container).filter(node =>
+    String(node.className || '').split(/\s+/).includes('board-day-drop'))[1];
+  target.events.dragover({ preventDefault() {}, stopPropagation() {}, clientX: 500, clientY: 300,
+    dataTransfer: { dropEffect: null } });
+  assert.match(String(target.className), /drag-target/);
+  target.events.drop({ preventDefault() {}, stopPropagation() {}, dataTransfer: {
+    getData: () => ''
+  } });
+  await new Promise(resolve => setImmediate(resolve));
+  const write = view.requests.find(item => item.options?.method === 'PUT');
+  const jobs = JSON.parse(write.options.body).klussen;
+  assert.equal(jobs[0].inzetten.length, 0);
+  assert.equal(jobs[1].inzetten.length, 1);
+  orders[0].klussen = originalJobs;
 });
 
 test('werkopdracht-opslaan normaliseert browser-tijden naar TimeOnly JSON', async () => {

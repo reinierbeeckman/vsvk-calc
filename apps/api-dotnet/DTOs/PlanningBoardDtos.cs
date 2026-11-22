@@ -21,7 +21,11 @@ public sealed record PlanningBoardJobDto(
   Guid Id, string Omschrijving, DateOnly StartDatum, DateOnly EindDatum,
   int BenodigdeMedewerkers, TimeOnly? StartTijd, TimeOnly? EindTijd, int Sorteervolgorde,
   List<PlanningBoardAssignmentDto> Inzetten, List<PlanningJobNeedDto>? Behoeften = null,
-  DateOnly? Datum = null, TimeSpan? ReisHeen = null, TimeSpan? ReisTerug = null);
+  DateOnly? Datum = null, TimeSpan? ReisHeen = null, TimeSpan? ReisTerug = null,
+  List<PlanningBoardMaterialAssignmentDto>? MaterieelInzetten = null);
+
+public sealed record PlanningBoardMaterialAssignmentDto(
+  Guid Id, DateOnly Datum, Guid MaterieelId, string? Materieel);
 
 public sealed record PlanningJobNeedDto(
   int Aantal, string? Rol, string? Skill, Guid? MaterieelId = null, bool LosseVerhuur = false,
@@ -69,7 +73,10 @@ public sealed record PlanningBoardJobWriteDto(
   string? Omschrijving, DateOnly StartDatum, DateOnly EindDatum, int BenodigdeMedewerkers,
   TimeOnly? StartTijd, TimeOnly? EindTijd, int Sorteervolgorde,
   List<PlanningBoardAssignmentWriteDto>? Inzetten, List<PlanningJobNeedWriteDto>? Behoeften = null,
-  DateOnly? Datum = null, TimeSpan? ReisHeen = null, TimeSpan? ReisTerug = null);
+  DateOnly? Datum = null, TimeSpan? ReisHeen = null, TimeSpan? ReisTerug = null,
+  List<PlanningBoardMaterialAssignmentWriteDto>? MaterieelInzetten = null);
+
+public sealed record PlanningBoardMaterialAssignmentWriteDto(DateOnly Datum, Guid MaterieelId);
 
 public sealed record PlanningBoardWorkOrderWriteDto(
   string? Nummer, int KlantId, string? Omschrijving, DateOnly StartDatum, DateOnly EindDatum,

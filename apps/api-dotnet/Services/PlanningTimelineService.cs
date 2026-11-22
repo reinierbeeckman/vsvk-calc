@@ -22,7 +22,8 @@ public sealed class PlanningTimelineService(VsvkDbContext context)
       {
         order.Id, order.Nummer, Customer = order.Klant.Bedrijfsnaam, order.Omschrijving,
         order.StartDatum, order.EindDatum, order.IsOptie, order.OptieTot, order.Kleur,
-        Jobs = order.Klussen.OrderBy(job => job.Sorteervolgorde).ThenBy(job => job.Id)
+        Jobs = order.Klussen.Where(job => job.Datum.HasValue)
+          .OrderBy(job => job.Datum).ThenBy(job => job.Sorteervolgorde).ThenBy(job => job.Id)
           .Select(job => new
           {
             job.Id, job.StartDatum, job.EindDatum, job.BenodigdeMedewerkers,
