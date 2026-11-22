@@ -194,6 +194,7 @@ public sealed class PlanningBoardTests
       seed.Parameters.AddWithValue(employeeId);
       await seed.ExecuteNonQueryAsync();
     }
+
     await using (var seed = source.CreateCommand($"""
       insert into inhuurmedewerkers(id, leverancier_id, naam, functie)
       values ('00000000-0000-0000-0000-000000000101', 1, 'R. Smit', 'Grondwerker');
@@ -233,6 +234,137 @@ public sealed class PlanningBoardTests
       && person.Dagen[new DateOnly(2026, 11, 18)]!.Status == "GEEN_BON");
   }
 
+  [Fact]
+  public async Task Work_order_numbers_are_allocated_atomically_without_year_reset()
+  {
+    await using var postgres = new PostgreSqlBuilder().WithImage("postgres:16-alpine").Build();
+    await postgres.StartAsync();
+    await using var source = NpgsqlDataSource.Create(postgres.GetConnectionString());
+    await new DatabaseMigrator(source).MigrateAsync();
+    var employeeId = Guid.NewGuid();
+    var branchId = Guid.NewGuid();
+    await using (var seed = source.CreateCommand($"""
+      insert into vestigingen(id, naam, adres, postcode, plaats, telefoon, email, kvk_nummer, btw_nummer, iban, instellingen_algemeen_id)
+      values ('{branchId}', 'Nummering', 'Straat 1', '0000AA', 'Plaats', '010', 'test@example.test', '1', '1', 'NL00', 1);
+      insert into klanten(id, debiteurnummer, bedrijfsnaam) values (1, 'D1', 'Klant');
+      insert into werkopdracht_teller(id, last_seq) values (1, 900) on conflict (id) do update set last_seq = 900;
+      insert into werkopdrachten(id, nummer, klant_id, omschrijving, start_datum, eind_datum, vestiging_id)
+      values (gen_random_uuid(), 'WO-2024-1005', 1, 'Bestaand', '2026-11-16', '2026-11-16', '{branchId}');
+      insert into user_information(keycloak_sub, display_name, is_active)
+      values ('{employeeId}', 'Medewerker', true);
+      """))
+    {
+      await seed.ExecuteNonQueryAsync();
+    }
+    await using var app = await StartAsync(postgres.GetConnectionString());
+    using var client = Client(app);
+    client.DefaultRequestHeaders.Add("X-Test-Role", VsvkRoles.Planning);
+    client.DefaultRequestHeaders.Add("X-Test-Branch", "Nummering");
+    var request = WorkOrder(employeeId) with { Nummer = null };
+    var responses = await Task.WhenAll(
+      client.PostAsJsonAsync("/api/planning/werkopdrachten", request),
+      client.PostAsJsonAsync("/api/planning/werkopdrachten", request with { Omschrijving = "Tweede" }));
+    Assert.All(responses, response => Assert.Equal(HttpStatusCode.Created, response.StatusCode));
+    var one = await responses[0].Content.ReadFromJsonAsync<PlanningBoardWorkOrderDto>();
+    var two = await responses[1].Content.ReadFromJsonAsync<PlanningBoardWorkOrderDto>();
+    var numbers = new[] { one!.Nummer, two!.Nummer }.Order().ToList();
+    var year = TimeZoneInfo.ConvertTime(
+      DateTimeOffset.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Europe/Amsterdam")).ToString("yy");
+    var prefix = $"WO-{year}-";
+    Assert.Equal(new[] { prefix + "1006", prefix + "1007" }, numbers);
+  }
+
+  [Fact]
+  public async Task Rich_work_order_form_creates_customer_daily_jobs_needs_orders_and_materials()
+  {
+    await using var postgres = new PostgreSqlBuilder().WithImage("postgres:16-alpine").Build();
+    await postgres.StartAsync();
+    await using var source = NpgsqlDataSource.Create(postgres.GetConnectionString());
+    await new DatabaseMigrator(source).MigrateAsync();
+    var employeeId = Guid.NewGuid();
+    var branchId = Guid.NewGuid();
+    var equipmentGroupId = Guid.NewGuid();
+    await using (var seed = source.CreateCommand($"""
+      insert into vestigingen(id, naam, adres, postcode, plaats, telefoon, email, kvk_nummer, btw_nummer, iban, instellingen_algemeen_id)
+      values ('{branchId}', 'Formvestiging', 'Straat 1', '0000AA', 'Plaats', '010', 'form@example.test', '1', '1', 'NL00', 1);
+      insert into user_information(keycloak_sub, display_name, job_title, is_active)
+      values ('{employeeId}', 'Medewerker', 'Grondwerker', true);
+      insert into materieelgroep(id, omschrijving) values ('{equipmentGroupId}', '33 - Transportmiddelen');
+      """))
+    {
+      await seed.ExecuteNonQueryAsync();
+    }
+    await using var app = await StartAsync(postgres.GetConnectionString());
+    using var client = Client(app);
+    client.DefaultRequestHeaders.Add("X-Test-Role", VsvkRoles.Planning);
+    client.DefaultRequestHeaders.Add("X-Test-Branch", "Formvestiging");
+    var request = new PlanningBoardWorkOrderWriteDto(
+      null, 0, "Sleuf graven", new DateOnly(2026, 11, 16), new DateOnly(2026, 11, 22),
+      false, "#2f8a5b", [], VestigingId: branchId, Soort: "regie",
+      BestellerNaam: "Kees", WeekendOverslaan: true, VrijeDagen: [new DateOnly(2026, 11, 19)],
+      KorteWerkomschrijving: "Sleuf graven", Werkadres: "Parkweg 2", WerkPlaats: "Delft",
+      StartOpLocatie: new TimeOnly(7, 0), EindOpLocatie: new TimeOnly(16, 0), PauzeMinuten: 30,
+      Ordernummers: ["PO-123"], Behoeften: [new(2, "Grondwerker", "VCA")],
+      Materieel: [new(1, equipmentGroupId, null, "33 - Transportmiddelen")],
+      Materialen: [new(10, null, "Bestrating", "st")],
+      NieuweKlant: new("Nieuwe klant", "Parkweg 1", "2600AA", "Delft", "010", "klant@example.test"));
+    using var response = await client.PostAsJsonAsync("/api/planning/werkopdrachten", request);
+    Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    var created = await response.Content.ReadFromJsonAsync<PlanningBoardWorkOrderDto>();
+    Assert.Equal("Nieuwe klant", created!.Klant);
+    Assert.Equal(4, created.Klussen.Count);
+    Assert.All(created.Klussen, job => Assert.Equal(2, job.BenodigdeMedewerkers));
+    Assert.All(created.Klussen, job => {
+      Assert.Contains(job.Behoeften!, need => need.Soort == "mens");
+      var equipment = Assert.Single(job.Behoeften!, need => need.Soort == "materieel");
+      Assert.Equal(equipmentGroupId, equipment.MaterieelGroepId);
+    });
+    Assert.Single(created.Materieel!);
+    Assert.Equal(equipmentGroupId, created.Materieel![0].MaterieelGroepId);
+    Assert.Single(created.Materialen!);
+    Assert.Equal(new DateOnly(2026, 11, 16), created.Klussen[0].Datum);
+    Assert.DoesNotContain(created.Klussen, job => job.Datum == new DateOnly(2026, 11, 19));
+  }
+
+  [Fact]
+  public async Task Delete_work_order_requires_current_etag_and_removes_the_aggregate()
+  {
+    await using var postgres = new PostgreSqlBuilder().WithImage("postgres:16-alpine").Build();
+    await postgres.StartAsync();
+    await using var source = NpgsqlDataSource.Create(postgres.GetConnectionString());
+    await new DatabaseMigrator(source).MigrateAsync();
+    var employeeId = Guid.NewGuid();
+    var branchId = Guid.NewGuid();
+    await using (var seed = source.CreateCommand($"""
+      insert into vestigingen(id, naam, adres, postcode, plaats, telefoon, email, kvk_nummer, btw_nummer, iban, instellingen_algemeen_id)
+      values ('{branchId}', 'Verwijdervestiging', 'Straat 1', '0000AA', 'Plaats', '010', 'delete@example.test', '1', '1', 'NL00', 1);
+      insert into klanten(id, debiteurnummer, bedrijfsnaam) values (1, 'D1', 'Klant');
+      insert into user_information(keycloak_sub, display_name, is_active)
+      values ('{employeeId}', 'Medewerker', true);
+      """))
+      await seed.ExecuteNonQueryAsync();
+    await using var app = await StartAsync(postgres.GetConnectionString());
+    using var client = Client(app);
+    client.DefaultRequestHeaders.Add("X-Test-Role", VsvkRoles.Planning);
+    client.DefaultRequestHeaders.Add("X-Test-Branch", "Verwijdervestiging");
+    using var createdResponse = await client.PostAsJsonAsync("/api/planning/werkopdrachten",
+      WorkOrder(employeeId) with { VestigingId = branchId, Nummer = null });
+    var created = (await createdResponse.Content.ReadFromJsonAsync<PlanningBoardWorkOrderDto>())!;
+
+    var withoutPrecondition = await client.DeleteAsync($"/api/planning/werkopdrachten/{created.Id}");
+    Assert.Equal((HttpStatusCode)428, withoutPrecondition.StatusCode);
+
+    using var stale = new HttpRequestMessage(HttpMethod.Delete, $"/api/planning/werkopdrachten/{created.Id}");
+    stale.Headers.TryAddWithoutValidation("If-Match", "\"0\"");
+    Assert.Equal(HttpStatusCode.PreconditionFailed, (await client.SendAsync(stale)).StatusCode);
+
+    using var deletion = new HttpRequestMessage(HttpMethod.Delete, $"/api/planning/werkopdrachten/{created.Id}");
+    deletion.Headers.TryAddWithoutValidation("If-Match", created.ETag);
+    Assert.Equal(HttpStatusCode.NoContent, (await client.SendAsync(deletion)).StatusCode);
+    Assert.Equal(HttpStatusCode.NotFound,
+      (await client.GetAsync($"/api/planning/werkopdrachten/{created.Id}")).StatusCode);
+  }
+
   private static PlanningBoardWorkOrderWriteDto WorkOrder(Guid employeeId) =>
     new("WO-26-0422", 1, "Sleuf graven", new DateOnly(2026, 11, 16), new DateOnly(2026, 11, 16),
       false, "#2f8a5b",
@@ -251,6 +383,7 @@ public sealed class PlanningBoardTests
     builder.Services.AddDbContext<VsvkDbContext>(options => options.UseNpgsql(connectionString));
     builder.Services.AddScoped<PlanningRepository>();
     builder.Services.AddScoped<PlanningBoardRepository>();
+    builder.Services.AddScoped<PlanningWorkOrderNumberAllocator>();
     builder.Services.AddScoped<PlanningTimelineService>();
     builder.Services.AddScoped<IPlanningCustomerService, PlanningCustomerService>();
     builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, PlanningTestAuthenticationHandler>("Test", _ => { });

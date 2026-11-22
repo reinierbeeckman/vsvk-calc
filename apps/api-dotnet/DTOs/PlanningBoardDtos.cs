@@ -18,12 +18,25 @@ public sealed record PlanningBoardJobDto(
   List<PlanningBoardAssignmentDto> Inzetten, List<PlanningJobNeedDto>? Behoeften = null,
   DateOnly? Datum = null, TimeSpan? ReisHeen = null, TimeSpan? ReisTerug = null);
 
-public sealed record PlanningJobNeedDto(int Aantal, string? Rol, string? Skill);
+public sealed record PlanningJobNeedDto(
+  int Aantal, string? Rol, string? Skill, Guid? MaterieelId = null, bool LosseVerhuur = false,
+  Guid? MaterieelGroepId = null, string Soort = "mens");
 
 public sealed record PlanningBoardWorkOrderDto(
   Guid Id, string Nummer, int KlantId, string Klant, string Omschrijving,
   DateOnly StartDatum, DateOnly EindDatum, bool IsOptie, string Kleur, string Status,
-  long Version, List<PlanningBoardJobDto> Klussen, Guid? VestigingId = null, DateOnly? OptieTot = null)
+  long Version, List<PlanningBoardJobDto> Klussen, Guid? VestigingId = null, DateOnly? OptieTot = null,
+  string Soort = "regie", string? InternProjectnummer = null, int? BestellerId = null,
+  string? BestellerNaam = null, string? BestellerTelefoon = null, string? BestellerEmail = null,
+  string? OptieReden = null, bool WeekendOverslaan = true, List<DateOnly>? VrijeDagen = null,
+  bool Werkvoorraad = false, int? GeschatteUren = null, DateOnly? UiterlijkKlaar = null,
+  string Prioriteit = "normaal", string? KorteWerkomschrijving = null, string? WerkInhoud = null,
+  string? Instructies = null, string? Werkadres = null, string? WerkPostcode = null, string? WerkPlaats = null,
+  string? GpsLocatie = null, string? ContactLocatieNaam = null, string? ContactLocatieTelefoon = null,
+  TimeOnly? StartOpLocatie = null, TimeOnly? EindOpLocatie = null, int PauzeMinuten = 30,
+  bool MeerdereDiensten = false, List<string>? Ordernummers = null,
+  List<PlanningJobNeedDto>? Behoeften = null, List<PlanningJobNeedDto>? Materieel = null,
+  List<PlanningWorkMaterialWriteDto>? Materialen = null)
 {
   public string ETag => StrongEtag.Format(Version);
 }
@@ -53,12 +66,67 @@ public sealed record PlanningBoardJobWriteDto(
   List<PlanningBoardAssignmentWriteDto>? Inzetten, List<PlanningJobNeedWriteDto>? Behoeften = null,
   DateOnly? Datum = null, TimeSpan? ReisHeen = null, TimeSpan? ReisTerug = null);
 
-public sealed record PlanningJobNeedWriteDto(int Aantal, string? Rol, string? Skill);
-
 public sealed record PlanningBoardWorkOrderWriteDto(
   string? Nummer, int KlantId, string? Omschrijving, DateOnly StartDatum, DateOnly EindDatum,
   bool IsOptie, string? Kleur, List<PlanningBoardJobWriteDto>? Klussen,
-  Guid? VestigingId = null, DateOnly? OptieTot = null);
+  Guid? VestigingId = null, DateOnly? OptieTot = null, string Soort = "regie",
+  string? InternProjectnummer = null, int? BestellerId = null, string? BestellerNaam = null,
+  string? BestellerTelefoon = null, string? BestellerEmail = null, string? OptieReden = null,
+  bool WeekendOverslaan = true, List<DateOnly>? VrijeDagen = null, bool Werkvoorraad = false,
+  int? GeschatteUren = null, DateOnly? UiterlijkKlaar = null, string Prioriteit = "normaal",
+  string? KorteWerkomschrijving = null, string? WerkInhoud = null, string? Instructies = null,
+  string? Werkadres = null, string? WerkPostcode = null, string? WerkPlaats = null, string? GpsLocatie = null,
+  string? ContactLocatieNaam = null, string? ContactLocatieTelefoon = null,
+  TimeOnly? StartOpLocatie = null, TimeOnly? EindOpLocatie = null, int PauzeMinuten = 30,
+  bool MeerdereDiensten = false, List<string>? Ordernummers = null,
+  List<PlanningJobNeedWriteDto>? Behoeften = null,
+  List<PlanningMaterialNeedWriteDto>? Materieel = null,
+  List<PlanningWorkMaterialWriteDto>? Materialen = null,
+  PlanningInlineCustomerWriteDto? NieuweKlant = null,
+  PlanningInlineContactWriteDto? NieuweBesteller = null,
+  List<PlanningServiceWriteDto>? Diensten = null);
+
+public sealed record PlanningServiceWriteDto(string Naam, TimeOnly Start, TimeOnly Eind);
+
+public sealed record PlanningJobNeedWriteDto(int Aantal, string? Rol, string? Skill, Guid? MaterieelId = null,
+  bool LosseVerhuur = false, Guid? MaterieelGroepId = null, string Soort = "mens");
+public sealed record PlanningMaterialNeedWriteDto(int Aantal, Guid? MaterieelGroepId, Guid? MaterieelId, string? Type, bool LosseVerhuur = false);
+public sealed record PlanningWorkMaterialWriteDto(decimal Aantal, Guid? ArtikelId, string? Omschrijving, string? Eenheid);
+public sealed record PlanningInlineCustomerWriteDto(
+  string? Bedrijfsnaam, string? Straat, string? Postcode, string? Plaats, string? Telefoon, string? Email);
+public sealed record PlanningInlineContactWriteDto(string? Naam, string? Telefoon, string? Email);
+
+public sealed record PlanningWorkOrderCapacityDto(
+  List<PlanningCapacityItemDto> Mensen, List<PlanningCapacityItemDto> Materieel,
+  DateOnly? DruksteDag, int MensenGevraagd, int MensenBeschikbaar,
+  int MaterieelGevraagd, int MaterieelBeschikbaar);
+public sealed record PlanningWorkOrderCapacityRequest(
+  DateOnly Van, DateOnly Tot, List<string> VrijeDagen, List<PlanningJobNeedWriteDto>? Mensen,
+  List<PlanningMaterialNeedWriteDto>? Materieel);
+
+public sealed record PlanningCapacityItemDto(
+  string Naam, int Gevraagd, int Beschikbaar, string Label, DateOnly? DruksteDag);
+
+public sealed record PlanningWorkOrderFormReferencesDto(
+  List<PlanningCustomerReferenceDto> Klanten,
+  List<PlanningBoardLookupDto> Vestigingen,
+  List<string> Functies,
+  List<PlanningMaterialLookupDto> MaterieelTypes, List<PlanningEquipmentLookupDto> Materieel,
+  List<PlanningArticleLookupDto> Artikelen);
+public sealed record PlanningMaterialLookupDto(Guid Id, string Naam);
+public sealed record PlanningEquipmentLookupDto(Guid Id, string Naam, Guid? GroepId);
+public sealed record PlanningArticleLookupDto(Guid Id, string Naam, string Categorie, string Eenheid);
+
+public sealed record PlanningCustomerReferenceDto(
+  int Id, string Naam, string Debiteurnummer, string? Straat, string? Postcode, string? Plaats,
+  string? Telefoon, string? Email, List<PlanningBoardLookupContactDto> Contacten,
+  List<PlanningBoardWorkOrderDto> RecenteOpdrachten);
+public sealed record PlanningBoardLookupContactDto(
+  int Id, string Naam, string? Telefoon, string? Email, bool IsStandaardBesteller);
+public sealed record PlanningRecentWorkOrderDto(
+  Guid Id, string Nummer, string Omschrijving, string? KorteWerkomschrijving, string? Werkadres,
+  string? WerkPlaats, string? WerkPostcode, TimeOnly? StartOpLocatie, TimeOnly? EindOpLocatie,
+  int? BenodigdeMedewerkers, List<PlanningJobNeedDto> Behoeften, List<PlanningJobNeedDto> Materieel);
 
 public sealed record PlanningSubcontractorListDto(
   Guid Id, int LeverancierId, string Leverancier, string Naam, string? Functie,

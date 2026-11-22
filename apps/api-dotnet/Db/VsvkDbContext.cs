@@ -26,6 +26,9 @@ public sealed class VsvkDbContext : DbContext
   public DbSet<Werkopdracht> Werkopdrachten => Set<Werkopdracht>();
   public DbSet<Klus> Klussen => Set<Klus>();
   public DbSet<KlusBehoefte> KlusBehoeften => Set<KlusBehoefte>();
+  public DbSet<WerkopdrachtOrdernummer> WerkopdrachtOrdernummers => Set<WerkopdrachtOrdernummer>();
+  public DbSet<WerkopdrachtVrijeDag> WerkopdrachtVrijeDagen => Set<WerkopdrachtVrijeDag>();
+  public DbSet<WerkopdrachtMateriaal> WerkopdrachtMaterialen => Set<WerkopdrachtMateriaal>();
   public DbSet<Inhuurmedewerker> Inhuurmedewerkers => Set<Inhuurmedewerker>();
   public DbSet<Inzet> Inzetten => Set<Inzet>();
   public DbSet<Werkbon> Werkbonnen => Set<Werkbon>();
@@ -47,11 +50,36 @@ public sealed class VsvkDbContext : DbContext
     workOrder.Property(item => item.VestigingId).HasColumnName("vestiging_id");
     workOrder.Property(item => item.Geannuleerd).HasColumnName("geannuleerd");
     workOrder.Property(item => item.Voorraad).HasColumnName("voorraad");
+    workOrder.Property(item => item.Soort).HasColumnName("soort");
+    workOrder.Property(item => item.InternProjectnummer).HasColumnName("intern_projectnummer");
+    workOrder.Property(item => item.BestellerId).HasColumnName("besteller_id");
+    workOrder.Property(item => item.BestellerNaam).HasColumnName("besteller_naam");
+    workOrder.Property(item => item.BestellerTelefoon).HasColumnName("besteller_telefoon");
+    workOrder.Property(item => item.BestellerEmail).HasColumnName("besteller_email");
+    workOrder.Property(item => item.OptieReden).HasColumnName("optie_reden");
+    workOrder.Property(item => item.WeekendOverslaan).HasColumnName("weekend_overslaan");
+    workOrder.Property(item => item.GeschatteUren).HasColumnName("geschatte_uren");
+    workOrder.Property(item => item.UiterlijkKlaar).HasColumnName("uiterlijk_klaar").HasColumnType("date");
+    workOrder.Property(item => item.Prioriteit).HasColumnName("prioriteit");
+    workOrder.Property(item => item.KorteWerkomschrijving).HasColumnName("korte_werkomschrijving");
+    workOrder.Property(item => item.WerkInhoud).HasColumnName("werk_inhoud");
+    workOrder.Property(item => item.Instructies).HasColumnName("instructies");
+    workOrder.Property(item => item.Werkadres).HasColumnName("werkadres");
+    workOrder.Property(item => item.WerkPostcode).HasColumnName("werk_postcode");
+    workOrder.Property(item => item.WerkPlaats).HasColumnName("werk_plaats");
+    workOrder.Property(item => item.GpsLocatie).HasColumnName("gps_locatie");
+    workOrder.Property(item => item.ContactLocatieNaam).HasColumnName("contact_locatie_naam");
+    workOrder.Property(item => item.ContactLocatieTelefoon).HasColumnName("contact_locatie_telefoon");
+    workOrder.Property(item => item.StartOpLocatie).HasColumnName("start_op_locatie");
+    workOrder.Property(item => item.EindOpLocatie).HasColumnName("eind_op_locatie");
+    workOrder.Property(item => item.PauzeMinuten).HasColumnName("pauze_minuten");
+    workOrder.Property(item => item.MeerdereDiensten).HasColumnName("meerdere_diensten");
     workOrder.Property(item => item.Version).HasColumnName("version").IsConcurrencyToken();
     workOrder.HasIndex(item => item.Nummer).IsUnique();
     workOrder.HasIndex(item => new { item.StartDatum, item.EindDatum });
     workOrder.HasOne(item => item.Klant).WithMany().HasForeignKey(item => item.KlantId).OnDelete(DeleteBehavior.Restrict);
     workOrder.HasOne(item => item.Vestiging).WithMany().HasForeignKey(item => item.VestigingId).OnDelete(DeleteBehavior.Restrict);
+    workOrder.HasOne(item => item.Besteller).WithMany().HasForeignKey(item => item.BestellerId).OnDelete(DeleteBehavior.SetNull);
 
     var job = modelBuilder.Entity<Klus>();
     job.ToTable("klussen");
@@ -68,6 +96,8 @@ public sealed class VsvkDbContext : DbContext
     job.Property(item => item.Datum).HasColumnName("datum").HasColumnType("date");
     job.Property(item => item.ReisHeen).HasColumnName("reis_heen");
     job.Property(item => item.ReisTerug).HasColumnName("reis_terug");
+    job.Property(item => item.PauzeMinuten).HasColumnName("pauze_minuten");
+    job.Property(item => item.DienstNaam).HasColumnName("dienst_naam");
     job.HasIndex(item => new { item.WerkopdrachtId, item.Sorteervolgorde });
     job.HasOne(item => item.Werkopdracht).WithMany(item => item.Klussen).HasForeignKey(item => item.WerkopdrachtId).OnDelete(DeleteBehavior.Cascade);
 
@@ -79,9 +109,46 @@ public sealed class VsvkDbContext : DbContext
     jobNeed.Property(item => item.Aantal).HasColumnName("aantal");
     jobNeed.Property(item => item.Rol).HasColumnName("rol").HasMaxLength(200);
     jobNeed.Property(item => item.Skill).HasColumnName("skill").HasMaxLength(200);
+    jobNeed.Property(item => item.Soort).HasColumnName("soort").HasMaxLength(20);
+    jobNeed.Property(item => item.MaterieelId).HasColumnName("materieel_id");
+    jobNeed.Property(item => item.MaterieelGroepId).HasColumnName("materieelgroep_id");
+    jobNeed.Property(item => item.LosseVerhuur).HasColumnName("losse_verhuur");
     jobNeed.HasIndex(item => item.KlusId);
     jobNeed.HasOne(item => item.Klus).WithMany(item => item.Behoeften)
       .HasForeignKey(item => item.KlusId).OnDelete(DeleteBehavior.Cascade);
+    jobNeed.HasOne(item => item.Materieel).WithMany().HasForeignKey(item => item.MaterieelId).OnDelete(DeleteBehavior.Restrict);
+    jobNeed.HasOne(item => item.MaterieelGroep).WithMany().HasForeignKey(item => item.MaterieelGroepId).OnDelete(DeleteBehavior.Restrict);
+
+    var orderNumber = modelBuilder.Entity<WerkopdrachtOrdernummer>();
+    orderNumber.ToTable("werkopdracht_ordernummers");
+    orderNumber.HasKey(item => item.Id);
+    orderNumber.Property(item => item.Id).HasColumnName("id");
+    orderNumber.Property(item => item.WerkopdrachtId).HasColumnName("werkopdracht_id");
+    orderNumber.Property(item => item.Nummer).HasColumnName("nummer").HasMaxLength(100).IsRequired();
+    orderNumber.Property(item => item.Sorteervolgorde).HasColumnName("sorteervolgorde");
+    orderNumber.HasOne(item => item.Werkopdracht).WithMany(item => item.Ordernummers)
+      .HasForeignKey(item => item.WerkopdrachtId).OnDelete(DeleteBehavior.Cascade);
+
+    var skippedDay = modelBuilder.Entity<WerkopdrachtVrijeDag>();
+    skippedDay.ToTable("werkopdracht_vrije_dagen");
+    skippedDay.HasKey(item => new { item.WerkopdrachtId, item.Datum });
+    skippedDay.Property(item => item.WerkopdrachtId).HasColumnName("werkopdracht_id");
+    skippedDay.Property(item => item.Datum).HasColumnName("datum").HasColumnType("date");
+    skippedDay.HasOne(item => item.Werkopdracht).WithMany(item => item.VrijeDagen)
+      .HasForeignKey(item => item.WerkopdrachtId).OnDelete(DeleteBehavior.Cascade);
+
+    var materials = modelBuilder.Entity<WerkopdrachtMateriaal>();
+    materials.ToTable("werkopdracht_materialen");
+    materials.HasKey(item => item.Id);
+    materials.Property(item => item.Id).HasColumnName("id");
+    materials.Property(item => item.WerkopdrachtId).HasColumnName("werkopdracht_id");
+    materials.Property(item => item.Aantal).HasColumnName("aantal").HasPrecision(12, 2);
+    materials.Property(item => item.ArtikelId).HasColumnName("artikel_id");
+    materials.Property(item => item.Omschrijving).HasColumnName("omschrijving").HasMaxLength(500);
+    materials.Property(item => item.Eenheid).HasColumnName("eenheid").HasMaxLength(50);
+    materials.HasOne(item => item.Werkopdracht).WithMany(item => item.Materialen)
+      .HasForeignKey(item => item.WerkopdrachtId).OnDelete(DeleteBehavior.Cascade);
+    materials.HasOne(item => item.Artikel).WithMany().HasForeignKey(item => item.ArtikelId).OnDelete(DeleteBehavior.Restrict);
 
     var subcontractor = modelBuilder.Entity<Inhuurmedewerker>();
     subcontractor.ToTable("inhuurmedewerkers");

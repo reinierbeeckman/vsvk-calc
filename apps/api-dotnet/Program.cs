@@ -33,6 +33,7 @@ builder.Services.AddScoped<VestigingRepository>();
 builder.Services.AddScoped<ArtikelRepository>();
 builder.Services.AddScoped<PlanningRepository>();
 builder.Services.AddScoped<PlanningBoardRepository>();
+builder.Services.AddScoped<PlanningWorkOrderNumberAllocator>();
 builder.Services.AddScoped<PlanningTimelineService>();
 builder.Services.AddScoped<IPlanningEmployeeDevelopmentRepository>(services => services.GetRequiredService<PlanningRepository>());
 builder.Services.AddPlanningMaterieelMutations();

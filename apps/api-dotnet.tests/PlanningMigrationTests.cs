@@ -146,11 +146,60 @@ public sealed class PlanningMigrationTests
         exists(select 1 from information_schema.columns where table_name='werkopdrachten' and column_name='vestiging_id'),
         exists(select 1 from information_schema.columns where table_name='klussen' and column_name='reis_heen'),
         exists(select 1 from information_schema.columns where table_name='werkbonnen' and column_name='oud_nummer'),
-        to_regclass('klus_behoeften') is not null
+        to_regclass('klus_behoeften') is not null,
+        to_regclass('werkopdracht_ordernummers') is not null,
+        to_regclass('werkopdracht_vrije_dagen') is not null,
+        to_regclass('werkopdracht_materialen') is not null,
+        to_regclass('werkopdracht_teller') is not null
       """);
     await using var reader = await query.ExecuteReaderAsync();
     Assert.True(await reader.ReadAsync());
-    for (var index = 0; index < 10; index++) Assert.True(reader.GetBoolean(index));
+    for (var index = 0; index < 14; index++) Assert.True(reader.GetBoolean(index));
+  }
+
+  [Fact]
+  public async Task Planning_board_migration_classifies_equipment_and_recalculates_people()
+  {
+    await using var postgres = new PostgreSqlBuilder().WithImage("postgres:16-alpine").Build();
+    await postgres.StartAsync();
+    await using var source = NpgsqlDataSource.Create(postgres.GetConnectionString());
+    var migrator = new DatabaseMigrator(source);
+    await migrator.MigrateAsync();
+    await using (var seed = source.CreateCommand("""
+      insert into klanten(id, debiteurnummer, bedrijfsnaam) values (1, 'D1', 'Klant');
+      insert into materieelgroep(id, omschrijving)
+      values ('00000000-0000-0000-0000-000000000601', '33 - Transportmiddelen');
+      insert into werkopdrachten(id, nummer, klant_id, omschrijving, start_datum, eind_datum)
+      values ('00000000-0000-0000-0000-000000000602', 'WO-26-0001', 1, 'Werk',
+        '2026-11-16', '2026-11-16');
+      insert into klussen(id, werkopdracht_id, omschrijving, start_datum, eind_datum, benodigde_medewerkers)
+      values ('00000000-0000-0000-0000-000000000603', '00000000-0000-0000-0000-000000000602',
+        'Dagdienst', '2026-11-16', '2026-11-16', 15);
+      insert into klus_behoeften(id, klus_id, aantal, rol) values
+        ('00000000-0000-0000-0000-000000000604', '00000000-0000-0000-0000-000000000603', 1, 'Planner'),
+        ('00000000-0000-0000-0000-000000000605', '00000000-0000-0000-0000-000000000603', 14, '33 - Transportmiddelen'),
+        ('00000000-0000-0000-0000-000000000606', '00000000-0000-0000-0000-000000000603', 1, 'Planner');
+      """))
+      await seed.ExecuteNonQueryAsync();
+
+    await migrator.MigrateAsync();
+    await using var query = source.CreateCommand("""
+      select k.benodigde_medewerkers,
+             bool_and(kb.soort = case when kb.rol = '33 - Transportmiddelen' then 'materieel' else 'mens' end),
+             (select materieelgroep_id = '00000000-0000-0000-0000-000000000601'
+                from klus_behoeften where rol = '33 - Transportmiddelen'),
+             count(*)
+      from klussen k
+      join klus_behoeften kb on kb.klus_id = k.id
+      where k.id = '00000000-0000-0000-0000-000000000603'
+      group by k.benodigde_medewerkers
+      """);
+    await using var reader = await query.ExecuteReaderAsync();
+    Assert.True(await reader.ReadAsync());
+    Assert.Equal(1, reader.GetInt32(0));
+    Assert.True(reader.GetBoolean(1));
+    Assert.True(reader.GetBoolean(2));
+    Assert.Equal(2, reader.GetInt64(3));
   }
 
   [Fact]
