@@ -27,7 +27,7 @@ public sealed class PlanningTimelineService(VsvkDbContext context)
           {
             job.Id, job.StartDatum, job.EindDatum, job.BenodigdeMedewerkers,
             job.StartTijd, job.EindTijd,
-            Requirements = job.Behoeften.Sum(need => need.Aantal),
+            Requirements = job.Behoeften.Where(need => need.Soort == "mens").Sum(need => need.Aantal),
             Assignments = job.Inzetten.Where(assignment => assignment.Datum >= from && assignment.Datum <= to)
               .OrderBy(assignment => assignment.Datum)
               .Select(assignment => new
@@ -59,6 +59,8 @@ public sealed class PlanningTimelineService(VsvkDbContext context)
       var people = new Dictionary<Guid, (string Name, string? Job, bool External, Dictionary<DateOnly, TimelinePersonDayDto?> Days)>();
       var openPlaces = 0;
       var slipsTodo = 0;
+      var slipCount = 0;
+      var slipsInside = 0;
 
       foreach (var date in Days(from, to).Where(date =>
         date.DayOfWeek is not DayOfWeek.Saturday and not DayOfWeek.Sunday &&
@@ -87,11 +89,16 @@ public sealed class PlanningTimelineService(VsvkDbContext context)
             people.Add(personId, person);
           }
           var bon = assignment.WorkSlip?.Status == "vervallen" ? null : assignment.WorkSlip;
-          var status = BonStatus(date, today, bon is null ? null : bon.Status, bon?.GewijzigdNaUitgifte == true);
+          if (bon is not null)
+          {
+            slipCount++;
+            if (bon.Status is "retour" or "verwerkt" or "binnen") slipsInside++;
+          }
+          var personStatus = BonStatus(date, today, bon is null ? null : bon.Status, bon?.GewijzigdNaUitgifte == true);
           if (date <= today && (bon is null || bon.Status == "aangemaakt" || bon.GewijzigdNaUitgifte))
             todo++;
           person.Days[date] = new TimelinePersonDayDto(
-            status, bon?.Id, bon?.Nummer, bon?.OudNummer, item.JobId);
+            personStatus, bon?.Id, bon?.Nummer, bon?.OudNummer, item.JobId);
         }
         slipsTodo += todo;
         var occupancy = required == 0 ? "geenBehoefte" : occupied >= required ? "vol" : occupied == 0 ? "leeg" : "deels";
@@ -107,10 +114,17 @@ public sealed class PlanningTimelineService(VsvkDbContext context)
           first?.StartTijd?.ToString("HH:mm") ?? "", first?.EindTijd);
       }
 
-      var completed = dayCells.Count > 0 && dayCells.Keys.All(date => date < today)
-        && openPlaces == 0 && slipsTodo == 0 && people.Values.All(person =>
-          person.Days.Values.Where(value => value is not null).All(value =>
-            value!.Status == "BINNEN"));
+      var totalRequired = dayCells.Values.Sum(day => day.Nodig);
+      var totalOccupied = dayCells.Values.Sum(day => day.Bezet);
+      openPlaces = Math.Max(0, totalRequired - totalOccupied);
+      var completed = dayCells.Count > 0 && dayCells.Keys.All(date => date < today) &&
+        totalRequired > 0 && openPlaces == 0 &&
+        slipCount > 0 && slipsInside == slipCount;
+      var orderStatus = order.IsOptie ? "OPTIE"
+        : completed ? "AFGEROND"
+        : totalRequired > 0 && openPlaces == 0 ? "GEPLAND"
+        : totalOccupied == 0 ? "NIET INGEPLAND"
+        : "OPEN " + openPlaces;
       var group = openPlaces > 0 || slipsTodo > 0 ? "aandacht" : completed ? "afgerond" : "schema";
       timelineOrders.Add(new TimelineWorkOrderDto(
         order.Id, order.Nummer, order.Customer, order.Omschrijving, order.StartDatum, order.EindDatum, order.Kleur,
@@ -118,7 +132,8 @@ public sealed class PlanningTimelineService(VsvkDbContext context)
         openPlaces, slipsTodo, group, dayCells,
         people.OrderBy(item => item.Value.External).ThenBy(item => item.Value.Name, StringComparer.Create(Dutch, false))
           .Select(item => new TimelinePersonDto(item.Key, item.Value.Name, item.Value.Job,
-            item.Value.External, item.Value.Days)).ToList()));
+            item.Value.External, item.Value.Days)).ToList(),
+        orderStatus, slipCount, slipsInside));
     }
 
     var grouped = new[] { ("aandacht", "Aandacht nodig"), ("schema", "Op schema"), ("afgerond", "Afgerond") }

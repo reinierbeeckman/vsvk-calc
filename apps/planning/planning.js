@@ -77,14 +77,15 @@
       document.querySelectorAll('[data-section]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.section === section)));
       document.querySelector('#list-nav').hidden = section !== 'Lijsten';
       const showsWorkBoard = section === 'Planbord' || section === 'Werkopdrachten';
+      const showsPlanningPage = ['Overzicht', 'Werkbonnen', 'Team'].includes(section);
       document.querySelector('#planbord-panel').hidden = !showsWorkBoard;
+      document.querySelector('#planning-pages-panel').hidden = !showsPlanningPage;
       if (section === 'Lijsten') { refreshCounts(current); return load(current); }
       ++loadNumber;
       stopListLoading();
       loading = false;
       document.querySelector('#title').textContent = section;
       document.querySelector('#list-panel').hidden = true;
-      document.querySelector('#unavailable').hidden = showsWorkBoard;
       if (showsWorkBoard) {
         document.querySelector('#description').textContent = 'Weekplanning van werkopdrachten, klussen, personeel, inhuur en werkbonnen.';
         window.VsvkPlanBoard.open({
@@ -93,7 +94,19 @@
         });
         return;
       }
-      document.querySelector('#description').textContent = 'Dit onderdeel van de planning wordt later gekoppeld.';
+      if (showsPlanningPage) {
+        const descriptions = {
+          Overzicht: 'Wat vraagt aandacht en welke werkopdrachten lopen in de gekozen periode?',
+          Werkbonnen: 'Werkbonnen maken, uitreiken, binnenmelden en door de keten verwerken.',
+          Team: 'Beschikbaarheid, certificaten, keuringen en teamgegevens.'
+        };
+        document.querySelector('#description').textContent = descriptions[section];
+        window.VsvkPlanningPages.open({
+          section: section.toLocaleLowerCase('nl'), container: document.querySelector('#planning-pages-panel'),
+          request, navigate: target => showSection(target)
+        });
+        return;
+      }
     }
     async function load(list) {
       const sequence = ++loadNumber;
@@ -106,7 +119,7 @@
       document.querySelectorAll('[data-list]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.list === list)));
       document.querySelector('#list-panel').hidden = !definition.path;
       document.querySelector('#planbord-panel').hidden = true;
-      document.querySelector('#unavailable').hidden = !!definition.path;
+      document.querySelector('#planning-pages-panel').hidden = true;
       if (!definition.path) return;
       const add = document.querySelector('#add');
       add.textContent = '+ ' + definition.singular; add.disabled = true; add.title = 'Nog niet beschikbaar';

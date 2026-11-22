@@ -203,6 +203,9 @@ public sealed class PlanningBoardTests
       insert into klussen(id, werkopdracht_id, omschrijving, start_datum, eind_datum, benodigde_medewerkers, start_tijd, eind_tijd)
       values
         ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000201', 'Hoofddienst', '2026-11-16', '2026-11-20', 2, '06:45', '17:15');
+      insert into klus_behoeften(id, klus_id, aantal, rol, soort) values
+        ('00000000-0000-0000-0000-000000000311', '00000000-0000-0000-0000-000000000301', 2, 'Grondwerker', 'mens'),
+        ('00000000-0000-0000-0000-000000000312', '00000000-0000-0000-0000-000000000301', 14, '33 - Transportmiddelen', 'materieel');
       insert into inzet(id, klus_id, datum, medewerker_id, inhuurmedewerker_id, start_tijd, eind_tijd) values
         ('00000000-0000-0000-0000-000000000401', '00000000-0000-0000-0000-000000000301', '2026-11-18', '{employeeId}', null, '06:45', '17:15'),
         ('00000000-0000-0000-0000-000000000402', '00000000-0000-0000-0000-000000000301', '2026-11-18', null, '00000000-0000-0000-0000-000000000101', '06:45', '17:15');
@@ -224,6 +227,9 @@ public sealed class PlanningBoardTests
     Assert.Equal(7, vm.Dagen.Count);
     var order = Assert.Single(vm.Groepen.SelectMany(group => group.Werkopdrachten));
     Assert.Equal("aandacht", order.Groep);
+    Assert.Equal("OPEN 8", order.Status);
+    Assert.Equal(1, order.Bonnen);
+    Assert.Equal(0, order.BonnenBinnen);
     var day = order.Dagen[new DateOnly(2026, 11, 18)];
     Assert.Equal(2, day.Nodig);
     Assert.Equal(2, day.Bezet);
@@ -232,6 +238,14 @@ public sealed class PlanningBoardTests
     Assert.Equal(2, order.Mensen.Count);
     Assert.Contains(order.Mensen, person => person.Extern && person.Naam == "R. Smit"
       && person.Dagen[new DateOnly(2026, 11, 18)]!.Status == "GEEN_BON");
+
+    var slips = await client.GetFromJsonAsync<List<PlanningWorkSlipListDto>>(
+      "/api/planning/werkbonnen");
+    var slip = Assert.Single(slips!);
+    Assert.Equal("WB-0412-11", slip.Nummer);
+    Assert.Equal("WO-26-0412", slip.WerkopdrachtNummer);
+    Assert.Equal("Jan de Vries", slip.Medewerker);
+    Assert.Equal("Infra Noord BV", slip.Klant);
   }
 
   [Fact]

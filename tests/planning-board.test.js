@@ -85,7 +85,7 @@ const timeline = {
   groepen: [{ key: 'aandacht', label: 'Aandacht nodig', werkopdrachten: [{
     id: 'w1', nummer: 'WO-26-0412', klantNaam: 'Infra Noord BV', kop: 'Kabeltracé Parkweg vervangen',
     startDatum: '2026-11-16', eindDatum: '2026-11-20', kleur: '#2f6fb5', optie: false,
-    openPlekken: 1, bonnenTeDoen: 2, groep: 'aandacht',
+    openPlekken: 1, bonnenTeDoen: 2, groep: 'aandacht', status: 'OPEN 1', bonnen: 3, bonnenBinnen: 1,
     dagen: { '2026-11-18': { klusIds: ['j1'], nodig: 2, bezet: 2, open: 0, bezetting: 'vol', teDoen: 2, bonSamenvatting: 'teDoen', vertrek: '06:45' } },
     mensen: [{ id: 'h1', naam: 'R. Smit', functie: 'Grondwerker', extern: true,
       dagen: { '2026-11-18': { status: 'GEEN_BON', bonId: null, nummer: null, klusId: 'j1' } } }]
@@ -171,17 +171,17 @@ test('ontbrekende mensenbehoefte wordt vóór de PUT uitgelegd en niet verstuurd
   assert.match(dialog.querySelector('.board-dialog-status').textContent, /korte werkomschrijving|mensenbehoefte|werkadres|klant/i);
 });
 
-test('Werkopdrachten-view rendert groepen, day-health, personen en acties', async () => {
+test('Werkopdrachten-view volgt de prototype-matrix met status, klussen en personen', async () => {
   const view = await setup(true, true);
-  assert.match(view.container.textContent, /Aandacht nodig/);
-  assert.match(view.container.textContent, /✓ P 2\/2/);
-  assert.match(view.container.textContent, /2 bonnen te doen/);
+  assert.doesNotMatch(view.container.textContent, /Aandacht nodig/);
+  assert.match(view.container.textContent, /OPEN 1/);
+  assert.match(view.container.textContent, /WO-26-0412 · 3 bonnen, 1 binnen/);
   const wo = view.container.querySelector('.tl-wo-label');
   wo.events.click();
-  assert.match(view.container.textContent, /TE DOEN PER DAG/i);
+  assert.match(view.container.textContent, /Klussen/);
   assert.match(view.container.textContent, /R\. Smit/);
   assert.match(view.container.textContent, /GEEN BON/);
-  assert.match(view.container.textContent, /Bonnen \(2\)/);
+  assert.match(view.container.textContent, /1 dag · 2 mensen per dag/);
 });
 
 test('nieuwe werkopdracht toont nummer als automatisch en verstuurt geen nummer', async () => {

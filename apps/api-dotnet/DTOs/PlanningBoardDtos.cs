@@ -5,6 +5,11 @@ namespace Vsvk.Api.DTOs;
 public sealed record PlanningBoardWorkSlipDto(
   Guid Id, string Nummer, string Status, bool GewijzigdNaUitgifte,
   DateTimeOffset? UitgereiktOp, DateTimeOffset? BinnenOp);
+public sealed record PlanningWorkSlipListDto(
+  Guid Id, string Nummer, string Status, bool GewijzigdNaUitgifte,
+  DateOnly Datum, TimeOnly? StartTijd, TimeOnly? EindTijd,
+  string Medewerker, string Functie, Guid WerkopdrachtId, string WerkopdrachtNummer,
+  string Klant, string Omschrijving, DateTimeOffset? UitgereiktOp, DateTimeOffset? BinnenOp);
 
 public sealed record PlanningBoardAssignmentDto(
   Guid Id, DateOnly Datum, Guid? MedewerkerId, string? Medewerker,
@@ -156,7 +161,8 @@ public sealed record TimelineWorkOrderDto(
   Guid Id, string Nummer, string KlantNaam, string Kop, DateOnly StartDatum, DateOnly EindDatum,
   string Kleur, bool Optie,
   int OpenPlekken, int BonnenTeDoen, string Groep,
-  Dictionary<DateOnly, TimelineDayCellDto> Dagen, List<TimelinePersonDto> Mensen);
+  Dictionary<DateOnly, TimelineDayCellDto> Dagen, List<TimelinePersonDto> Mensen,
+  string Status, int Bonnen, int BonnenBinnen);
 public sealed record TimelineGroupDto(string Key, string Label, List<TimelineWorkOrderDto> Werkopdrachten);
 public sealed record TimelineTotalDto(int Werkopdrachten);
 public sealed record TimelineViewModel(

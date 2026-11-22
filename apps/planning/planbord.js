@@ -152,7 +152,11 @@
     if (!state.timeline) return;
     const root = element('div', 'planning-board tl-view');
     const toolbar = element('div', 'board-toolbar');
-    toolbar.append(modeSwitch());
+    const modes = element('div', 'board-group');
+    const byJob = action('Per klus', 'board-toggle'); byJob.disabled = true; byJob.title = 'Volgende planbordweergave';
+    const byEmployee = action('Per medewerker', 'board-toggle'); byEmployee.disabled = true; byEmployee.title = 'Volgende planbordweergave';
+    modes.append(byJob, byEmployee, action('Werkopdrachten', 'board-toggle active'));
+    toolbar.append(modes);
     const previous = action('◀', 'board-btn', () => shiftPeriod(-1)); previous.setAttribute('aria-label', 'Vorige periode');
     const next = action('▶', 'board-btn', () => shiftPeriod(1)); next.setAttribute('aria-label', 'Volgende periode');
     toolbar.append(previous, element('strong', 'board-period', state.timeline.periode.titel), next,
@@ -173,8 +177,8 @@
     });
     filters.append(search);
     const counts = timelineFilterCounts();
-    for (const [value, label] of [['all', `Alle ${counts.total}`], ['aandacht', `Aandacht nodig ${counts.aandacht}`],
-      ['schema', `Op schema ${counts.schema}`], ['afgerond', `Afgerond ${counts.afgerond}`]])
+    for (const [value, label] of [['all', `Alle ${counts.total}`],
+      ['open', `Open plekken ${counts.open}`], ['slips', `Bonnen te doen ${counts.slips}`]])
       filters.append(action(label, 'board-filter ' + (state.filter === value ? 'active' : ''), () => { state.filter = value; renderTimeline(); }));
     filters.append(action(state.expanded.size ? 'Alles inklappen' : 'Alles uitklappen', 'board-btn', () => {
       if (state.expanded.size) state.expanded.clear();
@@ -190,16 +194,17 @@
     const searched = filteredTimelineOrders();
     return {
       total: searched.length,
-      aandacht: searched.filter(order => order.groep === 'aandacht').length,
-      schema: searched.filter(order => order.groep === 'schema').length,
-      afgerond: searched.filter(order => order.groep === 'afgerond').length
+      open: searched.filter(order => order.openPlekken > 0).length,
+      slips: searched.filter(order => order.bonnenTeDoen > 0).length
     };
   }
-  function filteredTimelineOrders(groupKey = null) {
+  function filteredTimelineOrders() {
     const query = state.query.trim().toLocaleLowerCase('nl');
-    const all = state.timeline.groepen.flatMap(group => group.werkopdrachten);
+    const all = state.timeline.groepen.flatMap(group => group.werkopdrachten)
+      .sort((left, right) => left.startDatum.localeCompare(right.startDatum) || left.nummer.localeCompare(right.nummer));
     return all.filter(order => {
-      if (groupKey && order.groep !== groupKey) return false;
+      if (state.filter === 'open' && order.openPlekken <= 0) return false;
+      if (state.filter === 'slips' && order.bonnenTeDoen <= 0) return false;
       if (!query) return true;
       const people = order.mensen || [];
       return [order.nummer, order.klantNaam, order.kop,
@@ -225,21 +230,16 @@
       headerDays.append(cell);
     }
     header.append(headerDays); table.append(header);
-    for (const group of state.timeline.groepen) {
-      if (state.filter !== 'all' && state.filter !== group.key) continue;
-      const orders = filteredTimelineOrders(group.key);
-      if (!orders.length) continue;
-      table.append(element('div', 'tl-group ' + group.key, group.label + ' · ' + orders.length));
-      for (const order of orders) {
-        const expanded = state.expanded.has(order.id) || !!state.query.trim();
-        table.append(timelineOrderRow(order, days, expanded));
-        if (expanded) {
-          table.append(timelineTodoRow(order, days));
-          for (const person of order.mensen) table.append(timelinePersonRow(order, person, days));
-          if (!order.mensen.length) {
-            const empty = element('div', 'tl-row tl-person'); empty.append(element('div', 'tl-person-label no-people', 'Nog niemand ingepland'), element('div', 'tl-days'));
-            table.append(empty);
-          }
+    const orders = filteredTimelineOrders();
+    for (const order of orders) {
+      const expanded = state.expanded.has(order.id) || !!state.query.trim();
+      table.append(timelineOrderRow(order, days, expanded));
+      if (expanded) {
+        table.append(timelineJobRow(order, days));
+        for (const person of order.mensen) table.append(timelinePersonRow(order, person, days));
+        if (!order.mensen.length) {
+          const empty = element('div', 'tl-row tl-person'); empty.append(element('div', 'tl-person-label no-people', 'Nog niemand ingepland'), element('div', 'tl-days'));
+          table.append(empty);
         }
       }
     }
@@ -260,54 +260,62 @@
     label.append(element('span', 'tl-chevron', expanded ? '▾' : '▸'),
       element('span', 'tl-number', order.nummer || '—'), element('b', 'tl-customer', order.klantNaam),
       element('small', '', order.kop));
-    const chips = element('span', 'tl-chips');
-    if (order.openPlekken) chips.append(element('span', 'tl-chip danger', order.openPlekken + ' plekken open'));
-    if (order.bonnenTeDoen) chips.append(element('span', 'tl-chip warning', order.bonnenTeDoen + ' bonnen te doen'));
-    if (!order.openPlekken && !order.bonnenTeDoen) chips.append(element('span', 'tl-chip ok', order.groep === 'afgerond' ? 'Alle bonnen binnen' : 'Rond'));
-    label.append(chips);
+    const status = order.status || (order.optie ? 'OPTIE' : order.openPlekken
+      ? 'OPEN ' + order.openPlekken : 'GEPLAND');
+    label.append(element('span', 'tl-workorder-status ' + timelineStatusClass(status), status));
     label.addEventListener('click', () => {
       if (state.expanded.has(order.id)) state.expanded.delete(order.id); else state.expanded.add(order.id);
       persistExpanded(); renderTimelineGrid();
     });
     label.addEventListener('dblclick', event => { event.stopPropagation(); if (state.canEdit) editOrder({ id: order.id }); });
-    const cells = element('div', 'tl-days'); for (const day of days) {
-      const cell = element('div', 'tl-cell tl-wo-cell' + (day.vandaag ? ' today' : '') + (day.weekend ? ' weekend' : ''));
-      const key = day.datum, data = order.dagen[key];
-      if (data) {
-        const segment = element('div', 'tl-segment ' + data.bezetting + (order.optie ? ' option' : ''));
-        segment.style.setProperty('--wo-color', order.kleur);
-        const occupation = data.nodig === 0 ? 'P ' + data.bezet
-          : data.bezetting === 'vol' ? '✓ P ' + data.bezet + '/' + data.nodig
-          : 'P ' + data.bezet + '/' + data.nodig;
-        segment.append(element('span', 'tl-occupation', occupation));
-        if (state.zoom !== 'month') {
-          const text = data.bonSamenvatting === 'niemand' ? 'niemand'
-            : data.bonSamenvatting === 'gepland' ? 'vertrek ' + (data.vertrek || '—')
-            : data.bonSamenvatting === 'teDoen' ? data.teDoen + (data.teDoen === 1 ? ' bon te doen' : ' bonnen te doen')
-            : data.bonSamenvatting === 'binnen' ? 'bonnen binnen' : 'bonnen uit';
-          segment.append(element('small', data.bonSamenvatting === 'teDoen' ? 'tl-todo' : '', text));
-        }
-        segment.setAttribute('aria-label', `${order.nummer} ${day.kort} ${day.nr}: ${data.bezet} van ${data.nodig} mensen, ${data.teDoen} bonnen te doen`);
-        segment.addEventListener('click', () => { if (state.canEdit) editOrder({ id: order.id }, data.klusIds[0]); });
-        cell.append(segment);
-      }
-      cells.append(cell);
+    const cells = element('div', 'tl-days tl-order-span');
+    const indices = days.map((day, index) => order.dagen[day.datum] ? index : -1).filter(index => index >= 0);
+    for (const [index, day] of days.entries()) {
+      cells.append(element('div', 'tl-cell tl-wo-cell' + (day.vandaag ? ' today' : '') + (day.weekend ? ' weekend' : '') + (index >= indices[0] && index <= indices.at(-1) ? ' in-range' : '')));
+    }
+    if (indices.length) {
+      const bar = element('button', 'tl-order-bar' + (order.optie ? ' option' : ''));
+      bar.type = 'button';
+      bar.style.setProperty('--wo-color', order.kleur);
+      bar.style.gridColumn = `${indices[0] + 1}/${indices.at(-1) + 2}`;
+      const bonnen = Number(order.bonnen || Object.values(order.dagen).reduce((sum, day) => sum + day.bezet, 0));
+      const binnen = Number(order.bonnenBinnen || 0);
+      bar.textContent = state.zoom === 'month'
+        ? (indices.length >= 3 ? order.nummer : '')
+        : state.zoom === 'day'
+          ? `${order.nummer} · ${order.klantNaam} · ${Object.values(order.dagen).find(Boolean)?.vertrek || ''}`
+          : `${order.nummer} · ${bonnen} bonnen, ${binnen} binnen`;
+      bar.title = `${order.nummer}: ${bonnen} bonnen, ${binnen} binnen`;
+      bar.addEventListener('click', () => editOrder({ id: order.id }));
+      cells.append(bar);
     }
     row.append(label, cells);
     bindWorkOrderPopover(row, order);
     return row;
   }
-  function timelineTodoRow(order, days) {
-    const row = element('div', 'tl-row tl-todo-row');
-    row.append(element('div', 'tl-person-label todo-label', 'Te doen per dag'));
+  function timelineStatusClass(status) {
+    if (status === 'AFGEROND' || status === 'GEPLAND') return status.toLowerCase();
+    if (status === 'OPTIE' || status === 'NIET INGEPLAND') return 'muted';
+    return 'open';
+  }
+  function timelineJobRow(order, days) {
+    const row = element('div', 'tl-row tl-job-row');
+    const workDays = days.filter(day => order.dagen[day.datum]);
+    const neededPerDay = Math.max(0, ...workDays.map(day => order.dagen[day.datum]?.nodig || 0));
+    const label = element('div', 'tl-person-label tl-job-label');
+    label.append(element('b', '', 'Klussen'),
+      element('small', '', `${workDays.length} ${workDays.length === 1 ? 'dag' : 'dagen'} · ${neededPerDay} mensen per dag`));
+    row.append(label);
     const cells = element('div', 'tl-days'); for (const day of days) {
-      const cell = element('div', 'tl-cell' + (day.weekend ? ' weekend' : ''));
+      const cell = element('div', 'tl-cell tl-person-cell' + (day.vandaag ? ' today' : '') + (day.weekend ? ' weekend' : ''));
       const data = order.dagen[day.datum];
-      if (data && data.klusIds.length) {
-        if (data.open > 0 && day.datum >= state.timeline.periode.vandaag)
-          cell.append(action('Invullen (' + data.open + ')', 'btn sm tl-fill', () => editOrder({ id: order.id }, data.klusIds[0])));
-        if (data.teDoen > 0)
-          cell.append(action('Bonnen (' + data.teDoen + ')', 'btn sm primary tl-slips', () => editOrder({ id: order.id }, data.klusIds[0])));
+      if (data) {
+        const className = data.bezetting === 'vol' ? 'complete'
+          : data.bezetting === 'leeg' ? 'empty' : 'partial';
+        const text = data.bezetting === 'vol' ? `✓ P ${data.bezet}/${data.nodig}`
+          : `P ${data.bezet}/${data.nodig}`;
+        cell.append(element('span', 'board-chip ' + className, text),
+          element('small', '', data.vertrek || ''));
       }
       cells.append(cell);
     }
@@ -339,7 +347,7 @@
   function persistExpanded() { storage.setItem('vsvk-tlopen', JSON.stringify([...state.expanded])); }
   function timelineLegend() {
     const result = element('div', 'board-legend');
-    result.append(element('span', 'tl-legend-copy', 'De balk laat per dag zien of de klus rond is én of de bonnen op orde zijn. Klap een WO uit voor de bonnen per persoon.'));
+    result.append(element('span', 'tl-legend-copy', 'Klap een werkopdracht uit om de klussen en werkbonnen per persoon te zien.'));
     for (const [key, label] of [['BINNEN','✓ binnen'],['UITGEREIKT','uitgereikt'],['GEWIJZIGD','gewijzigd'],['NIET_GEPRINT','niet geprint'],['GEEN_BON','geen bon']])
       result.append(element('span', 'tl-status ' + key.toLowerCase(), label));
     return result;

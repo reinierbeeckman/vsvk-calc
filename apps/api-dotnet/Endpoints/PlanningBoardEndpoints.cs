@@ -53,6 +53,36 @@ public static class PlanningBoardEndpoints
       .WithSummary("Referenties voor het planbord ophalen")
       .Produces<PlanningBoardReferencesDto>(200).Produces(401).Produces(403);
 
+    group.MapGet("/werkbonnen", async (
+      ClaimsPrincipal user, VsvkDbContext db, CancellationToken cancellationToken) =>
+    {
+      if (!VsvkRoles.HasRequiredVestigingScope(user)) return Results.Forbid();
+      var branch = VsvkRoles.HasOrganizationWideAccess(user)
+        ? null : VsvkRoles.GetVestiging(user);
+      var slips = await db.Werkbonnen.AsNoTracking()
+        .Where(slip => branch == null || slip.Inzet.Klus.Werkopdracht.Vestiging!.Naam == branch)
+        .OrderByDescending(slip => slip.Inzet.Datum).ThenByDescending(slip => slip.Nummer)
+        .Select(slip => new PlanningWorkSlipListDto(
+          slip.Id, slip.Nummer, slip.Status, slip.GewijzigdNaUitgifte,
+          slip.Inzet.Datum, slip.Inzet.StartTijd, slip.Inzet.EindTijd,
+          slip.Inzet.Medewerker != null
+            ? slip.Inzet.Medewerker.DisplayName ?? "Onbekende medewerker"
+            : slip.Inzet.Inhuurmedewerker != null
+              ? slip.Inzet.Inhuurmedewerker.Naam : "Onbekende medewerker",
+          slip.Inzet.Medewerker != null
+            ? slip.Inzet.Medewerker.JobTitle ?? ""
+            : slip.Inzet.Inhuurmedewerker != null
+              ? slip.Inzet.Inhuurmedewerker.Functie ?? "" : "",
+          slip.Inzet.Klus.WerkopdrachtId, slip.Inzet.Klus.Werkopdracht.Nummer,
+          slip.Inzet.Klus.Werkopdracht.Klant.Bedrijfsnaam,
+          slip.Inzet.Klus.Werkopdracht.KorteWerkomschrijving
+            ?? slip.Inzet.Klus.Werkopdracht.Omschrijving,
+          slip.UitgereiktOp, slip.BinnenOp))
+        .ToListAsync(cancellationToken);
+      return Results.Ok(slips);
+    }).WithSummary("Werkbonnen met werkopdracht- en personeelscontext ophalen")
+      .Produces<List<PlanningWorkSlipListDto>>(200).Produces(401).Produces(403);
+
     group.MapGet("/werkopdrachten/form-referenties", async (
       VsvkDbContext db, CancellationToken cancellationToken) =>
     {
