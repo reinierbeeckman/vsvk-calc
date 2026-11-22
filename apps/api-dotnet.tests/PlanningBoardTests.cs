@@ -29,6 +29,9 @@ public sealed class PlanningBoardTests
     await new DatabaseMigrator(source).MigrateAsync();
     var employeeId = Guid.NewGuid();
     await using (var seed = source.CreateCommand("""
+      insert into vestigingen(id, naam, adres, postcode, plaats, telefoon, email, kvk_nummer, btw_nummer, iban, instellingen_algemeen_id)
+      values ('00000000-0000-0000-0000-000000000011', 'Planvestiging', 'Straat 1', '0000AA', 'Plaats', '010', 'plan@example.test', '1', '1', 'NL00', 1)
+      on conflict do nothing;
       insert into klanten(id, debiteurnummer, bedrijfsnaam) values (1, 'D1', 'Klant');
       insert into leveranciers(id, debiteurnummer, bedrijfsnaam) values (1, 'L1', 'Leverancier');
       """))
@@ -53,6 +56,7 @@ public sealed class PlanningBoardTests
       "/api/planning/werkopdrachten", WorkOrder(employeeId))).StatusCode);
     client.DefaultRequestHeaders.Remove("X-Test-Role");
     client.DefaultRequestHeaders.Add("X-Test-Role", VsvkRoles.Planning);
+    client.DefaultRequestHeaders.Add("X-Test-Branch", "Planvestiging");
 
     var doubleBooked = WorkOrder(employeeId) with
     {
@@ -64,7 +68,7 @@ public sealed class PlanningBoardTests
           [new(new DateOnly(2026, 11, 16), employeeId, null, null, null, null)])
       ]
     };
-    Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(
+    Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(
       "/api/planning/werkopdrachten", doubleBooked)).StatusCode);
 
     using var createdResponse = await client.PostAsJsonAsync(
@@ -138,6 +142,9 @@ public sealed class PlanningBoardTests
     await new DatabaseMigrator(source).MigrateAsync();
     var employeeId = Guid.NewGuid();
     await using (var seed = source.CreateCommand("""
+      insert into vestigingen(id, naam, adres, postcode, plaats, telefoon, email, kvk_nummer, btw_nummer, iban, instellingen_algemeen_id)
+      values ('00000000-0000-0000-0000-000000000010', 'Testvestiging', 'Straat 1', '0000AA', 'Plaats', '010', 'test@example.test', '1', '1', 'NL00', 1)
+      on conflict do nothing;
       insert into klanten(id, debiteurnummer, bedrijfsnaam) values (1, 'D1', 'Klant');
       """)) await seed.ExecuteNonQueryAsync();
     await using (var seed = source.CreateCommand(
@@ -149,6 +156,7 @@ public sealed class PlanningBoardTests
     await using var app = await StartAsync(postgres.GetConnectionString());
     using var client = Client(app);
     client.DefaultRequestHeaders.Add("X-Test-Role", VsvkRoles.Planning);
+    client.DefaultRequestHeaders.Add("X-Test-Branch", "Testvestiging");
     var request = WorkOrder(employeeId) with
     {
       StartDatum = new DateOnly(2026, 11, 11),
@@ -166,6 +174,63 @@ public sealed class PlanningBoardTests
       "/api/planning/planbord?from=2026-11-16&to=2026-11-22");
     Assert.Single(board!);
     Assert.Empty(board![0].Klussen[0].Inzetten);
+  }
+
+  [Fact]
+  public async Task Timeline_contract_groups_day_health_people_and_slip_status()
+  {
+    await using var postgres = new PostgreSqlBuilder().WithImage("postgres:16-alpine").Build();
+    await postgres.StartAsync();
+    await using var source = NpgsqlDataSource.Create(postgres.GetConnectionString());
+    await new DatabaseMigrator(source).MigrateAsync();
+    var employeeId = Guid.NewGuid();
+    await using (var seed = source.CreateCommand("""
+      insert into klanten(id, debiteurnummer, bedrijfsnaam) values (1, 'D1', 'Infra Noord BV');
+      insert into leveranciers(id, debiteurnummer, bedrijfsnaam) values (1, 'L1', 'Inhuur BV');
+      """)) await seed.ExecuteNonQueryAsync();
+    await using (var seed = source.CreateCommand(
+      "insert into user_information(keycloak_sub, display_name, job_title, is_active) values ($1, 'Jan de Vries', 'Grondwerker', true)"))
+    {
+      seed.Parameters.AddWithValue(employeeId);
+      await seed.ExecuteNonQueryAsync();
+    }
+    await using (var seed = source.CreateCommand($"""
+      insert into inhuurmedewerkers(id, leverancier_id, naam, functie)
+      values ('00000000-0000-0000-0000-000000000101', 1, 'R. Smit', 'Grondwerker');
+      insert into werkopdrachten(id, nummer, klant_id, omschrijving, start_datum, eind_datum, is_optie, kleur)
+      values ('00000000-0000-0000-0000-000000000201', 'WO-26-0412', 1, 'Kabeltracé Parkweg vervangen', '2026-11-16', '2026-11-20', false, '#2f6fb5');
+      insert into klussen(id, werkopdracht_id, omschrijving, start_datum, eind_datum, benodigde_medewerkers, start_tijd, eind_tijd)
+      values
+        ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000201', 'Hoofddienst', '2026-11-16', '2026-11-20', 2, '06:45', '17:15');
+      insert into inzet(id, klus_id, datum, medewerker_id, inhuurmedewerker_id, start_tijd, eind_tijd) values
+        ('00000000-0000-0000-0000-000000000401', '00000000-0000-0000-0000-000000000301', '2026-11-18', '{employeeId}', null, '06:45', '17:15'),
+        ('00000000-0000-0000-0000-000000000402', '00000000-0000-0000-0000-000000000301', '2026-11-18', null, '00000000-0000-0000-0000-000000000101', '06:45', '17:15');
+      insert into werkbonnen(id, inzet_id, nummer, status, gewijzigd_na_uitgifte)
+      values
+        ('00000000-0000-0000-0000-000000000501', '00000000-0000-0000-0000-000000000401', 'WB-0412-11', 'uitgereikt', false);
+      """))
+    {
+      await seed.ExecuteNonQueryAsync();
+    }
+    await using var app = await StartAsync(postgres.GetConnectionString());
+    using var client = Client(app);
+    client.DefaultRequestHeaders.Add("X-Test-Role", VsvkRoles.Directie);
+
+    var vm = await client.GetFromJsonAsync<TimelineViewModel>(
+      "/api/planning/planbord/werkopdrachten?van=2026-11-16&tot=2026-11-22&zoom=week");
+    Assert.NotNull(vm);
+    Assert.Equal(1, vm.Totaal.Werkopdrachten);
+    Assert.Equal(7, vm.Dagen.Count);
+    var order = Assert.Single(vm.Groepen.SelectMany(group => group.Werkopdrachten));
+    Assert.Equal("aandacht", order.Groep);
+    var day = order.Dagen[new DateOnly(2026, 11, 18)];
+    Assert.Equal(2, day.Nodig);
+    Assert.Equal(2, day.Bezet);
+    Assert.Equal("vol", day.Bezetting);
+    Assert.Equal(1, day.TeDoen);
+    Assert.Equal(2, order.Mensen.Count);
+    Assert.Contains(order.Mensen, person => person.Extern && person.Naam == "R. Smit"
+      && person.Dagen[new DateOnly(2026, 11, 18)]!.Status == "GEEN_BON");
   }
 
   private static PlanningBoardWorkOrderWriteDto WorkOrder(Guid employeeId) =>
@@ -186,6 +251,7 @@ public sealed class PlanningBoardTests
     builder.Services.AddDbContext<VsvkDbContext>(options => options.UseNpgsql(connectionString));
     builder.Services.AddScoped<PlanningRepository>();
     builder.Services.AddScoped<PlanningBoardRepository>();
+    builder.Services.AddScoped<PlanningTimelineService>();
     builder.Services.AddScoped<IPlanningCustomerService, PlanningCustomerService>();
     builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, PlanningTestAuthenticationHandler>("Test", _ => { });
     builder.Services.AddAuthorization(options =>

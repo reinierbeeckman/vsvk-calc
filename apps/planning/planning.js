@@ -76,17 +76,21 @@
       currentSection = section;
       document.querySelectorAll('[data-section]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.section === section)));
       document.querySelector('#list-nav').hidden = section !== 'Lijsten';
-      document.querySelector('#planbord-panel').hidden = section !== 'Planbord';
+      const showsWorkBoard = section === 'Planbord' || section === 'Werkopdrachten';
+      document.querySelector('#planbord-panel').hidden = !showsWorkBoard;
       if (section === 'Lijsten') { refreshCounts(current); return load(current); }
       ++loadNumber;
       stopListLoading();
       loading = false;
       document.querySelector('#title').textContent = section;
       document.querySelector('#list-panel').hidden = true;
-      document.querySelector('#unavailable').hidden = section === 'Planbord';
-      if (section === 'Planbord') {
+      document.querySelector('#unavailable').hidden = showsWorkBoard;
+      if (showsWorkBoard) {
         document.querySelector('#description').textContent = 'Weekplanning van werkopdrachten, klussen, personeel, inhuur en werkbonnen.';
-        window.VsvkPlanBoard.open({ container: document.querySelector('#planbord-panel'), request, canEdit: workOrderPermissions });
+        window.VsvkPlanBoard.open({
+          container: document.querySelector('#planbord-panel'), request, canEdit: workOrderPermissions,
+          mode: section === 'Werkopdrachten' ? 'workorders' : 'board'
+        });
         return;
       }
       document.querySelector('#description').textContent = 'Dit onderdeel van de planning wordt later gekoppeld.';

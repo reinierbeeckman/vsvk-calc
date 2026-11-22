@@ -11,6 +11,11 @@ create table if not exists werkopdrachten (
   constraint ck_werkopdrachten_datum check (eind_datum >= start_datum)
 );
 create index if not exists ix_werkopdrachten_periode on werkopdrachten(start_datum, eind_datum);
+alter table werkopdrachten add column if not exists optie_tot date;
+alter table werkopdrachten add column if not exists vestiging_id uuid references vestigingen(id) on delete restrict;
+alter table werkopdrachten add column if not exists geannuleerd boolean not null default false;
+alter table werkopdrachten add column if not exists voorraad boolean not null default false;
+create index if not exists ix_werkopdrachten_vestiging on werkopdrachten(vestiging_id);
 
 create table if not exists klussen (
   id uuid primary key default gen_random_uuid(),
@@ -26,6 +31,19 @@ create table if not exists klussen (
   constraint ck_klussen_benodigd check (benodigde_medewerkers > 0)
 );
 create index if not exists ix_klussen_werkopdracht_sorteer on klussen(werkopdracht_id, sorteervolgorde);
+alter table klussen add column if not exists datum date;
+alter table klussen add column if not exists reis_heen interval;
+alter table klussen add column if not exists reis_terug interval;
+
+create table if not exists klus_behoeften (
+  id uuid primary key default gen_random_uuid(),
+  klus_id uuid not null references klussen(id) on delete cascade,
+  aantal integer not null,
+  rol varchar(200),
+  skill varchar(200),
+  constraint ck_klus_behoeften_aantal check (aantal > 0)
+);
+create index if not exists ix_klus_behoeften_klus_id on klus_behoeften(klus_id);
 
 create table if not exists inhuurmedewerkers (
   id uuid primary key default gen_random_uuid(),
@@ -59,10 +77,8 @@ create unique index if not exists ux_inzet_intern on inzet(klus_id, datum, medew
   where medewerker_id is not null;
 create unique index if not exists ux_inzet_inhuur on inzet(klus_id, datum, inhuurmedewerker_id)
   where inhuurmedewerker_id is not null;
-create unique index if not exists ux_inzet_intern_per_dag on inzet(medewerker_id, datum)
-  where medewerker_id is not null;
-create unique index if not exists ux_inzet_inhuur_per_dag on inzet(inhuurmedewerker_id, datum)
-  where inhuurmedewerker_id is not null;
+drop index if exists ux_inzet_intern_per_dag;
+drop index if exists ux_inzet_inhuur_per_dag;
 
 create table if not exists werkbonnen (
   id uuid primary key default gen_random_uuid(),
@@ -72,5 +88,11 @@ create table if not exists werkbonnen (
   gewijzigd_na_uitgifte boolean not null default false,
   uitgereikt_op timestamptz,
   binnen_op timestamptz,
-  constraint ck_werkbonnen_status check (status in ('niet_geprint', 'uitgereikt', 'binnen'))
+  constraint ck_werkbonnen_status check (status in (
+    'niet_geprint', 'aangemaakt', 'uitgereikt', 'retour', 'verwerkt', 'vervallen', 'binnen'))
 );
+alter table werkbonnen add column if not exists oud_nummer varchar(50);
+alter table werkbonnen drop constraint if exists ck_werkbonnen_status;
+update werkbonnen set status = 'aangemaakt' where status = 'niet_geprint';
+alter table werkbonnen add constraint ck_werkbonnen_status check (status in (
+  'aangemaakt', 'uitgereikt', 'retour', 'verwerkt', 'vervallen', 'binnen'));

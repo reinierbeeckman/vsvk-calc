@@ -1,13 +1,16 @@
 (function () {
   'use strict';
 
+  const storage = window.localStorage || { getItem: () => null, setItem: () => {} };
   const state = {
     container: null, request: null, canEdit: false, date: startOfWeek(new Date()),
-    references: null, orders: [], filter: 'all', query: '', expanded: new Set(), loading: false
+    references: null, orders: [], timeline: null, filter: 'all', query: '', expanded: new Set(),
+    loading: false, mode: storage.getItem('vsvk-pbwo') === 'true' ? 'workorders' : 'board',
+    zoom: storage.getItem('vsvk-tlzoom') || 'week'
   };
   const dayNames = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
   const longDayNames = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
-  const slipStatuses = { niet_geprint: ['N', 'niet geprint'], uitgereikt: ['U', 'uitgereikt'], binnen: ['✓', 'binnen'] };
+  const slipStatuses = { niet_geprint: ['N', 'niet geprint'], aangemaakt: ['N', 'niet geprint'], uitgereikt: ['U', 'uitgereikt'], retour: ['✓', 'binnen'], verwerkt: ['✓', 'binnen'], binnen: ['✓', 'binnen'] };
 
   function iso(value) {
     const date = new Date(value); date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
@@ -36,6 +39,10 @@
     state.container = config.container;
     state.request = config.request;
     state.canEdit = await config.canEdit;
+    if (config.mode) {
+      state.mode = config.mode;
+      storage.setItem('vsvk-pbwo', String(state.mode === 'workorders'));
+    }
     await load();
   }
 
@@ -43,15 +50,22 @@
     if (!state.container || state.loading) return;
     state.loading = true;
     renderLoading();
-    const from = iso(state.date), to = iso(addDays(state.date, 6));
+    const period = currentPeriod();
+    const from = iso(period.from), to = iso(period.to);
     const finish = window.VsvkLoading?.begin() || (() => {});
     try {
       const [orders, references] = await Promise.all([
-        state.request('/api/planning/planbord?from=' + from + '&to=' + to),
+        state.request(state.mode === 'workorders'
+          ? '/api/planning/planbord/werkopdrachten?van=' + from + '&tot=' + to + '&zoom=' + state.zoom
+          : '/api/planning/planbord?from=' + from + '&to=' + to),
         state.request('/api/planning/planbord/referenties')
       ]);
-      state.orders = orders; state.references = references;
-      state.expanded.clear();
+      if (state.mode === 'workorders') { state.timeline = orders; state.orders = orders.groepen.flatMap(group => group.werkopdrachten); }
+      else { state.orders = orders; state.timeline = null; }
+      state.references = references;
+      if (!state.expanded.size) {
+        try { state.expanded = new Set(JSON.parse(storage.getItem('vsvk-tlopen') || '[]')); } catch {}
+      }
       render();
     } catch (error) {
       state.container.replaceChildren(element('div', 'empty', 'Planbord laden mislukt: ' + error.message));
@@ -63,14 +77,16 @@
   }
 
   function render() {
+    if (state.mode === 'workorders') return renderTimeline();
     const root = element('div', 'planning-board');
     const toolbar = element('div', 'board-toolbar');
+    toolbar.append(modeSwitch());
     const modes = element('div', 'board-group');
     const byJob = action('Per klus', 'board-toggle'); byJob.disabled = true; byJob.title = 'Buiten week-MVP';
     const byEmployee = action('Per medewerker', 'board-toggle'); byEmployee.disabled = true; byEmployee.title = 'Buiten week-MVP';
     modes.append(byJob, byEmployee, action('Werkopdrachten', 'board-toggle active'));
-    const previous = action('◀', 'board-btn', () => { state.date = addDays(state.date, -7); load(); }); previous.setAttribute('aria-label', 'Vorige week');
-    const next = action('▶', 'board-btn', () => { state.date = addDays(state.date, 7); load(); }); next.setAttribute('aria-label', 'Volgende week');
+    const previous = action('◀', 'board-btn', () => { shiftPeriod(-1); }); previous.setAttribute('aria-label', 'Vorige periode');
+    const next = action('▶', 'board-btn', () => { shiftPeriod(1); }); next.setAttribute('aria-label', 'Volgende periode');
     const week = element('strong', 'board-period', weekLabel(state.date));
     toolbar.append(modes, previous, week, next, action('Vandaag', 'board-btn', () => { state.date = startOfWeek(new Date()); load(); }));
     const zoom = element('div', 'board-group');
@@ -100,6 +116,252 @@
     state.container.replaceChildren(root);
     state.grid = grid;
     renderGrid();
+  }
+
+  function modeSwitch() {
+    const group = element('div', 'board-group');
+    const board = action('Planbord', 'board-toggle' + (state.mode === 'board' ? ' active' : ''), () => setMode('board'));
+    const workorders = action('Werkopdrachten', 'board-toggle' + (state.mode === 'workorders' ? ' active' : ''), () => setMode('workorders'));
+    group.append(board, workorders);
+    return group;
+  }
+  function setMode(mode) {
+    state.mode = mode; storage.setItem('vsvk-pbwo', String(mode === 'workorders')); load();
+  }
+  function currentPeriod() {
+    if (state.zoom === 'day') return { from: state.date, to: state.date };
+    if (state.zoom === 'month') {
+      const from = new Date(state.date.getFullYear(), state.date.getMonth(), 1);
+      return { from, to: new Date(state.date.getFullYear(), state.date.getMonth() + 1, 0) };
+    }
+    const from = startOfWeek(state.date); return { from, to: addDays(from, 6) };
+  }
+  function shiftPeriod(direction) {
+    if (state.zoom === 'day') state.date = addDays(state.date, direction);
+    else if (state.zoom === 'month') state.date = new Date(state.date.getFullYear(), state.date.getMonth() + direction, 1);
+    else state.date = addDays(state.date, direction * 7);
+    load();
+  }
+  function setZoom(zoom) {
+    state.zoom = zoom; storage.setItem('vsvk-tlzoom', zoom); state.date = startOfWeek(state.date); load();
+  }
+
+  function renderTimeline() {
+    if (!state.timeline) return;
+    const root = element('div', 'planning-board tl-view');
+    const toolbar = element('div', 'board-toolbar');
+    toolbar.append(modeSwitch());
+    const previous = action('◀', 'board-btn', () => shiftPeriod(-1)); previous.setAttribute('aria-label', 'Vorige periode');
+    const next = action('▶', 'board-btn', () => shiftPeriod(1)); next.setAttribute('aria-label', 'Volgende periode');
+    toolbar.append(previous, element('strong', 'board-period', state.timeline.periode.titel), next,
+      action('Vandaag', 'board-btn', () => { state.date = startOfWeek(new Date()); load(); }));
+    toolbar.append(element('span', 'board-spacer'));
+    const zoom = element('div', 'board-group');
+    for (const [value, label] of [['day', 'Dag'], ['week', 'Week'], ['month', 'Maand']])
+      zoom.append(action(label, 'board-toggle' + (state.zoom === value ? ' active' : ''), () => setZoom(value)));
+    toolbar.append(zoom);
+    if (state.canEdit) toolbar.append(action('+ Werkopdracht', 'board-btn primary', () => editOrder(null)));
+    const filters = element('div', 'board-filters');
+    const search = input(state.query, 'Zoek werkopdracht'); search.type = 'search';
+    search.placeholder = 'Zoek WO-nummer, klant, medewerker of bonnummer…';
+    let searchTimer;
+    search.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => { state.query = search.value; renderTimelineGrid(); }, 150);
+    });
+    filters.append(search);
+    const counts = timelineFilterCounts();
+    for (const [value, label] of [['all', `Alle ${counts.total}`], ['aandacht', `Aandacht nodig ${counts.aandacht}`],
+      ['schema', `Op schema ${counts.schema}`], ['afgerond', `Afgerond ${counts.afgerond}`]])
+      filters.append(action(label, 'board-filter ' + (state.filter === value ? 'active' : ''), () => { state.filter = value; renderTimeline(); }));
+    filters.append(action(state.expanded.size ? 'Alles inklappen' : 'Alles uitklappen', 'board-btn', () => {
+      if (state.expanded.size) state.expanded.clear();
+      else state.orders.forEach(order => state.expanded.add(order.id));
+      persistExpanded(); renderTimeline();
+    }));
+    const grid = element('div', 'board-scroll tl-scroll');
+    root.append(toolbar, filters, grid, timelineLegend());
+    state.container.replaceChildren(root); state.timelineGrid = grid; renderTimelineGrid();
+  }
+
+  function timelineFilterCounts() {
+    const searched = filteredTimelineOrders();
+    return {
+      total: searched.length,
+      aandacht: searched.filter(order => order.groep === 'aandacht').length,
+      schema: searched.filter(order => order.groep === 'schema').length,
+      afgerond: searched.filter(order => order.groep === 'afgerond').length
+    };
+  }
+  function filteredTimelineOrders(groupKey = null) {
+    const query = state.query.trim().toLocaleLowerCase('nl');
+    const all = state.timeline.groepen.flatMap(group => group.werkopdrachten);
+    return all.filter(order => {
+      if (groupKey && order.groep !== groupKey) return false;
+      if (!query) return true;
+      const people = order.mensen || [];
+      return [order.nummer, order.klantNaam, order.kop,
+        ...people.map(person => person.naam),
+        ...people.flatMap(person => Object.values(person.dagen || {}).filter(Boolean)
+          .flatMap(day => [day.nummer || '', day.oudNummer || '']))]
+        .join(' ').toLocaleLowerCase('nl').includes(query);
+    });
+  }
+  function renderTimelineGrid() {
+    const grid = state.timelineGrid; if (!grid) return;
+    const days = state.timeline.dagen;
+    grid.replaceChildren();
+    const table = element('div', 'tl-table tl-zoom-' + state.zoom);
+    table.style.setProperty('--tl-days', days.length);
+    const header = element('div', 'tl-row tl-head');
+    header.append(element('div', 'tl-label', 'Werkopdracht › klussen › werkbonnen'));
+    const headerDays = element('div', 'tl-days'); for (const day of days) {
+      const cell = element('button', 'tl-day' + (day.vandaag ? ' today' : '') + (day.weekend ? ' weekend' : ''), '');
+      cell.type = 'button'; cell.title = 'Open deze dag op planbord';
+      cell.addEventListener('click', () => { state.mode = 'board'; state.date = parse(day.datum); storage.setItem('vsvk-pbwo', 'false'); load(); });
+      cell.append(element('span', '', state.zoom === 'month' ? day.kort[0] : day.kort), element('b', '', String(day.nr)));
+      headerDays.append(cell);
+    }
+    header.append(headerDays); table.append(header);
+    for (const group of state.timeline.groepen) {
+      if (state.filter !== 'all' && state.filter !== group.key) continue;
+      const orders = filteredTimelineOrders(group.key);
+      if (!orders.length) continue;
+      table.append(element('div', 'tl-group ' + group.key, group.label + ' · ' + orders.length));
+      for (const order of orders) {
+        const expanded = state.expanded.has(order.id) || !!state.query.trim();
+        table.append(timelineOrderRow(order, days, expanded));
+        if (expanded) {
+          table.append(timelineTodoRow(order, days));
+          for (const person of order.mensen) table.append(timelinePersonRow(order, person, days));
+          if (!order.mensen.length) {
+            const empty = element('div', 'tl-row tl-person'); empty.append(element('div', 'tl-person-label no-people', 'Nog niemand ingepland'), element('div', 'tl-days'));
+            table.append(empty);
+          }
+        }
+      }
+    }
+    if (!table.querySelector?.('.tl-wo')) {
+      const empty = element('div', 'empty', state.query.trim()
+        ? 'Niets gevonden voor ‘' + state.query.trim() + '’'
+        : 'Geen werkopdrachten in deze periode.');
+      if (state.query.trim()) empty.append(action('Wis zoekterm', 'board-btn', () => { state.query = ''; renderTimeline(); }));
+      else if (state.canEdit) empty.append(action('+ Nieuwe werkopdracht', 'board-btn primary', () => editOrder(null)));
+      table.append(empty);
+    }
+    grid.append(table);
+  }
+  function timelineOrderRow(order, days, forceExpanded = false) {
+    const row = element('div', 'tl-row tl-wo' + (order.optie ? ' option' : ''));
+    const expanded = forceExpanded || state.expanded.has(order.id);
+    const label = element('button', 'tl-wo-label'); label.type = 'button'; label.setAttribute('aria-expanded', String(expanded));
+    label.append(element('span', 'tl-chevron', expanded ? '▾' : '▸'),
+      element('span', 'tl-number', order.nummer || '—'), element('b', 'tl-customer', order.klantNaam),
+      element('small', '', order.kop));
+    const chips = element('span', 'tl-chips');
+    if (order.openPlekken) chips.append(element('span', 'tl-chip danger', order.openPlekken + ' plekken open'));
+    if (order.bonnenTeDoen) chips.append(element('span', 'tl-chip warning', order.bonnenTeDoen + ' bonnen te doen'));
+    if (!order.openPlekken && !order.bonnenTeDoen) chips.append(element('span', 'tl-chip ok', order.groep === 'afgerond' ? 'Alle bonnen binnen' : 'Rond'));
+    label.append(chips);
+    label.addEventListener('click', () => {
+      if (state.expanded.has(order.id)) state.expanded.delete(order.id); else state.expanded.add(order.id);
+      persistExpanded(); renderTimelineGrid();
+    });
+    label.addEventListener('dblclick', event => { event.stopPropagation(); if (state.canEdit) editOrder({ id: order.id }); });
+    const cells = element('div', 'tl-days'); for (const day of days) {
+      const cell = element('div', 'tl-cell tl-wo-cell' + (day.vandaag ? ' today' : '') + (day.weekend ? ' weekend' : ''));
+      const key = day.datum, data = order.dagen[key];
+      if (data) {
+        const segment = element('div', 'tl-segment ' + data.bezetting + (order.optie ? ' option' : ''));
+        segment.style.setProperty('--wo-color', order.kleur);
+        const occupation = data.nodig === 0 ? 'P ' + data.bezet
+          : data.bezetting === 'vol' ? '✓ P ' + data.bezet + '/' + data.nodig
+          : 'P ' + data.bezet + '/' + data.nodig;
+        segment.append(element('span', 'tl-occupation', occupation));
+        if (state.zoom !== 'month') {
+          const text = data.bonSamenvatting === 'niemand' ? 'niemand'
+            : data.bonSamenvatting === 'gepland' ? 'vertrek ' + (data.vertrek || '—')
+            : data.bonSamenvatting === 'teDoen' ? data.teDoen + (data.teDoen === 1 ? ' bon te doen' : ' bonnen te doen')
+            : data.bonSamenvatting === 'binnen' ? 'bonnen binnen' : 'bonnen uit';
+          segment.append(element('small', data.bonSamenvatting === 'teDoen' ? 'tl-todo' : '', text));
+        }
+        segment.setAttribute('aria-label', `${order.nummer} ${day.kort} ${day.nr}: ${data.bezet} van ${data.nodig} mensen, ${data.teDoen} bonnen te doen`);
+        segment.addEventListener('click', () => { if (state.canEdit) editOrder({ id: order.id }, data.klusIds[0]); });
+        cell.append(segment);
+      }
+      cells.append(cell);
+    }
+    row.append(label, cells); return row;
+  }
+  function timelineTodoRow(order, days) {
+    const row = element('div', 'tl-row tl-todo-row');
+    row.append(element('div', 'tl-person-label todo-label', 'Te doen per dag'));
+    const cells = element('div', 'tl-days'); for (const day of days) {
+      const cell = element('div', 'tl-cell' + (day.weekend ? ' weekend' : ''));
+      const data = order.dagen[day.datum];
+      if (data && data.klusIds.length) {
+        if (data.open > 0 && day.datum >= state.timeline.periode.vandaag)
+          cell.append(action('Invullen (' + data.open + ')', 'btn sm tl-fill', () => editOrder({ id: order.id }, data.klusIds[0])));
+        if (data.teDoen > 0)
+          cell.append(action('Bonnen (' + data.teDoen + ')', 'btn sm primary tl-slips', () => editOrder({ id: order.id }, data.klusIds[0])));
+      }
+      cells.append(cell);
+    }
+    row.append(cells); return row;
+  }
+  function timelinePersonRow(order, person, days) {
+    const row = element('div', 'tl-row tl-person');
+    const label = element('div', 'tl-person-label');
+    if (person.extern) label.append(element('span', 'board-external', 'INH'));
+    label.append(element('b', '', person.naam), element('small', '', person.functie || ''));
+    const cells = element('div', 'tl-days'); for (const day of days) {
+      const cell = element('div', 'tl-cell tl-person-cell' + (day.vandaag ? ' today' : '') + (day.weekend ? ' weekend' : ''));
+      const assignment = (person.dagen || {})[day.datum];
+      if (assignment) {
+        const labelText = { BINNEN:'✓ binnen', UITGEREIKT:'UITGEREIKT', GEWIJZIGD:'GEWIJZIGD !',
+          NIET_GEPRINT:'NIET GEPRINT', GEEN_BON:'GEEN BON', GEPLAND:'gepland' }[assignment.status];
+        const status = action(labelText, 'tl-status ' + assignment.status.toLowerCase(), () => {
+          if (assignment.bonId) viewWorkSlip(order.id, person, day, assignment);
+          else editOrder({ id: order.id }, assignment.klusId);
+        });
+        status.title = `${person.naam}, ${day.kort} ${day.nr}: ${labelText}${assignment.nummer ? ', ' + assignment.nummer : ''}`;
+        status.setAttribute('aria-label', status.title); cell.append(status);
+        if (state.zoom !== 'month' && assignment.nummer) cell.append(element('small', '', assignment.nummer));
+      }
+      cells.append(cell);
+    }
+    row.append(label, cells); return row;
+  }
+  function persistExpanded() { storage.setItem('vsvk-tlopen', JSON.stringify([...state.expanded])); }
+  function timelineLegend() {
+    const result = element('div', 'board-legend');
+    result.append(element('span', 'tl-legend-copy', 'De balk laat per dag zien of de klus rond is én of de bonnen op orde zijn. Klap een WO uit voor de bonnen per persoon.'));
+    for (const [key, label] of [['BINNEN','✓ binnen'],['UITGEREIKT','uitgereikt'],['GEWIJZIGD','gewijzigd'],['NIET_GEPRINT','niet geprint'],['GEEN_BON','geen bon']])
+      result.append(element('span', 'tl-status ' + key.toLowerCase(), label));
+    return result;
+  }
+  function editOrderByJob(jobId) {
+    const order = state.orders.find(order => order.klussen?.some(job => job.id === jobId));
+    if (order) editOrder(order, jobId);
+  }
+  function viewWorkSlip(orderId, person, day, assignment) {
+    const modal = createEditorDialog('Werkbon');
+    const body = modal.querySelector('.board-dialog-body');
+    const save = modal.querySelector('.board-dialog-save');
+    const fields = element('div', 'board-form-grid');
+    for (const [label, value] of [
+      ['Werkbonnummer', assignment.nummer || '—'], ['Status', assignment.status],
+      ['Medewerker', person.naam], ['Datum', day.datum], ['Functie', person.functie || '—']
+    ]) {
+      const field = element('div', 'board-field', label);
+      field.append(element('span', '', value)); fields.append(field);
+    }
+    body.append(fields);
+    if (state.canEdit) {
+      save.textContent = 'Werkopdracht bewerken';
+      save.onclick = () => { modal.close(); editOrder({ id: orderId }, assignment.klusId); };
+    } else save.hidden = true;
+    modal.showModal();
   }
 
   function visibleOrders() {
@@ -253,7 +515,7 @@
     return result;
   }
 
-  async function editOrder(order) {
+  async function editOrder(order, selectedJobId = null) {
     let baseline = null;
     if (order) baseline = await state.request('/api/planning/werkopdrachten/' + order.id);
     const draft = baseline ? clone(baseline) : newOrder();
@@ -263,7 +525,7 @@
     const status = modal.querySelector('.board-dialog-status');
     const save = modal.querySelector('.board-dialog-save');
     save.hidden = !state.canEdit;
-    const apply = createWorkOrderForm(body, draft, baseline);
+    const apply = createWorkOrderForm(body, draft, baseline, selectedJobId);
     save.onclick = async () => {
       save.disabled = true;
       const value = apply();
@@ -297,7 +559,7 @@
     modal.showModal();
   }
 
-  function createWorkOrderForm(body, draft, baseline) {
+  function createWorkOrderForm(body, draft, baseline, selectedJobId = null) {
     const refs = state.references;
     const fields = element('div', 'board-form-grid');
     if (!draft.klussen?.length) draft.klussen = [newJob(draft)];
@@ -312,6 +574,11 @@
     for (const item of refs.klanten) customer.append(option(item.id, item.naam));
     customer.value = draft.klantId || ''; bind('Klant', customer, 'klantId');
     customer.addEventListener('change', () => draft.klantId = Number(customer.value));
+    const branch = element('select'); branch.setAttribute('aria-label', 'Vestiging');
+    branch.append(option('', '—'));
+    for (const item of refs.vestigingen || []) branch.append(option(item.id, item.naam));
+    branch.value = draft.vestigingId || '';
+    bind('Vestiging', branch, 'vestigingId');
     bind('Omschrijving', input(draft.omschrijving, 'Omschrijving'), 'omschrijving');
     bind('Startdatum', input(draft.startDatum, 'Startdatum', 'date'), 'startDatum');
     bind('Einddatum', input(draft.eindDatum, 'Einddatum', 'date'), 'eindDatum');
@@ -323,6 +590,7 @@
       jobs.replaceChildren();
       for (const [index, job] of draft.klussen.entries()) {
         const section = element('section', 'board-job-editor');
+        if (job.id && job.id === selectedJobId) section.classList.add('selected');
         const head = element('div', 'board-editor-heading'); head.append(element('h3', '', 'Klus ' + (index + 1)));
         if (state.canEdit) head.append(action('Verwijderen', 'board-remove danger', () => { draft.klussen.splice(index, 1); renderJobs(); }));
         section.append(head);
@@ -333,7 +601,8 @@
     renderJobs();
     if (state.canEdit) body.append(action('+ Klus toevoegen', 'board-add-row', () => { draft.klussen.push(newJob(draft)); renderJobs(); }));
     return () => ({
-      nummer: draft.nummer, klantId: Number(draft.klantId), omschrijving: draft.omschrijving,
+      nummer: draft.nummer, klantId: Number(draft.klantId), omschrijving: draft.omschrijving, vestigingId: draft.vestigingId || null,
+      optieTot: draft.optieTot || null,
       startDatum: draft.startDatum, eindDatum: draft.eindDatum, isOptie: !!draft.isOptie,
       kleur: draft.kleur, klussen: draft.klussen.map((job, index) => ({
         omschrijving: job.omschrijving, startDatum: job.startDatum, eindDatum: job.eindDatum,
@@ -390,11 +659,12 @@
         });
         const slipNumber = input(assignment.werkbon?.nummer, 'Werkbonnummer');
         const slipStatus = element('select'); slipStatus.setAttribute('aria-label', 'Werkbonstatus');
-        for (const [value, label] of [['', 'Geen bon'], ['niet_geprint', 'Niet geprint'], ['uitgereikt', 'Uitgereikt'], ['binnen', 'Binnen']]) slipStatus.append(option(value, label));
+        for (const [value, label] of [['', 'Geen bon'], ['aangemaakt', 'Aangemaakt'], ['niet_geprint', 'Niet geprint'],
+          ['uitgereikt', 'Uitgereikt'], ['retour', 'Retour'], ['verwerkt', 'Verwerkt'], ['vervallen', 'Vervallen'], ['binnen', 'Binnen']]) slipStatus.append(option(value, label));
         slipStatus.value = assignment.werkbon?.status || '';
         const updateSlip = () => {
           if (!slipNumber.value.trim() && !slipStatus.value) assignment.werkbon = null;
-          else assignment.werkbon = { ...(assignment.werkbon || {}), nummer: slipNumber.value.trim(), status: slipStatus.value || 'niet_geprint' };
+          else assignment.werkbon = { ...(assignment.werkbon || {}), nummer: slipNumber.value.trim(), status: slipStatus.value || 'aangemaakt' };
         };
         slipNumber.addEventListener('input', updateSlip); slipStatus.addEventListener('change', updateSlip);
         row.append(date, resource, slipNumber, slipStatus);

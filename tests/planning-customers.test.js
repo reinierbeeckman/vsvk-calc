@@ -28,7 +28,7 @@ function setup(detailResponse, fixtures = {}, loading = { begin: () => () => {} 
   const ids = ['head', 'body', 'message', 'search', 'detail', 'title', 'description', 'list-nav', 'list-panel', 'planbord-panel', 'unavailable', 'add', 'list-hint', 'count', 'empty', 'detail-title', 'detail-subtitle', 'detail-body', 'detail-save'];
   const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
   const lists = ['medewerkers', 'klanten', 'materieel', 'artikelen', 'ordernummers', 'tarieven', 'leveranciers', 'instellingen', 'huisstijl', 'rollen'].map(list => new Element({ list }));
-  const sections = [new Element({ section: 'Lijsten' })];
+  const sections = [new Element({ section: 'Lijsten' }), new Element({ section: 'Werkopdrachten' }), new Element({ section: 'Planbord' })];
   const close = new Element();
   const requests = [];
   const requestDetails = [];
@@ -54,10 +54,13 @@ function setup(detailResponse, fixtures = {}, loading = { begin: () => () => {} 
       : url === '/api/planning/klanten/1' ? await detailResponse() : url === '/api/planning/klanten/1/tarieven' ? { eTag: '"1"', afwijkingen: [], historischeTarieven: [] } : fixtures[url] || [];
     return { ok: true, json: async () => data };
   };
-  const context = { document, window: { addEventListener() {}, VsvkLoading: loading }, fetch, Map, Set, Error };
+  const boardOpens = [];
+  const context = { document, window: {
+    addEventListener() {}, VsvkLoading: loading, VsvkPlanBoard: { open: config => boardOpens.push(config) }
+  }, fetch, Map, Set, Error };
   vm.runInNewContext(editorScript, context);
   vm.runInNewContext(script, context);
-  return { elements, lists, close, requests, requestDetails };
+  return { elements, lists, sections, close, requests, requestDetails, boardOpens };
 }
 
 test('lijst en details stoppen hun laadindicatie bij navigeren of sluiten', async () => {
@@ -101,6 +104,18 @@ test('leveranciers worden uit de planning-api geladen en weergegeven', async () 
   assert.equal(view.elements.body.children.length, 1);
   assert(view.elements.body.children[0].textContent.includes('Leverancier Een'));
   assert.equal(view.elements.unavailable.hidden, true);
+});
+
+test('hoofdtab Werkopdrachten opent de werkopdrachtenweergave', async () => {
+  const view = setup(async () => ({}), {
+    '/bff/user': { permissions: { canEditPlanningRecords: false, canEditWorkOrders: true } }
+  });
+  await flush();
+  view.sections.find(section => section.dataset.section === 'Werkopdrachten').click();
+  await flush();
+  assert.equal(view.elements['planbord-panel'].hidden, false);
+  assert.equal(view.elements.unavailable.hidden, true);
+  assert.equal(view.boardOpens.at(-1).mode, 'workorders');
 });
 
 test('development kan leverancierdetails wijzigen en opslaan', async () => {

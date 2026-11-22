@@ -10,6 +10,7 @@ public sealed class PlanningBoardRepository(VsvkDbContext context)
   {
     var items = await context.Werkopdrachten.AsNoTracking()
       .Where(order => order.StartDatum <= to && order.EindDatum >= from)
+      .Where(order => !order.Geannuleerd && !order.Voorraad)
       .OrderBy(order => order.StartDatum).ThenBy(order => order.Nummer)
       .Select(order => new PlanningBoardWorkOrderDto(
         order.Id, order.Nummer, order.KlantId, order.Klant.Bedrijfsnaam, order.Omschrijving,
@@ -33,7 +34,11 @@ public sealed class PlanningBoardRepository(VsvkDbContext context)
                 assignment.Werkbon != null ? new PlanningBoardWorkSlipDto(
                   assignment.Werkbon.Id, assignment.Werkbon.Nummer, assignment.Werkbon.Status,
                   assignment.Werkbon.GewijzigdNaUitgifte, assignment.Werkbon.UitgereiktOp,
-                  assignment.Werkbon.BinnenOp) : null)).ToList())).ToList()))
+                  assignment.Werkbon.BinnenOp) : null)).ToList(),
+            job.Behoeften.OrderBy(need => need.Id)
+              .Select(need => new PlanningJobNeedDto(need.Aantal, need.Rol, need.Skill)).ToList(),
+            job.Datum, job.ReisHeen, job.ReisTerug)).ToList(),
+        order.VestigingId, order.OptieTot))
       .ToListAsync(cancellationToken);
     return items.Select(WithStatus).ToList();
   }
@@ -61,7 +66,9 @@ public sealed class PlanningBoardRepository(VsvkDbContext context)
       .OrderBy(item => item.Bedrijfsnaam)
       .Select(item => new PlanningBoardSupplierLookupDto(item.Id, item.Bedrijfsnaam))
       .ToListAsync(cancellationToken);
-    return new(customers, employees, subcontractors, suppliers);
+    var branches = await context.Vestigingen.AsNoTracking().OrderBy(item => item.Naam)
+      .Select(item => new PlanningBoardLookupDto(item.Id, item.Naam)).ToListAsync(cancellationToken);
+    return new(customers, employees, subcontractors, suppliers, branches);
   }
 
   public Task<List<PlanningSubcontractorListDto>> ListSubcontractorsAsync(CancellationToken cancellationToken) =>
@@ -81,7 +88,8 @@ public sealed class PlanningBoardRepository(VsvkDbContext context)
     {
       Id = Guid.NewGuid(), Nummer = request.Nummer!.Trim(), KlantId = request.KlantId,
       Omschrijving = request.Omschrijving!.Trim(), StartDatum = request.StartDatum,
-      EindDatum = request.EindDatum, IsOptie = request.IsOptie, Kleur = request.Kleur!, Version = 1
+      EindDatum = request.EindDatum, IsOptie = request.IsOptie, OptieTot = request.OptieTot,
+      Kleur = request.Kleur!, VestigingId = request.VestigingId, Version = 1
     };
     AddJobs(order, request.Klussen!);
     context.Werkopdrachten.Add(order);
@@ -106,6 +114,8 @@ public sealed class PlanningBoardRepository(VsvkDbContext context)
         .SetProperty(order => order.StartDatum, request.StartDatum)
         .SetProperty(order => order.EindDatum, request.EindDatum)
         .SetProperty(order => order.IsOptie, request.IsOptie)
+        .SetProperty(order => order.OptieTot, request.OptieTot)
+        .SetProperty(order => order.VestigingId, request.VestigingId)
         .SetProperty(order => order.Kleur, request.Kleur!), cancellationToken);
     if (updated == 0)
     {
@@ -194,8 +204,14 @@ public sealed class PlanningBoardRepository(VsvkDbContext context)
         Id = Guid.NewGuid(), WerkopdrachtId = order.Id, Omschrijving = jobRequest.Omschrijving!.Trim(),
         StartDatum = jobRequest.StartDatum, EindDatum = jobRequest.EindDatum,
         BenodigdeMedewerkers = jobRequest.BenodigdeMedewerkers, StartTijd = jobRequest.StartTijd,
-        EindTijd = jobRequest.EindTijd, Sorteervolgorde = jobRequest.Sorteervolgorde
+        EindTijd = jobRequest.EindTijd, Sorteervolgorde = jobRequest.Sorteervolgorde,
+        Datum = jobRequest.Datum, ReisHeen = jobRequest.ReisHeen, ReisTerug = jobRequest.ReisTerug
       };
+      foreach (var need in jobRequest.Behoeften ?? [])
+        job.Behoeften.Add(new KlusBehoefte
+        {
+          Id = Guid.NewGuid(), KlusId = job.Id, Aantal = need.Aantal, Rol = need.Rol, Skill = need.Skill
+        });
       foreach (var assignmentRequest in jobRequest.Inzetten!)
       {
         var assignment = new Inzet
@@ -234,7 +250,7 @@ public sealed class PlanningBoardRepository(VsvkDbContext context)
     }
     var slipped = assignments.Where(item => item.Werkbon != null).ToList();
     var completed = order.EindDatum < DateOnly.FromDateTime(DateTime.Today)
-      && slipped.Count == assignments.Count && slipped.All(item => item.Werkbon!.Status == "binnen")
+      && slipped.Count == assignments.Count       && slipped.All(item => item.Werkbon!.Status is "binnen" or "retour" or "verwerkt")
       && covered >= required;
     var status = order.IsOptie ? "OPTIE" : completed ? "AFGEROND"
       : covered == 0 ? "NIET INGEPLAND" : covered < required ? $"OPEN {required - covered}" : "GEPLAND";

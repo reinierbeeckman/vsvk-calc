@@ -4,17 +4,40 @@ using Npgsql;
 using Vsvk.Api.Db;
 using Vsvk.Api.DTOs;
 using Vsvk.Api.Http;
+using Vsvk.Api.Services;
+using Vsvk.Api.Auth;
+using System.Security.Claims;
 
 namespace Vsvk.Api.Endpoints;
 
 public static class PlanningBoardEndpoints
 {
   private static readonly HashSet<string> SlipStatuses =
-    new(["niet_geprint", "uitgereikt", "binnen"], StringComparer.Ordinal);
+    new(["niet_geprint", "aangemaakt", "uitgereikt", "retour", "verwerkt", "vervallen", "binnen"], StringComparer.Ordinal);
 
   public static WebApplication MapPlanningBoardEndpoints(this WebApplication app)
   {
     var group = app.MapGroup("/api/planning").RequireAuthorization("planning-lijsten");
+
+    group.MapGet("/planbord/werkopdrachten", async (
+      DateOnly van, DateOnly tot, string? zoom, ClaimsPrincipal user,
+      VsvkDbContext context, PlanningTimelineService timeline, CancellationToken cancellationToken) =>
+    {
+      if (tot < van || tot.DayNumber - van.DayNumber > 62) return Results.BadRequest("Kies een periode van maximaal 63 dagen.");
+      zoom = zoom is "dag" or "maand" ? zoom : "week";
+      Guid? branchId = null;
+      if (!VsvkRoles.HasOrganizationWideAccess(user))
+      {
+        var branch = VsvkRoles.GetVestiging(user);
+        if (string.IsNullOrWhiteSpace(branch)) return Results.Forbid();
+        branchId = Guid.TryParse(branch, out var id) ? id
+          : await context.Vestigingen.AsNoTracking().Where(item => item.Naam == branch)
+            .Select(item => item.Id).SingleOrDefaultAsync(cancellationToken);
+        if (branchId == Guid.Empty) return Results.Forbid();
+      }
+      return Results.Ok(await timeline.GetAsync(van, tot, zoom!, branchId, cancellationToken));
+    }).WithSummary("Daggezondheid-viewmodel voor werkopdrachten ophalen")
+      .Produces<TimelineViewModel>(200).Produces(400).Produces(401).Produces(403);
 
     group.MapGet("/planbord", async (
       DateOnly from, DateOnly to, PlanningBoardRepository repository, CancellationToken cancellationToken) =>
@@ -41,9 +64,15 @@ public static class PlanningBoardEndpoints
       .Produces<PlanningBoardWorkOrderDto>(200).Produces(401).Produces(403).Produces(404);
 
     group.MapPost("/werkopdrachten", async (
-      PlanningBoardWorkOrderWriteDto request, HttpContext context,
+      PlanningBoardWorkOrderWriteDto request, HttpContext context, VsvkDbContext db,
       PlanningBoardRepository repository, CancellationToken cancellationToken) =>
     {
+      if (!VsvkRoles.HasOrganizationWideAccess(context.User))
+      {
+        var branchId = await ResolveBranchIdAsync(context.User, db, cancellationToken);
+        if (branchId is null) return Results.Forbid();
+        request = request with { VestigingId = branchId };
+      }
       if (!ValidWorkOrder(request)) return Results.BadRequest("Controleer de werkopdracht, klussen en inzet.");
       try
       {
@@ -63,12 +92,21 @@ public static class PlanningBoardEndpoints
       .Produces<PlanningBoardWorkOrderDto>(201).Produces(400).Produces(401).Produces(403).Produces(409);
 
     group.MapPut("/werkopdrachten/{id:guid}", async (
-      Guid id, PlanningBoardWorkOrderWriteDto request, HttpContext context,
+      Guid id, PlanningBoardWorkOrderWriteDto request, HttpContext context, VsvkDbContext db,
       PlanningBoardRepository repository, CancellationToken cancellationToken) =>
     {
       var precondition = IfMatchParser.Parse(
         context.Request.Headers.TryGetValue("If-Match", out var values) ? values.ToString() : null);
       if (!precondition.IsValid) return Results.StatusCode(precondition.StatusCode);
+      if (!VsvkRoles.HasOrganizationWideAccess(context.User))
+      {
+        var branchId = await ResolveBranchIdAsync(context.User, db, cancellationToken);
+        if (branchId is null) return Results.Forbid();
+        var owned = await db.Werkopdrachten.AsNoTracking()
+          .AnyAsync(order => order.Id == id && order.VestigingId == branchId, cancellationToken);
+        if (!owned) return Results.Forbid();
+        request = request with { VestigingId = branchId };
+      }
       if (!ValidWorkOrder(request)) return Results.BadRequest("Controleer de werkopdracht, klussen en inzet.");
       try
       {
@@ -130,23 +168,40 @@ public static class PlanningBoardEndpoints
     return app;
   }
 
-  private static bool ValidWorkOrder(PlanningBoardWorkOrderWriteDto request) =>
-    !string.IsNullOrWhiteSpace(request.Nummer) && request.Nummer.Length <= 50 &&
-    request.KlantId > 0 && !string.IsNullOrWhiteSpace(request.Omschrijving) && request.Omschrijving.Length <= 500 &&
-    request.EindDatum >= request.StartDatum && IsColor(request.Kleur) &&
-    request.Klussen is { Count: > 0 and <= 200 } &&
-    request.Klussen.All(job =>
-      !string.IsNullOrWhiteSpace(job.Omschrijving) && job.Omschrijving.Length <= 500 &&
-      job.StartDatum >= request.StartDatum && job.EindDatum <= request.EindDatum && job.EindDatum >= job.StartDatum &&
-      job.BenodigdeMedewerkers is > 0 and <= 100 && job.Inzetten is { Count: <= 1000 } &&
-      job.Inzetten.All(assignment =>
-        assignment.Datum >= job.StartDatum && assignment.Datum <= job.EindDatum &&
-        assignment.MedewerkerId.HasValue != assignment.InhuurmedewerkerId.HasValue &&
-        (assignment.StartTijd is null || assignment.EindTijd is null || assignment.EindTijd > assignment.StartTijd) &&
-        (assignment.Werkbon is null ||
-          (!string.IsNullOrWhiteSpace(assignment.Werkbon.Nummer) &&
-           assignment.Werkbon.Nummer!.Length <= 50 && assignment.Werkbon.Status is not null &&
-           SlipStatuses.Contains(assignment.Werkbon.Status)))));
+  private static bool ValidWorkOrder(PlanningBoardWorkOrderWriteDto request)
+  {
+    if (string.IsNullOrWhiteSpace(request.Nummer) || request.Nummer.Length > 50 ||
+        request.KlantId <= 0 || string.IsNullOrWhiteSpace(request.Omschrijving) ||
+        request.Omschrijving.Length > 500 || request.EindDatum < request.StartDatum ||
+        !IsColor(request.Kleur) || request.Klussen is not { Count: > 0 and <= 200 })
+      return false;
+    foreach (var job in request.Klussen)
+    {
+      if (string.IsNullOrWhiteSpace(job.Omschrijving) || job.Omschrijving.Length > 500 ||
+          job.StartDatum < request.StartDatum || job.EindDatum > request.EindDatum ||
+          job.EindDatum < job.StartDatum || job.BenodigdeMedewerkers is <= 0 or > 100 ||
+          job.Inzetten is not { Count: <= 1000 })
+        return false;
+      foreach (var assignment in job.Inzetten)
+      {
+        if (assignment.Datum < job.StartDatum || assignment.Datum > job.EindDatum ||
+            assignment.MedewerkerId.HasValue == assignment.InhuurmedewerkerId.HasValue ||
+            (assignment.StartTijd is not null && assignment.EindTijd is not null &&
+             assignment.EindTijd <= assignment.StartTijd))
+          return false;
+        if (assignment.Werkbon is { } slip &&
+            (string.IsNullOrWhiteSpace(slip.Nummer) || slip.Nummer.Length > 50 ||
+             slip.Status is null || !SlipStatuses.Contains(slip.Status)))
+          return false;
+      }
+      foreach (var requirement in job.Behoeften ?? [])
+        if (requirement.Aantal <= 0 || (requirement.Rol?.Length ?? 0) > 200 || (requirement.Skill?.Length ?? 0) > 200)
+          return false;
+    }
+    return request.Klussen.SelectMany(job => job.Inzetten ?? [])
+      .GroupBy(item => (item.Datum, item.MedewerkerId, item.InhuurmedewerkerId))
+      .All(group => group.Count() == 1);
+  }
 
   private static bool ValidSubcontractor(PlanningSubcontractorWriteDto request) =>
     request.LeverancierId > 0 && !string.IsNullOrWhiteSpace(request.Naam) && request.Naam.Length <= 255 &&
@@ -161,6 +216,16 @@ public static class PlanningBoardEndpoints
 
   private static bool IsUniqueViolation(DbUpdateException exception) =>
     exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
+
+  private static async Task<Guid?> ResolveBranchIdAsync(
+    ClaimsPrincipal user, VsvkDbContext context, CancellationToken cancellationToken)
+  {
+    var branch = VsvkRoles.GetVestiging(user);
+    if (string.IsNullOrWhiteSpace(branch)) return null;
+    if (Guid.TryParse(branch, out var id)) return id;
+    return await context.Vestigingen.AsNoTracking().Where(item => item.Naam == branch)
+      .Select(item => (Guid?)item.Id).SingleOrDefaultAsync(cancellationToken);
+  }
 
   private static void SetHeaders(HttpContext context, string etag)
   {

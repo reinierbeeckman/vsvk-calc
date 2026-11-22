@@ -142,11 +142,15 @@ public sealed class PlanningMigrationTests
         to_regclass('inzet') is not null,
         to_regclass('inhuurmedewerkers') is not null,
         to_regclass('werkbonnen') is not null,
-        exists(select 1 from information_schema.columns where table_name='werkopdrachten' and column_name='version')
+        exists(select 1 from information_schema.columns where table_name='werkopdrachten' and column_name='version'),
+        exists(select 1 from information_schema.columns where table_name='werkopdrachten' and column_name='vestiging_id'),
+        exists(select 1 from information_schema.columns where table_name='klussen' and column_name='reis_heen'),
+        exists(select 1 from information_schema.columns where table_name='werkbonnen' and column_name='oud_nummer'),
+        to_regclass('klus_behoeften') is not null
       """);
     await using var reader = await query.ExecuteReaderAsync();
     Assert.True(await reader.ReadAsync());
-    for (var index = 0; index < 6; index++) Assert.True(reader.GetBoolean(index));
+    for (var index = 0; index < 10; index++) Assert.True(reader.GetBoolean(index));
   }
 
   [Fact]

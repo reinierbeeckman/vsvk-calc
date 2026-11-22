@@ -7,7 +7,7 @@ const vm = require('node:vm');
 class Element {
   constructor(tag = 'div') {
     this.tagName = tag.toUpperCase();
-    this.children = []; this.attributes = {}; this.events = {}; this._text = ''; this.style = {};
+    this.children = []; this.attributes = {}; this.events = {}; this._text = ''; this.style = { setProperty: () => {} };
     this.classList = { add: (...names) => names.forEach(name => this.className += ' ' + name) };
   }
   set textContent(value) { this._text = String(value); this.children = []; }
@@ -47,22 +47,39 @@ const orders = [{
       inhuurmedewerkerId: 'h1', inhuurmedewerker: 'R. Smit', leverancier: 'Inhuur BV', startTijd: '07:00', eindTijd: '16:00', werkbon: null }] }]
 }];
 
-async function setup(canEdit) {
+async function setup(canEdit, timelineMode = false) {
   const requests = [];
   const document = { createElement: tag => new Element(tag) };
   const request = async (url, options) => {
     requests.push({ url, options });
     if (url.startsWith('/api/planning/planbord?')) return orders;
+    if (url.startsWith('/api/planning/planbord/werkopdrachten?')) return timeline;
     if (url === '/api/planning/planbord/referenties') return references;
     if (url === '/api/planning/werkopdrachten/w1' && !options?.method) return orders[0];
     return orders[0];
   };
-  const context = { document, window: { VsvkLoading: { begin: () => () => {} } }, fetch, Date, Intl, Set, Map, String, Number, JSON, Object, Array };
+  const values = new Map(timelineMode ? [['vsvk-pbwo', 'true']] : []);
+  const localStorage = { getItem: key => values.get(key) || null, setItem: (key, value) => values.set(key, value) };
+  const context = { document, window: { VsvkLoading: { begin: () => () => {} }, localStorage }, fetch, Date, Intl, Set, Map, String, Number, JSON, Object, Array };
   vm.runInNewContext(script, context);
   const container = new Element();
   await context.window.VsvkPlanBoard.open({ container, request, canEdit: Promise.resolve(canEdit) });
   return { container, requests, context };
 }
+
+const timeline = {
+  periode: { van: '2026-11-16', tot: '2026-11-22', vandaag: '2026-11-18', zoom: 'week', titel: 'Wk 47 · 16 – 22 november' },
+  dagen: ['16','17','18','19','20','21','22'].map((nr, index) => ({ datum: `2026-11-${nr}`, kort: ['ma','di','wo','do','vr','za','zo'][index], nr: Number(nr), weekend: index > 4, vandaag: nr === '18' })),
+  groepen: [{ key: 'aandacht', label: 'Aandacht nodig', werkopdrachten: [{
+    id: 'w1', nummer: 'WO-26-0412', klantNaam: 'Infra Noord BV', kop: 'Kabeltracé Parkweg vervangen',
+    startDatum: '2026-11-16', eindDatum: '2026-11-20', kleur: '#2f6fb5', optie: false,
+    openPlekken: 1, bonnenTeDoen: 2, groep: 'aandacht',
+    dagen: { '2026-11-18': { klusIds: ['j1'], nodig: 2, bezet: 2, open: 0, bezetting: 'vol', teDoen: 2, bonSamenvatting: 'teDoen', vertrek: '06:45' } },
+    mensen: [{ id: 'h1', naam: 'R. Smit', functie: 'Grondwerker', extern: true,
+      dagen: { '2026-11-18': { status: 'GEEN_BON', bonId: null, nummer: null, klusId: 'j1' } } }]
+  }] }],
+  totaal: { werkopdrachten: 1 }
+};
 
 test('planbord laadt werkopdracht, klussen en inhuur als geneste rijen', async () => {
   const view = await setup(false);
@@ -112,4 +129,17 @@ test('lege ingezette regel wordt vóór de PUT uitgelegd en niet verstuurd', asy
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(view.requests.filter(item => item.options?.method === 'PUT').length, 0);
   assert.match(dialog.querySelector('.board-dialog-status').textContent, /Kies een interne of ingehuurde medewerker/);
+});
+
+test('Werkopdrachten-view rendert groepen, day-health, personen en acties', async () => {
+  const view = await setup(true, true);
+  assert.match(view.container.textContent, /Aandacht nodig/);
+  assert.match(view.container.textContent, /✓ P 2\/2/);
+  assert.match(view.container.textContent, /2 bonnen te doen/);
+  const wo = view.container.querySelector('.tl-wo-label');
+  wo.events.click();
+  assert.match(view.container.textContent, /TE DOEN PER DAG/i);
+  assert.match(view.container.textContent, /R\. Smit/);
+  assert.match(view.container.textContent, /GEEN BON/);
+  assert.match(view.container.textContent, /Bonnen \(2\)/);
 });

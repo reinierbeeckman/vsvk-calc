@@ -25,6 +25,7 @@ public sealed class VsvkDbContext : DbContext
   public DbSet<PlanningKlantTarief> PlanningKlantTarieven => Set<PlanningKlantTarief>();
   public DbSet<Werkopdracht> Werkopdrachten => Set<Werkopdracht>();
   public DbSet<Klus> Klussen => Set<Klus>();
+  public DbSet<KlusBehoefte> KlusBehoeften => Set<KlusBehoefte>();
   public DbSet<Inhuurmedewerker> Inhuurmedewerkers => Set<Inhuurmedewerker>();
   public DbSet<Inzet> Inzetten => Set<Inzet>();
   public DbSet<Werkbon> Werkbonnen => Set<Werkbon>();
@@ -41,11 +42,16 @@ public sealed class VsvkDbContext : DbContext
     workOrder.Property(item => item.StartDatum).HasColumnName("start_datum").HasColumnType("date");
     workOrder.Property(item => item.EindDatum).HasColumnName("eind_datum").HasColumnType("date");
     workOrder.Property(item => item.IsOptie).HasColumnName("is_optie");
+    workOrder.Property(item => item.OptieTot).HasColumnName("optie_tot").HasColumnType("date");
     workOrder.Property(item => item.Kleur).HasColumnName("kleur").HasMaxLength(20);
+    workOrder.Property(item => item.VestigingId).HasColumnName("vestiging_id");
+    workOrder.Property(item => item.Geannuleerd).HasColumnName("geannuleerd");
+    workOrder.Property(item => item.Voorraad).HasColumnName("voorraad");
     workOrder.Property(item => item.Version).HasColumnName("version").IsConcurrencyToken();
     workOrder.HasIndex(item => item.Nummer).IsUnique();
     workOrder.HasIndex(item => new { item.StartDatum, item.EindDatum });
     workOrder.HasOne(item => item.Klant).WithMany().HasForeignKey(item => item.KlantId).OnDelete(DeleteBehavior.Restrict);
+    workOrder.HasOne(item => item.Vestiging).WithMany().HasForeignKey(item => item.VestigingId).OnDelete(DeleteBehavior.Restrict);
 
     var job = modelBuilder.Entity<Klus>();
     job.ToTable("klussen");
@@ -59,8 +65,23 @@ public sealed class VsvkDbContext : DbContext
     job.Property(item => item.StartTijd).HasColumnName("start_tijd");
     job.Property(item => item.EindTijd).HasColumnName("eind_tijd");
     job.Property(item => item.Sorteervolgorde).HasColumnName("sorteervolgorde");
+    job.Property(item => item.Datum).HasColumnName("datum").HasColumnType("date");
+    job.Property(item => item.ReisHeen).HasColumnName("reis_heen");
+    job.Property(item => item.ReisTerug).HasColumnName("reis_terug");
     job.HasIndex(item => new { item.WerkopdrachtId, item.Sorteervolgorde });
     job.HasOne(item => item.Werkopdracht).WithMany(item => item.Klussen).HasForeignKey(item => item.WerkopdrachtId).OnDelete(DeleteBehavior.Cascade);
+
+    var jobNeed = modelBuilder.Entity<KlusBehoefte>();
+    jobNeed.ToTable("klus_behoeften");
+    jobNeed.HasKey(item => item.Id);
+    jobNeed.Property(item => item.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+    jobNeed.Property(item => item.KlusId).HasColumnName("klus_id");
+    jobNeed.Property(item => item.Aantal).HasColumnName("aantal");
+    jobNeed.Property(item => item.Rol).HasColumnName("rol").HasMaxLength(200);
+    jobNeed.Property(item => item.Skill).HasColumnName("skill").HasMaxLength(200);
+    jobNeed.HasIndex(item => item.KlusId);
+    jobNeed.HasOne(item => item.Klus).WithMany(item => item.Behoeften)
+      .HasForeignKey(item => item.KlusId).OnDelete(DeleteBehavior.Cascade);
 
     var subcontractor = modelBuilder.Entity<Inhuurmedewerker>();
     subcontractor.ToTable("inhuurmedewerkers");
@@ -87,10 +108,8 @@ public sealed class VsvkDbContext : DbContext
     assignment.Property(item => item.StartTijd).HasColumnName("start_tijd");
     assignment.Property(item => item.EindTijd).HasColumnName("eind_tijd");
     assignment.HasIndex(item => new { item.KlusId, item.Datum });
-    assignment.HasIndex(item => new { item.MedewerkerId, item.Datum }).IsUnique()
-      .HasFilter("medewerker_id is not null");
-    assignment.HasIndex(item => new { item.InhuurmedewerkerId, item.Datum }).IsUnique()
-      .HasFilter("inhuurmedewerker_id is not null");
+    assignment.HasIndex(item => new { item.MedewerkerId, item.Datum });
+    assignment.HasIndex(item => new { item.InhuurmedewerkerId, item.Datum });
     assignment.HasOne(item => item.Klus).WithMany(item => item.Inzetten).HasForeignKey(item => item.KlusId).OnDelete(DeleteBehavior.Cascade);
     assignment.HasOne(item => item.Medewerker).WithMany().HasForeignKey(item => item.MedewerkerId).OnDelete(DeleteBehavior.Restrict);
     assignment.HasOne(item => item.Inhuurmedewerker).WithMany().HasForeignKey(item => item.InhuurmedewerkerId).OnDelete(DeleteBehavior.Restrict);
@@ -101,6 +120,7 @@ public sealed class VsvkDbContext : DbContext
     workSlip.Property(item => item.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
     workSlip.Property(item => item.InzetId).HasColumnName("inzet_id");
     workSlip.Property(item => item.Nummer).HasColumnName("nummer").HasMaxLength(50).IsRequired();
+    workSlip.Property(item => item.OudNummer).HasColumnName("oud_nummer").HasMaxLength(50);
     workSlip.Property(item => item.Status).HasColumnName("status").HasMaxLength(30).IsRequired();
     workSlip.Property(item => item.GewijzigdNaUitgifte).HasColumnName("gewijzigd_na_uitgifte");
     workSlip.Property(item => item.UitgereiktOp).HasColumnName("uitgereikt_op");
