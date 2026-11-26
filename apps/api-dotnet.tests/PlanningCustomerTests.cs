@@ -51,11 +51,19 @@ public sealed class PlanningCustomerTests
     using var client = new HttpClient { BaseAddress = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
 
     Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/planning/klanten")).StatusCode);
-    client.DefaultRequestHeaders.Add("X-Test-Role", "finance");
-    Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/planning/klanten")).StatusCode);
+    client.DefaultRequestHeaders.Add("X-Test-Role", VsvkRoles.Default);
+    var generalList = await client.GetAsync("/api/planning/klanten");
+    Assert.Equal(HttpStatusCode.OK, generalList.StatusCode);
+    using var generalBody = JsonDocument.Parse(await generalList.Content.ReadAsStringAsync());
+    Assert.Equal(2, generalBody.RootElement.GetArrayLength());
+    Assert.False(generalBody.RootElement[0].TryGetProperty("iban", out _));
+    Assert.False(generalBody.RootElement[0].TryGetProperty("btwNummer", out _));
+    Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/planning/klanten/1")).StatusCode);
+    client.DefaultRequestHeaders.Add("X-Test-No-Default", "true");
     client.DefaultRequestHeaders.Remove("X-Test-Role");
     client.DefaultRequestHeaders.Add("X-Test-Role", "planning");
     Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/planning/klanten")).StatusCode);
+    client.DefaultRequestHeaders.Remove("X-Test-No-Default");
     client.DefaultRequestHeaders.Remove("X-Test-Role");
     client.DefaultRequestHeaders.Add("X-Test-Role", "directie");
     var listResponse = await client.GetAsync("/api/planning/klanten");

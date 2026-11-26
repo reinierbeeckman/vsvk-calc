@@ -29,6 +29,13 @@
     const currentUser = request('/bff/user').catch(error => {
       planningPermissionsFailed = true; console.error('Rechten ophalen mislukt:', error); return false;
     });
+    let canUpdateEmployeeStatus = false;
+    let canUpdateStandardPrice = false;
+    currentUser.then(user => {
+      canUpdateEmployeeStatus = user?.permissions?.canEditWorkOrders === true || user?.permissions?.canManageSettings === true;
+      canUpdateStandardPrice = user?.permissions?.canManageSettings === true;
+      render();
+    });
     const planningPermissions = currentUser.then(user => user && user.permissions?.canEditPlanningRecords === true);
     const workOrderPermissions = currentUser.then(user => user && user.permissions?.canEditWorkOrders === true);
     const drafts = new Map();
@@ -199,7 +206,7 @@
         if (current !== 'tarieven' || !priceDrafts.has(item.standaardTariefId)) {
           const open = document.createElement('button'); open.type = 'button'; open.className = 'btn sm'; open.textContent = 'Openen'; open.addEventListener('click', () => openDetail(current, item)); action.append(open);
         }
-        if (current === 'tarieven') priceActions(action, item);
+        if (current === 'tarieven' && canUpdateStandardPrice) priceActions(action, item);
       }
       const empty = document.querySelector('#empty'); empty.hidden = loading || !!filtered.length || !!message.textContent; empty.textContent = rows.length ? 'Niets gevonden.' : 'Geen gegevens gevonden.';
     }
@@ -283,6 +290,10 @@
     }
     function statusCell(row, item) {
       const container = row.insertCell(); container.className = 'status-cell';
+      if (!canUpdateEmployeeStatus) {
+        container.append(switchControl(item.actief, 'Actief ' + (item.naam || item.personeelsnummer || 'medewerker'), true));
+        return;
+      }
       const selected = drafts.has(item.id) ? drafts.get(item.id) : item.actief;
       const conflict = statusConflicts.get(item.id);
       const toggle = switchControl(selected, 'Actief ' + (item.naam || item.personeelsnummer || 'medewerker')); toggle.disabled = saving.has(item.id) || conflict === 'unavailable';
@@ -433,6 +444,14 @@
     function addDetailSection(container, title, text) {
       const section = document.createElement('section'); section.className = 'fsec'; const heading = document.createElement('h3'); heading.textContent = title; const paragraph = document.createElement('p'); paragraph.className = 'hint'; paragraph.textContent = text; section.append(heading, paragraph); container.append(section);
     }
+    function renderListFields(content, definition, item) {
+      const fields = document.createElement('div'); fields.className = 'fg';
+      for (const [label, field] of definition.columns) {
+        if (field === 'skills') continue;
+        const block = document.createElement('div'); block.className = 'field'; const name = document.createElement('strong'); name.textContent = label; block.append(name, fieldValue(item, field, label)); fields.append(block);
+      }
+      content.append(fields);
+    }
     async function openDetail(list, item) {
       const definition = definitions[list];
       const sequence = ++detailNumber;
@@ -456,7 +475,11 @@
           await loadCustomerRates(rates, customer.id, sequence);
         } catch (error) {
           if (sequence !== detailNumber || !detail.open) return;
-          content.textContent = 'Klantgegevens ophalen mislukt: ' + error.message;
+          if (error.status === 403) {
+            content.replaceChildren();
+            renderListFields(content, definition, item);
+            addDetailSection(content, 'Aanvullende gegevens', 'Geen toegang tot aanvullende gegevens.');
+          } else content.textContent = 'Klantgegevens ophalen mislukt: ' + error.message;
         } finally {
           finishLoading();
         }
@@ -493,7 +516,13 @@
             content.replaceChildren(grid);
           }
         } catch (error) {
-          if (sequence === detailNumber && detail.open) content.textContent = 'Leveranciersgegevens ophalen mislukt: ' + error.message;
+          if (sequence === detailNumber && detail.open) {
+            if (error.status === 403) {
+              content.replaceChildren();
+              renderListFields(content, definition, item);
+              addDetailSection(content, 'Aanvullende gegevens', 'Geen toegang tot aanvullende gegevens.');
+            } else content.textContent = 'Leveranciersgegevens ophalen mislukt: ' + error.message;
+          }
         } finally { finishLoading(); }
         return;
       }
@@ -569,12 +598,7 @@
         return;
       }
       if (sequence !== detailNumber) return;
-      const fields = document.createElement('div'); fields.className = 'fg';
-      for (const [label, field] of definition.columns) {
-        if (field === 'skills') continue;
-        const block = document.createElement('div'); block.className = 'field'; const name = document.createElement('strong'); name.textContent = label; block.append(name, fieldValue(item, field, label)); fields.append(block);
-      }
-      content.append(fields);
+      renderListFields(content, definition, item);
       if (list === 'medewerkers') {
         addDetailSection(content, 'Vaardigheden & certificaten', displayValue(item, 'skills') || 'Geen vaardigheden geregistreerd.');
         addDetailSection(content, 'Contract & tarief', 'Nog niet beschikbaar.');

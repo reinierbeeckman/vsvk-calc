@@ -135,6 +135,56 @@ public sealed class PlanningRepositoryTests : IAsyncLifetime
   }
 
   [Fact]
+  public async Task Default_role_reads_branch_scoped_lists_without_write_access()
+  {
+    await using (var seed = _dataSource.CreateCommand("insert into materieel(id, omschrijving, standplaats_id) values ($1, 'Bus', $2)"))
+    {
+      seed.Parameters.AddWithValue(Guid.NewGuid());
+      seed.Parameters.AddWithValue(_branch);
+      await seed.ExecuteNonQueryAsync();
+    }
+
+    var builder = WebApplication.CreateSlimBuilder();
+    builder.WebHost.UseUrls("http://127.0.0.1:0");
+    builder.Services.AddDbContext<VsvkDbContext>(options => options.UseNpgsql(_postgres.GetConnectionString()));
+    builder.Services.AddScoped<PlanningRepository>();
+    builder.Services.AddScoped<IPlanningCustomerService, PlanningCustomerService>();
+    builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, PlanningTestAuthenticationHandler>("Test", _ => { });
+    builder.Services.AddAuthorization(options => options.AddPolicy("planning-lijsten", policy =>
+      policy.RequireAssertion(context => VsvkRoles.CanManagePlanning(context.User))));
+    await using var app = builder.Build();
+    app.UseAuthentication();
+    app.UseAuthorization();
+    app.MapPlanningEndpoints();
+    await app.StartAsync();
+    using var client = new HttpClient { BaseAddress = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
+
+    Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/planning/materieel")).StatusCode);
+    client.DefaultRequestHeaders.Add("X-Test-Role", VsvkRoles.Default);
+    Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/planning/materieel")).StatusCode);
+    Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/planning/medewerkers")).StatusCode);
+    client.DefaultRequestHeaders.Add("X-Test-Branch", "Pijnacker");
+    foreach (var path in new[] { "/api/planning/materieel", "/api/planning/medewerkers" })
+    {
+      var response = await client.GetAsync(path);
+      Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+      using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+      Assert.Equal(1, body.RootElement.GetArrayLength());
+    }
+    Assert.Equal(HttpStatusCode.Forbidden,
+      (await client.PutAsJsonAsync($"/api/planning/medewerkers/{_subject}/actief", new { actief = false })).StatusCode);
+    client.DefaultRequestHeaders.Remove("X-Test-Branch");
+    client.DefaultRequestHeaders.Add("X-Test-Branch", "Andere vestiging");
+    foreach (var path in new[] { "/api/planning/materieel", "/api/planning/medewerkers" })
+    {
+      var response = await client.GetAsync(path);
+      Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+      using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+      Assert.Equal(0, body.RootElement.GetArrayLength());
+    }
+  }
+
+  [Fact]
   public async Task Status_endpoint_requires_role_scope_and_valid_current_etag()
   {
     var builder = WebApplication.CreateSlimBuilder();
@@ -191,7 +241,8 @@ public sealed class PlanningTestAuthenticationHandler(
   protected override Task<AuthenticateResult> HandleAuthenticateAsync()
   {
     if (!Request.Headers.TryGetValue("X-Test-Role", out var role)) return Task.FromResult(AuthenticateResult.NoResult());
-    var claims = new List<Claim> { new(ClaimTypes.Role, VsvkRoles.Default), new(ClaimTypes.Role, role.ToString()) };
+    var claims = new List<Claim> { new(ClaimTypes.Role, role.ToString()) };
+    if (!Request.Headers.ContainsKey("X-Test-No-Default")) claims.Add(new Claim(ClaimTypes.Role, VsvkRoles.Default));
     if (Request.Headers.TryGetValue("X-Test-Branch", out var branch)) claims.Add(new Claim("vestiging", branch.ToString()));
     var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, Scheme.Name));
     return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme.Name)));

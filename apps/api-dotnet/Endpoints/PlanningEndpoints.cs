@@ -16,17 +16,17 @@ public static class PlanningEndpoints
 {
   public static WebApplication MapPlanningEndpoints(this WebApplication app)
   {
+    var lists = app.MapGroup("/api/planning").RequireAuthorization(policy =>
+      policy.RequireAuthenticatedUser().RequireAssertion(context => VsvkRoles.IsApplicationUser(context.User)));
     var group = app.MapGroup("/api/planning").RequireAuthorization("planning-lijsten");
 
-    group.MapGet("/klanten", async (HttpContext context, IPlanningCustomerService service, CancellationToken cancellationToken) =>
+    lists.MapGet("/klanten", async (HttpContext context, IPlanningCustomerService service, CancellationToken cancellationToken) =>
       CustomerResponse(context, await service.ListAsync(cancellationToken)))
-      .RequireAuthorization(policy => policy.RequireRole(VsvkRoles.Directie))
       .WithSummary("Klanten voor planning ophalen")
       .Produces<List<PlanningCustomerListDto>>(200).Produces(401).Produces(403);
 
-    group.MapGet("/leveranciers", async (HttpContext context, PlanningRepository repository, CancellationToken cancellationToken) =>
+    lists.MapGet("/leveranciers", async (HttpContext context, PlanningRepository repository, CancellationToken cancellationToken) =>
       CustomerResponse(context, await repository.ListSuppliersAsync(cancellationToken)))
-      .RequireAuthorization(policy => policy.RequireRole(VsvkRoles.Directie))
       .WithSummary("Leveranciers voor planning ophalen")
       .Produces<List<PlanningSupplierListDto>>(200).Produces(401).Produces(403);
 
@@ -160,9 +160,8 @@ public static class PlanningEndpoints
       .WithSummary("Klant en contactpersonen opslaan met If-Match")
       .Produces<PlanningCustomerDetailDto>(200).Produces(400).Produces(401).Produces(403).Produces(404).Produces(412).Produces(428);
 
-    group.MapGet("/tarieven", async (HttpContext context, IPlanningCustomerService service, CancellationToken cancellationToken) =>
+    lists.MapGet("/tarieven", async (HttpContext context, IPlanningCustomerService service, CancellationToken cancellationToken) =>
       CustomerResponse(context, await service.ListRatesAsync(cancellationToken)))
-      .RequireAuthorization(policy => policy.RequireRole(VsvkRoles.Directie))
       .WithSummary("Actuele standaardtarieven ophalen")
       .Produces<List<PlanningStandardRateDto>>(200).Produces(401).Produces(403);
 
@@ -228,7 +227,7 @@ public static class PlanningEndpoints
       .WithSummary("Afwijkende klanttarieven opslaan met If-Match")
       .Produces<PlanningCustomerRatesDto>(200).Produces(400).Produces(401).Produces(403).Produces(404).Produces(412).Produces(428);
 
-    group.MapGet("/medewerkers", async (ClaimsPrincipal user, PlanningRepository repository, CancellationToken cancellationToken) =>
+    lists.MapGet("/medewerkers", async (ClaimsPrincipal user, PlanningRepository repository, CancellationToken cancellationToken) =>
     {
       if (!VsvkRoles.HasRequiredVestigingScope(user)) return Results.Forbid();
       return Results.Ok(await repository.ListEmployeesAsync(Branch(user), cancellationToken));
@@ -257,7 +256,7 @@ public static class PlanningEndpoints
       return Results.Ok(updated);
     }).Produces<PlanningEmployeeDto>(200).Produces(400).Produces(401).Produces(403).Produces(404).Produces(412).Produces(428);
 
-    group.MapGet("/materieel", async (ClaimsPrincipal user, PlanningRepository repository, CancellationToken cancellationToken) =>
+    lists.MapGet("/materieel", async (ClaimsPrincipal user, PlanningRepository repository, CancellationToken cancellationToken) =>
     {
       if (!VsvkRoles.HasRequiredVestigingScope(user)) return Results.Forbid();
       return Results.Ok(await repository.ListEquipmentAsync(Branch(user), cancellationToken));

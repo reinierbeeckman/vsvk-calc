@@ -26,7 +26,7 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
 
 async function setup(canEdit, options = {}) {
   const ids = ['head', 'body', 'message', 'search', 'detail', 'detail-save', 'title', 'description',
-    'list-nav', 'list-panel', 'planbord-panel', 'unavailable', 'add', 'list-hint', 'count', 'empty', 'detail-title', 'detail-subtitle', 'detail-body'];
+    'list-nav', 'list-panel', 'planbord-panel', 'planning-pages-panel', 'unavailable', 'add', 'list-hint', 'count', 'empty', 'detail-title', 'detail-subtitle', 'detail-body'];
   const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
   const lists = ['medewerkers', 'klanten', 'materieel', 'artikelen', 'tarieven', 'leveranciers'].map(name => {
     const element = new Element('button'); element.dataset.list = name; return element;
@@ -53,7 +53,7 @@ async function setup(canEdit, options = {}) {
     let data = [];
     const response = await argumentsForResponse(url, options);
     if (response) return { ok: response.status < 400, status: response.status, json: async () => response.data };
-    if (url === '/bff/user') data = { permissions: { canEditPlanningRecords: canEdit } };
+    if (url === '/bff/user') data = { permissions: { canEditPlanningRecords: canEdit, canManageSettings: canEdit } };
     else if (url === '/api/planning/medewerkers') data = employeeData;
     else if (url === '/api/planning/materieel/referenties') data = { groepen: [], vestigingen: [] };
     else if (url === '/api/article-categories' || url === '/api/article-units') data = [{ id: '123', naam: 'Keuze', actief: true }];

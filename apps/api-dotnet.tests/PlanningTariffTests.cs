@@ -54,6 +54,13 @@ public sealed class PlanningTariffTests
     await app.StartAsync();
     using var client = new HttpClient { BaseAddress = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
     Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/planning/tarieven")).StatusCode);
+    client.DefaultRequestHeaders.Add("X-Test-Role", VsvkRoles.Default);
+    using var generalList = await client.GetAsync("/api/planning/tarieven");
+    Assert.Equal(HttpStatusCode.OK, generalList.StatusCode);
+    using var generalRates = JsonDocument.Parse(await generalList.Content.ReadAsStringAsync());
+    Assert.Equal(3, generalRates.RootElement.GetArrayLength());
+    Assert.Equal(HttpStatusCode.Forbidden, (await client.PutAsJsonAsync("/api/planning/tarieven/2/prijs", new { prijs = 55m })).StatusCode);
+    client.DefaultRequestHeaders.Remove("X-Test-Role");
     client.DefaultRequestHeaders.Add("X-Test-Role", "planning");
     Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/planning/klanten/1/tarieven")).StatusCode);
     Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/planning/tarieven/2/prijs")).StatusCode);

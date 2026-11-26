@@ -25,7 +25,7 @@ class Element {
 }
 
 function setup(detailResponse, fixtures = {}, loading = { begin: () => () => {} }) {
-  const ids = ['head', 'body', 'message', 'search', 'detail', 'title', 'description', 'list-nav', 'list-panel', 'planbord-panel', 'unavailable', 'add', 'list-hint', 'count', 'empty', 'detail-title', 'detail-subtitle', 'detail-body', 'detail-save'];
+  const ids = ['head', 'body', 'message', 'search', 'detail', 'title', 'description', 'list-nav', 'list-panel', 'planbord-panel', 'planning-pages-panel', 'unavailable', 'add', 'list-hint', 'count', 'empty', 'detail-title', 'detail-subtitle', 'detail-body', 'detail-save'];
   const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
   const lists = ['medewerkers', 'klanten', 'materieel', 'artikelen', 'ordernummers', 'tarieven', 'leveranciers', 'instellingen', 'huisstijl', 'rollen'].map(list => new Element({ list }));
   const sections = [new Element({ section: 'Lijsten' }), new Element({ section: 'Werkopdrachten' }), new Element({ section: 'Planbord' })];
@@ -104,6 +104,44 @@ test('leveranciers worden uit de planning-api geladen en weergegeven', async () 
   assert.equal(view.elements.body.children.length, 1);
   assert(view.elements.body.children[0].textContent.includes('Leverancier Een'));
   assert.equal(view.elements.unavailable.hidden, true);
+});
+
+for (const [list, detailUrl, label] of [
+  ['klanten', '/api/planning/klanten/1', 'Klant Een'],
+  ['leveranciers', '/api/planning/leveranciers/1', 'Leverancier Een']
+]) {
+  test(`${list}: beperkte lezer ziet lijstgegevens bij openen zonder detailrechten`, async () => {
+    const view = setup(async () => ({}), {
+      '/bff/user': { permissions: { canEditPlanningRecords: false } },
+      '/api/planning/leveranciers': [{ id: 1, actief: true, crediteurnummer: 'L1', bedrijfsnaam: 'Leverancier Een', plaats: 'Delft' }],
+      [detailUrl]: () => ({ status: 403, body: {} })
+    });
+    await flush();
+    view.lists.find(element => element.dataset.list === list).click();
+    await flush();
+    view.elements.body.children[0].children.at(-1).children[0].click();
+    await flush();
+    assert.match(view.elements['detail-body'].textContent, new RegExp(label));
+    assert.match(view.elements['detail-body'].textContent, /aanvullende gegevens.*geen toegang/i);
+    assert.equal(view.elements['detail-save'].disabled, true);
+  });
+}
+
+test('alleen-lezen gebruiker krijgt geen wijzigacties voor medewerkerstatus of tarieven', async () => {
+  const view = setup(async () => ({}), {
+    '/bff/user': { permissions: { canEditPlanningRecords: false, canManageSettings: false, canEditWorkOrders: false } },
+    '/api/planning/medewerkers': [{ id: 'm1', naam: 'Medewerker', actief: true, skills: [] }],
+    '/api/planning/tarieven': [{ standaardTariefId: 2, functieId: 1, functie: 'Grondwerker', actief: true, prijs: 50 }]
+  });
+  await flush();
+  const toggle = descendants(view.elements.body).find(element => element.attributes['aria-label'] === 'Actief Medewerker');
+  assert.equal(toggle.attributes['aria-readonly'], 'true');
+  toggle.click();
+  assert.equal(view.requestDetails.some(request => request.options?.method === 'PUT'), false);
+
+  view.lists.find(element => element.dataset.list === 'tarieven').click();
+  await flush();
+  assert.equal(descendants(view.elements.body).some(element => element.attributes['aria-label'] === 'Tarief Grondwerker wijzigen'), false);
 });
 
 test('hoofdtab Werkopdrachten opent de werkopdrachtenweergave', async () => {
@@ -326,6 +364,7 @@ test('ja-neewaarden gebruiken toegankelijke schakelaars met behoud van bewerkrec
     facturatie: { afwijkendFactuuradres: false, btwVerlegd: true, mandagenregisterMeesturen: false },
     contactpersonen: [{ naam: 'Jan', isStandaardBesteller: true }]
   }), {
+    '/bff/user': { permissions: { canEditWorkOrders: true } },
     '/api/planning/medewerkers': [{ id: 'm1', naam: 'Medewerker', actief: true, eTag: '"1"' }],
     '/api/articles': [{ id: 'a1', naam: 'Artikel', actief: false }]
   });
@@ -479,6 +518,7 @@ test('afwijkend klanttarief is tekstueel invoerbaar met een decimale komma', asy
 test('standaardtarief kan per regel worden gewijzigd en conflicten behouden de invoer', async () => {
   let writes = 0;
   const view = setup(async () => ({}), {
+    '/bff/user': { permissions: { canManageSettings: true } },
     '/api/planning/tarieven': [{ standaardTariefId: 2, functieId: 1, functie: 'Grondwerker', actief: true, prijs: 50, eenheid: 'uur' }],
     '/api/planning/tarieven/2/prijs': options => {
       if (options?.method === 'PUT') { writes++; return writes === 1 ? { status: 412 } : { prijs: 55, eTag: '"3"' }; }

@@ -54,8 +54,16 @@ public sealed class PlanningSupplierTests
     };
 
     Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/planning/leveranciers")).StatusCode);
-    client.DefaultRequestHeaders.Add("X-Test-Role", "planning");
-    Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/planning/leveranciers")).StatusCode);
+    client.DefaultRequestHeaders.Add("X-Test-Role", VsvkRoles.Default);
+    using var generalResponse = await client.GetAsync("/api/planning/leveranciers");
+    Assert.Equal(HttpStatusCode.OK, generalResponse.StatusCode);
+    using var generalBody = JsonDocument.Parse(await generalResponse.Content.ReadAsStringAsync());
+    Assert.Equal(2, generalBody.RootElement.GetArrayLength());
+    Assert.False(generalBody.RootElement[0].TryGetProperty("iban", out _));
+    Assert.False(generalBody.RootElement[0].TryGetProperty("btwNummer", out _));
+    Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/planning/leveranciers/1")).StatusCode);
+    Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("/api/planning/leveranciers",
+      new { crediteurnummer = "C3", bedrijfsnaam = "Leverancier" })).StatusCode);
     client.DefaultRequestHeaders.Remove("X-Test-Role");
     client.DefaultRequestHeaders.Add("X-Test-Role", "directie");
     var response = await client.GetAsync("/api/planning/leveranciers");
