@@ -25,7 +25,7 @@ class Element {
 }
 
 function setup(detailResponse, fixtures = {}, loading = { begin: () => () => {} }) {
-  const ids = ['head', 'body', 'message', 'search', 'detail', 'title', 'description', 'list-nav', 'list-panel', 'planbord-panel', 'planbord-scherm', 'werkopdrachten-panel', 'global-pagehead', 'planning-pages-panel', 'unavailable', 'add', 'list-hint', 'count', 'empty', 'detail-title', 'detail-subtitle', 'detail-body', 'detail-save'];
+  const ids = ['head', 'body', 'message', 'search', 'detail', 'title', 'description', 'list-nav', 'list-panel', 'planbord-panel', 'planbord-scherm', 'werkbonnen-scherm', 'werkopdrachten-panel', 'global-pagehead', 'planning-pages-panel', 'unavailable', 'add', 'list-hint', 'count', 'empty', 'detail-title', 'detail-subtitle', 'detail-body', 'detail-save'];
   const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
   const lists = ['medewerkers', 'klanten', 'materieel', 'artikelen', 'ordernummers', 'tarieven', 'leveranciers', 'instellingen', 'huisstijl', 'rollen'].map(list => new Element({ list }));
   const sections = [new Element({ section: 'Lijsten' }), new Element({ section: 'Werkopdrachten' }), new Element({ section: 'Planbord' })];
@@ -56,7 +56,7 @@ function setup(detailResponse, fixtures = {}, loading = { begin: () => () => {} 
   };
   const boardOpens = [];
   const context = { document, window: {
-    addEventListener() {}, VsvkLoading: loading, VsvkPlanBoard: { open: config => boardOpens.push(config) }, VsvkWorkOrders: { open: config => boardOpens.push({ ...config, mode: 'workorders' }) }, VsvkPlanbord: { open: config => boardOpens.push({ ...config, mode: 'board' }) }
+    addEventListener() {}, VsvkLoading: loading, VsvkPlanBoard: { open: config => boardOpens.push(config) }, VsvkWorkOrders: { open: config => boardOpens.push({ ...config, mode: 'workorders' }) }, VsvkPlanbord: { open: config => boardOpens.push({ ...config, mode: 'board' }) }, VsvkWerkbonnen: { open: config => boardOpens.push({ ...config, mode: 'werkbonnen' }) }
   }, fetch, Map, Set, Error };
   vm.runInNewContext(editorScript, context);
   vm.runInNewContext(script, context);

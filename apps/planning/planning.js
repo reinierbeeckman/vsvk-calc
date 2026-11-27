@@ -85,10 +85,12 @@
       document.querySelector('#list-nav').hidden = section !== 'Lijsten';
       const showsWorkOrders = section === 'Werkopdrachten';
       const showsWorkBoard = section === 'Planbord';
+      const showsWorkSlips = section === 'Werkbonnen';
       document.querySelector('#werkopdrachten-panel').hidden = !showsWorkOrders;
       document.querySelector('#planbord-scherm').hidden = !showsWorkBoard;
-      document.querySelector('#global-pagehead').hidden = showsWorkOrders || showsWorkBoard;
-      const showsPlanningPage = ['Overzicht', 'Werkbonnen', 'Team'].includes(section);
+      document.querySelector('#werkbonnen-scherm').hidden = !showsWorkSlips;
+      document.querySelector('#global-pagehead').hidden = showsWorkOrders || showsWorkBoard || showsWorkSlips;
+      const showsPlanningPage = ['Overzicht', 'Team'].includes(section);
       document.querySelector('#planbord-panel').hidden = true;
       document.querySelector('#planning-pages-panel').hidden = !showsPlanningPage;
       if (section === 'Lijsten') { refreshCounts(current); return load(current); }
@@ -108,6 +110,13 @@
         window.VsvkPlanbord.open({
           container: document.querySelector('#planbord-scherm'), request, canEdit: workOrderPermissions,
           navigate: (target, extra) => showSection(target, extra || {}), date: options.date
+        });
+        return;
+      }
+      if (showsWorkSlips) {
+        window.VsvkWerkbonnen.open({
+          container: document.querySelector('#werkbonnen-scherm'), request, canEdit: workOrderPermissions,
+          navigate: (target, extra) => showSection(target, extra || {}), view: options.view
         });
         return;
       }
@@ -138,6 +147,7 @@
       document.querySelector('#planbord-panel').hidden = true;
       document.querySelector('#werkopdrachten-panel').hidden = true;
       document.querySelector('#planbord-scherm').hidden = true;
+      document.querySelector('#werkbonnen-scherm').hidden = true;
       document.querySelector('#global-pagehead').hidden = false;
       document.querySelector('#planning-pages-panel').hidden = true;
       if (!definition.path) return;
