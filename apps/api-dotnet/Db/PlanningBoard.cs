@@ -150,6 +150,9 @@ public sealed class MaterieelInzet
   public DateOnly Datum { get; set; }
   public Guid MaterieelId { get; set; }
   public Materieel Materieel { get; set; } = null!;
+  /// <summary>Medewerker die dit materieelstuk bedient of meeneemt op deze klus.</summary>
+  public Guid? MedewerkerId { get; set; }
+  public UserInformation? Medewerker { get; set; }
 }
 
 public sealed class Werkbon

@@ -101,7 +101,7 @@
             }
           } else if (inzet.inhuurmedewerkerId) k.inhuur.push({ id: inzet.inhuurmedewerkerId, naam: inzet.inhuurmedewerker || 'Inhuur', lev: inzet.leverancier || '', rol: inzet.functie || '' });
         }
-        for (const m of job.materieelInzetten || []) if (!m.datum || m.datum === datum) k.materieel.push({ id: m.materieelId, naam: m.materieel || 'Materieel' });
+        for (const m of job.materieelInzetten || []) if (!m.datum || m.datum === datum) k.materieel.push({ id: m.materieelId, naam: m.materieel || 'Materieel', mw: m.medewerkerId || '' });
         out.push(k);
       }
     }
@@ -215,15 +215,16 @@
       return '';
     }, naam + ' ingepland bij ' + k.klant + '.');
   }
-  function plaatsMat(k, matId) {
+  function plaatsMat(k, matId, mwId) {
     if (klusStatus(k) === 'voorbij') return toast('Deze klus is voorbij.', true);
     if (k.materieel.some(x => x.id === matId)) return toast(matNaam(matId) + ' staat al op deze klus.', true);
     const naam = matNaam(matId);
     return wijzig(k.werkId, order => {
       const job = jobIn(order, k.id); if (!job) return 'Deze klus bestaat niet meer.';
-      (job.materieelInzetten = job.materieelInzetten || []).push({ datum: job.datum || k.datum, materieelId: matId });
+      const bediener = mwId && k.medewerkers.includes(mwId) ? mwId : null;
+      (job.materieelInzetten = job.materieelInzetten || []).push({ datum: job.datum || k.datum, materieelId: matId, medewerkerId: bediener });
       return '';
-    }, naam + ' gekoppeld aan ' + k.klant + '.');
+    }, naam + ' gekoppeld aan ' + k.klant + (mwId && k.medewerkers.includes(mwId) ? ' · bediener ' + mwNaam(mwId) : '') + '.');
   }
   function plaatsMateriaal(k, artId) {
     const art = data.artikelen.find(a => a.id === artId); if (!art) return;
@@ -240,8 +241,19 @@
       const job = jobIn(order, k.id); if (!job) return 'Deze klus bestaat niet meer.';
       const voor = (job.inzetten || []).length;
       job.inzetten = (job.inzetten || []).filter(x => !(x.medewerkerId === mwId && (!x.datum || x.datum === k.datum)));
+      (job.materieelInzetten || []).forEach(x => { if (x.medewerkerId === mwId) x.medewerkerId = null; });
       return job.inzetten.length === voor ? 'Deze inzet bestaat niet meer.' : '';
     }, mwNaam(mwId) + ' van ' + k.klant + ' gehaald.');
+  }
+  function koppelBediener(k, matId, mwId) {
+    if (klusStatus(k) === 'voorbij') return toast('Deze klus is voorbij.', true);
+    if (mwId && !k.medewerkers.includes(mwId)) return toast(mwNaam(mwId) + ' staat niet op deze klus.', true);
+    return wijzig(k.werkId, order => {
+      const job = jobIn(order, k.id); if (!job) return 'Deze klus bestaat niet meer.';
+      const item = (job.materieelInzetten || []).find(x => x.materieelId === matId && (!x.datum || x.datum === k.datum));
+      if (!item) return 'Dit materieel staat niet meer op de klus.';
+      item.medewerkerId = mwId || null; return '';
+    }, mwId ? mwNaam(mwId) + ' gekoppeld aan ' + matNaam(matId) + '.' : matNaam(matId) + ' losgekoppeld.');
   }
   function haalMat(k, matId) {
     return wijzig(k.werkId, order => {
@@ -507,21 +519,22 @@
 
   function snelHTML(k) {
     const v = vulling(k), kan = ctx.canEdit && klusStatus(k) !== 'voorbij';
-    const crew = k.medewerkers.map(m => `<span class="mwchip in">${esc(mwNaam(m))}${kan ? `<button type="button" class="x" data-skweg="${esc(m)}" aria-label="${esc(mwNaam(m))} van de klus halen">✕</button>` : ''}</span>`).join('') +
-      k.inhuur.map(x => `<span class="mwchip"><i class="grip">INH</i>${esc(x.naam)}</span>`).join('');
-    const mats = k.materieel.map(x => `<div class="skrow"><span class="skmat"><b>${esc(x.naam)}</b></span>${kan ? `<button type="button" class="btn ghost sm" data-skmatweg="${esc(x.id)}" aria-label="${esc(x.naam)} van de klus halen">✕</button>` : ''}</div>`).join('');
+    const aant = m => k.materieel.filter(x => x.mw === m).length;
+    const chip = m => `<span class="mwchip ${ui.pick === m ? 'pick-on' : ''} ${m === ui.snelMw ? 'mijn' : ''}" ${kan ? 'draggable="true"' : ''} data-skchip="${esc(m)}" role="button" tabindex="0" title="Sleep op een materieelstuk, of klik de naam en daarna het stuk"><i class="grip">⋮⋮</i>${esc(mwNaam(m))}${aant(m) ? `<small>${aant(m)}</small>` : ''}</span>`;
+    const rijen = k.materieel.map(x => `<div class="skrow"><span class="skmat"><b>${esc(x.naam)}</b></span><div class="matzone ${x.mw ? 'vol' : ''} ${ui.pick ? 'wacht' : ''}" ${kan ? `data-skzone="${esc(x.id)}" role="button" tabindex="0"` : ''} aria-label="Medewerker voor ${esc(x.naam)}">${x.mw ? `<span class="mwchip in" ${kan ? 'draggable="true"' : ''} data-skchip="${esc(x.mw)}">${esc(mwNaam(x.mw))}${kan ? `<button type="button" class="x" data-sklos="${esc(x.id)}" aria-label="Loskoppelen">✕</button>` : ''}</span>` : `<span class="leegz">${ui.pick ? 'klik om ' + esc(mwNaam(ui.pick).split(' ')[0]) + ' te koppelen' : 'sleep medewerker hierheen'}</span>`}</div></div>`).join('');
     const nog = [v.open ? v.open + '× mens' : '', v.openMat ? v.openMat + '× materieel' : ''].filter(Boolean);
     return `${isOptie(k) ? `<div class="skoptie ${optieVerlopen(k) ? 'oud' : ''}">${esc(optieTekst(k))}</div>` : ''}<div class="skkop"><div class="skwie">${k.order.nummer ? `<span class="wonr">${esc(k.order.nummer)}</span> ` : ''}<b>${esc(k.klant)}</b><small>${esc([kopVan(k), tijd(k.aanwezig % 24) + '–' + tijdD(k.eindLoc)].filter(Boolean).join(' · '))}</small></div><button type="button" class="btn ghost sm" data-sk="sluit" aria-label="Sluiten">✕</button></div>
       <div class="skbody">
         ${v.nodig || v.nodigMat ? `<div class="sktel"><span class="${v.open ? 'mis' : 'ok'}">P ${v.nodig - v.open}/${v.nodig}</span><span class="${v.openMat ? 'mis' : 'ok'}">M ${v.nodigMat - v.openMat}/${v.nodigMat}</span>${nog.length ? `<em>nog nodig: ${esc(nog.join(', '))}</em>` : ''}</div>` : ''}
-        <h4>Ploeg</h4><div class="skploeg">${crew || '<span class="hint">Nog niemand ingepland</span>'}</div>
-        <h4>Materieel</h4>${mats || '<p class="hint" style="margin:0">Geen materieel op deze klus.</p>'}
+        <h4>Ploeg</h4><div class="skploeg">${k.medewerkers.map(chip).join('') + k.inhuur.map(x => `<span class="mwchip"><i class="grip">INH</i>${esc(x.naam)}</span>`).join('') || '<span class="hint">Nog niemand ingepland</span>'}</div>
+        <h4>Koppel medewerker aan materieel</h4>${rijen || '<p class="hint" style="margin:0">Geen materieel op deze klus.</p>'}
       </div>
-      <div class="skfoot"><span class="hint">Sleep mensen of materieel uit de lijst op de klus</span>${ctx.canEdit && isOptie(k) ? `<button type="button" class="btn sm primary" data-sk="bevestig" title="${esc(optieTekst(k))}">✓ Optie definitief maken</button>` : ''}<button type="button" class="btn sm" data-sk="open">Werkopdracht openen</button></div>`;
+      <div class="skfoot"><span class="hint">Nog een keer klikken op de klus = alles wijzigen</span>${ctx.canEdit && isOptie(k) ? `<button type="button" class="btn sm primary" data-sk="bevestig" title="${esc(optieTekst(k))}">✓ Optie definitief maken</button>` : ''}<button type="button" class="btn sm" data-sk="open">Klus openen</button></div>`;
   }
   function openSnel(id, el) {
     const k = data.klussen.find(x => x.id === id); const sk = ctx.container.querySelector('#snelkaart'); if (!k || !sk) return;
-    verbergHover(); ui.snel = id; ui.sel = id;
+    verbergHover(); if (ui.snel !== id) ui.pick = null; ui.snel = id; ui.sel = id;
+    { const tr = el && el.closest && el.closest('.track'); const mw = tr && tr.dataset.mw; ui.snelMw = mw && mw !== '_none' && mw !== '_ovz' ? mw : (ui.snelMw || null); }
     sk.innerHTML = snelHTML(k); sk.hidden = false;
     const r = (el && el.isConnected ? el : ctx.container.querySelector(`.blok[data-id="${CSS.escape(id)}"]`))?.getBoundingClientRect() || { left: 200, top: 200, bottom: 240 };
     const W = sk.offsetWidth, H = sk.offsetHeight; let top = r.bottom + 6; if (top + H > window.innerHeight - 8) top = Math.max(8, r.top - H - 6);
@@ -529,7 +542,7 @@
     ctx.container.querySelectorAll('.blok.sel').forEach(b => b.classList.remove('sel'));
     ctx.container.querySelectorAll(`.blok[data-id="${CSS.escape(id)}"]`).forEach(b => b.classList.add('sel'));
   }
-  function sluitSnel() { const sk = ctx && ctx.container.querySelector('#snelkaart'); ui.snel = null; ui.sel = null; if (sk) { sk.hidden = true; sk.innerHTML = ''; } ctx && ctx.container.querySelectorAll('.blok.sel').forEach(b => b.classList.remove('sel')); }
+  function sluitSnel() { ui.pick = null; ui.snelMw = null; const sk = ctx && ctx.container.querySelector('#snelkaart'); ui.snel = null; ui.sel = null; if (sk) { sk.hidden = true; sk.innerHTML = ''; } ctx && ctx.container.querySelectorAll('.blok.sel').forEach(b => b.classList.remove('sel')); }
 
   /* ---------- tekenen ---------- */
   function render() {
@@ -592,7 +605,7 @@
     if (drag.type === 'matblok' || drag.type === 'artblok') { if (poolEl) { poolEl.classList.add('dropzone'); drag.target = { kind: 'pool' }; return dropTip(e, 'van de klus halen', ctx.canEdit); } return dropTip(e, 'Sleep naar de lijst links om van de klus te halen', false); }
     if (['mw', 'mat', 'art'].includes(drag.type) && blok) {
       blok.classList.add('target'); const row = blok.closest('.grow'); if (row) row.classList.add('drophover');
-      drag.target = { kind: 'blok', id: blok.dataset.id }; const k = data.klussen.find(x => x.id === blok.dataset.id) || {};
+      drag.target = { kind: 'blok', id: blok.dataset.id, mw: blok.dataset.mw }; const k = data.klussen.find(x => x.id === blok.dataset.id) || {};
       return dropTip(e, wat + ' → ' + [(k.order || {}).nummer, k.klant].filter(Boolean).join(' · '), ctx.canEdit);
     }
     if (drag.type === 'klant' && track) {
@@ -620,7 +633,7 @@
       if (d.type === 'resize' && d.newDur != null && k) { zetTijden(k, k.start, Math.max(d.newDur, k.rh + k.rt + .25)); return; }
       const t = d.target; if (!t) return;
       if (t.kind === 'pool') { if (d.type === 'blok') haalMens(k, d.from); else if (d.type === 'matblok') haalMat(k, d.t); else if (d.type === 'artblok') haalMateriaal(k, d.t); return; }
-      if (t.kind === 'blok') { const doel = data.klussen.find(x => x.id === t.id); if (!doel) return; if (d.type === 'mw') plaatsMens(doel, d.id); else if (d.type === 'mat') plaatsMat(doel, d.id); else if (d.type === 'art') plaatsMateriaal(doel, d.id); return; }
+      if (t.kind === 'blok') { const doel = data.klussen.find(x => x.id === t.id); if (!doel) return; if (d.type === 'mw') plaatsMens(doel, d.id); else if (d.type === 'mat') plaatsMat(doel, d.id, t.mw); else if (d.type === 'art') plaatsMateriaal(doel, d.id); return; }
       if (t.kind === 'track' && d.type === 'klant') { ctx.navigate('Werkopdrachten', { nieuw: { van: ui.datum, klantId: d.id, aanwezig: t.h } }); return; }
       if (t.kind === 'verplaats' && k) zetTijden(k, t.h, k.duur);
     } else if (commit && !ctx.canEdit) toast('Je hebt geen rechten om de planning te wijzigen.', true);
@@ -635,8 +648,9 @@
     if (d.sk === 'sluit') { sluitSnel(); return true; }
     if (d.sk === 'open') { const k = data.klussen.find(x => x.id === ui.snel); if (k) ctx.navigate('Werkopdrachten', { edit: k.werkId }); return true; }
     if (d.sk === 'bevestig') { const k = data.klussen.find(x => x.id === ui.snel); if (k) { sluitSnel(); bevestigOptie(k); } return true; }
-    if (d.skweg) { const k = data.klussen.find(x => x.id === ui.snel); if (k) haalMens(k, d.skweg); return true; }
-    if (d.skmatweg) { const k = data.klussen.find(x => x.id === ui.snel); if (k) haalMat(k, d.skmatweg); return true; }
+    if (d.sklos) { const k = data.klussen.find(x => x.id === ui.snel); if (k) koppelBediener(k, d.sklos, null); return true; }
+    if (d.skzone) { const k = data.klussen.find(x => x.id === ui.snel); if (k && ui.pick) { const mw = ui.pick; ui.pick = null; koppelBediener(k, d.skzone, mw); } return true; }
+    if (d.skchip) { ui.pick = ui.pick === d.skchip ? null : d.skchip; const k = data.klussen.find(x => x.id === ui.snel); const sk = ctx.container.querySelector('#snelkaart'); if (k && sk) { sk.innerHTML = snelHTML(k); } return true; }
     if (!a) return false;
     if (a === 'dag') { const n = +d.n; zetDatum(addDays(ui.datum, ui.week ? 7 * n : n)); return true; }
     if (a === 'vandaag') { zetDatum(vandaag()); return true; }
@@ -659,7 +673,7 @@
     gekoppeld = container;
     container.addEventListener('click', e => {
       if (drag && drag.started) return;
-      const knop = e.target.closest ? e.target.closest('[data-act],[data-pool],[data-zoom],[data-sk],[data-skweg],[data-skmatweg]') : null;
+      const knop = e.target.closest ? e.target.closest('[data-act],[data-pool],[data-zoom],[data-sk],[data-sklos],[data-skzone],[data-skchip]') : null;
       if (knop && !knop.disabled && container.contains(knop)) { if (klik(knop)) e.preventDefault(); return; }
       const open = e.target.closest ? e.target.closest('[data-open]') : null;
       if (open && container.contains(open)) { const k = data.klussen.find(x => x.id === open.dataset.open); if (k) ctx.navigate('Werkopdrachten', { edit: k.werkId }); return; }
@@ -676,6 +690,10 @@
       if (blokEl) { const r = blokEl.getBoundingClientRect(); drag.grabX = e.clientX - r.left; }
       if (!['klant', 'mw', 'mat', 'art'].includes(drag.type)) e.preventDefault();
     });
+    container.addEventListener('dragstart', e => { const c = e.target.closest ? e.target.closest('[data-skchip]') : null; if (c && e.dataTransfer) { e.dataTransfer.setData('text/plain', c.dataset.skchip); e.dataTransfer.effectAllowed = 'move'; ui.pick = null; } });
+    container.addEventListener('dragover', e => { const z = e.target.closest ? e.target.closest('[data-skzone]') : null; if (z) { e.preventDefault(); z.classList.add('over'); } });
+    container.addEventListener('dragleave', e => { const z = e.target.closest ? e.target.closest('[data-skzone]') : null; if (z) z.classList.remove('over'); });
+    container.addEventListener('drop', e => { const z = e.target.closest ? e.target.closest('[data-skzone]') : null; if (!z) return; e.preventDefault(); const mw = e.dataTransfer && e.dataTransfer.getData('text/plain'), k = data.klussen.find(x => x.id === ui.snel); if (k && mw) koppelBediener(k, z.dataset.skzone, mw); });
     container.addEventListener('mouseover', e => {
       const b = e.target.closest ? e.target.closest('.blok[data-drag="blok"]') : null;
       if (!b || drag || ui.snel) return; clearTimeout(hoverT); hoverT = setTimeout(() => hoverKaart(b), 350);
@@ -694,11 +712,14 @@
     });
     document.addEventListener('pointerup', e => {
       if (!drag) return; const d = drag;
-      if (!d.started) { drag = null; if (d.type === 'blok') openSnel(d.id, d.el); return; }
+      if (!d.started) { drag = null; if (d.type === 'blok') { if (ui.snel === d.id) { const k = data.klussen.find(x => x.id === d.id); if (k) ctx.navigate('Werkopdrachten', { edit: k.werkId }); } else openSnel(d.id, d.el); } return; }
       eindSleep(e, true);
     });
     document.addEventListener('pointercancel', () => { if (drag && drag.started) eindSleep(null, false); drag = null; });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (drag && drag.started) eindSleep(null, false); else if (ui.snel) sluitSnel(); } });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { if (drag && drag.started) eindSleep(null, false); else if (ui.snel) sluitSnel(); }
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-skchip],[data-skzone]') && ctx.container.contains(e.target)) { e.preventDefault(); klik(e.target); }
+    });
   }
 
   async function open(config) {

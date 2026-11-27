@@ -151,11 +151,12 @@ public sealed class PlanningMigrationTests
         to_regclass('werkopdracht_vrije_dagen') is not null,
         to_regclass('werkopdracht_materialen') is not null,
         to_regclass('werkopdracht_teller') is not null,
-        to_regclass('klus_materieelinzet') is not null
+        to_regclass('klus_materieelinzet') is not null,
+        exists(select 1 from information_schema.columns where table_name='klus_materieelinzet' and column_name='medewerker_id')
       """);
     await using var reader = await query.ExecuteReaderAsync();
     Assert.True(await reader.ReadAsync());
-    for (var index = 0; index < 15; index++) Assert.True(reader.GetBoolean(index));
+    for (var index = 0; index < 16; index++) Assert.True(reader.GetBoolean(index));
   }
 
   [Fact]

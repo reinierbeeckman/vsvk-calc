@@ -18,7 +18,7 @@ const order = {
       benodigdeMedewerkers: 2, behoeften: [{ aantal: 2, soort: 'mens' }, { aantal: 1, soort: 'materieel' }],
       inzetten: [{ datum: '2026-12-01', medewerkerId: 'm1', startTijd: '07:00:00', eindTijd: '15:30:00', werkbon: { nummer: 'WB1' } },
                  { datum: '2026-12-01', medewerkerId: 'm2', startTijd: '09:00:00', eindTijd: '15:30:00' }],
-      materieelInzetten: [{ datum: '2026-12-01', materieelId: 'x1', materieel: 'Minigraver' }]
+      materieelInzetten: [{ datum: '2026-12-01', materieelId: 'x1', materieel: 'Minigraver', medewerkerId: 'm1' }]
     },
     { id: 'k2', datum: '2026-12-02', startTijd: '22:00:00', eindTijd: '06:00:00', benodigdeMedewerkers: 1, inzetten: [], materieelInzetten: [] }
   ]
@@ -68,4 +68,11 @@ test('tijdnotatie voor de API', () => {
   assert.equal(m.apiTijd(25), '01:00:00');
   assert.equal(m.ts('1.02:00:00'), 26);
   assert.equal(m.ts(null), null);
+});
+
+test('materieel onthoudt de medewerker die het bedient', () => {
+  const [k] = m.maakKlussen([order]);
+  assert.equal(k.materieel[0].mw, 'm1');
+  const zonder = m.maakKlussen([{ ...order, klussen: [{ ...order.klussen[0], materieelInzetten: [{ datum: '2026-12-01', materieelId: 'x1', materieel: 'Minigraver' }] }] }]);
+  assert.equal(zonder[0].materieel[0].mw, '');
 });

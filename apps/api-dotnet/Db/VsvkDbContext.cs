@@ -189,6 +189,9 @@ public sealed class VsvkDbContext : DbContext
     materialAssignment.Property(item => item.KlusId).HasColumnName("klus_id");
     materialAssignment.Property(item => item.Datum).HasColumnName("datum").HasColumnType("date");
     materialAssignment.Property(item => item.MaterieelId).HasColumnName("materieel_id");
+    materialAssignment.Property(item => item.MedewerkerId).HasColumnName("medewerker_id");
+    materialAssignment.HasOne(item => item.Medewerker).WithMany()
+      .HasForeignKey(item => item.MedewerkerId).OnDelete(DeleteBehavior.SetNull);
     materialAssignment.HasIndex(item => new { item.KlusId, item.Datum, item.MaterieelId }).IsUnique();
     materialAssignment.HasOne(item => item.Klus).WithMany(item => item.MaterieelInzetten)
       .HasForeignKey(item => item.KlusId).OnDelete(DeleteBehavior.Cascade);

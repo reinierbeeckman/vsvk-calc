@@ -546,7 +546,7 @@
             uitgereiktOp: item.werkbon.uitgereiktOp || null, binnenOp: item.werkbon.binnenOp || null
           } : null
         })),
-        materieelInzetten: (job.materieelInzetten || []).map(item => ({ datum: item.datum, materieelId: item.materieelId }))
+        materieelInzetten: (job.materieelInzetten || []).map(item => ({ datum: item.datum, materieelId: item.materieelId, medewerkerId: item.medewerkerId || null }))
       })) : []
     };
   }

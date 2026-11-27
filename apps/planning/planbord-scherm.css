@@ -142,6 +142,9 @@
 #planbord-scherm .track.hover{box-shadow:inset 0 0 0 2px var(--ok);background-color:color-mix(in srgb,var(--ok) 6%,transparent)}
 #planbord-scherm .slot{border:2px solid var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--surface));color:var(--ink);font-weight:700}
 #planbord-scherm .slot.nee{border:2px dashed var(--danger);background:var(--danger-soft);color:var(--danger)}
+#planbord-scherm .pick{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);padding:4px 9px;cursor:pointer;font-size:13px;background:var(--surface)}
+#planbord-scherm .pick input{width:auto;accent-color:var(--signal)}
+#planbord-scherm .pick:has(input:checked){border-color:var(--signal);background:var(--signal-soft)}
 #planbord-scherm .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-left:5px solid var(--signal);font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60;max-width:calc(100% - 32px)}
 #planbord-scherm .toast.show{opacity:1}
 #planbord-scherm .toast.act{pointer-events:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -156,9 +159,15 @@
 #planbord-scherm .mwchip .grip{font-style:normal;color:var(--muted);letter-spacing:-2px;font-size:11px}
 #planbord-scherm .mwchip small{font:600 10.5px var(--f-mono);background:var(--signal);color:var(--vsvk-wit);padding:0 5px}
 #planbord-scherm .mwchip.let{border-color:var(--warn)}
+#planbord-scherm .mwchip.pick-on{background:var(--ink);color:var(--vsvk-wit)}
+#planbord-scherm .mwchip.pick-on .grip{color:var(--vsvk-wit)}
 #planbord-scherm .mwchip .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0 4px}
 #planbord-scherm .mwchip .x:hover{color:var(--danger)}
 #planbord-scherm .mwchip.in{border-color:var(--signal);background:var(--signal-soft,var(--signal-soft))}
+#planbord-scherm .matzone{min-height:36px;border:1.5px dashed var(--line);display:flex;align-items:center;padding:2px 6px;cursor:pointer;background:var(--surface-2)}
+#planbord-scherm .matzone.vol{border-style:solid;border-color:var(--line);background:var(--surface)}
+#planbord-scherm .matzone .leegz{font-size:12px;color:var(--muted)}
+#planbord-scherm .matzone.over{background:var(--beige-light);border:2px solid var(--signal)}
 #planbord-scherm .wknav{display:flex;align-items:stretch}
 #planbord-scherm .wknav .btn{padding:6px 11px}
 #planbord-scherm .wklbl{min-width:240px;display:flex;align-items:baseline;justify-content:center;gap:8px;padding:5px 14px;border:1px solid var(--line);border-left:0;border-right:0;font:400 15px var(--f-display);text-transform:uppercase;background:var(--surface)}
@@ -235,6 +244,7 @@
 #planbord-scherm .hkr.mis .hki{color:var(--danger)}
 #planbord-scherm .hkl{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #planbord-scherm .hkw b{font-weight:600}
+#planbord-scherm .hkw b.mijn{font-weight:800;text-decoration:underline;text-decoration-color:var(--signal);text-underline-offset:2px}
 #planbord-scherm .hkw small{color:var(--muted)}
 #planbord-scherm .hkw em{font-style:normal;color:var(--danger);font-weight:700}
 #planbord-scherm .hksec p{margin:0;color:var(--ink)}
@@ -252,8 +262,10 @@
 #planbord-scherm .sktel span.mis{background:var(--danger);color:var(--vsvk-wit);border-color:var(--danger)}
 #planbord-scherm .sktel em{font-style:normal;color:var(--danger);font-weight:600;font-size:12px}
 #planbord-scherm .skploeg{display:flex;flex-wrap:wrap;gap:6px}
+#planbord-scherm .skploeg .mwchip.mijn{box-shadow:inset 0 -3px 0 var(--signal)}
 #planbord-scherm .skrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:8px;align-items:center}
 #planbord-scherm .skmat{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#planbord-scherm .matzone.wacht{border-color:var(--signal)}
 #planbord-scherm .skfoot{display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap;padding:8px 14px;border-top:1px solid var(--line)}
 #planbord-scherm .skfoot .hint{margin-right:auto;font-size:11.5px}
 #planbord-scherm .pacties{display:flex;flex-wrap:nowrap;align-items:center;gap:8px;margin-left:auto}

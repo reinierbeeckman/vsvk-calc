@@ -185,6 +185,8 @@ create table if not exists klus_materieelinzet (
 );
 create unique index if not exists ux_klus_materieelinzet on klus_materieelinzet(klus_id, datum, materieel_id);
 create index if not exists ix_klus_materieelinzet_materieel_datum on klus_materieelinzet(materieel_id, datum);
+alter table klus_materieelinzet add column if not exists medewerker_id uuid
+  references user_information(keycloak_sub) on delete set null;
 
 create table if not exists werkbonnen (
   id uuid primary key default gen_random_uuid(),

@@ -82,7 +82,7 @@ public sealed class PlanningBoardTests
           MaterieelInzetten =
           [
             new PlanningBoardMaterialAssignmentWriteDto(new DateOnly(2026, 11, 16),
-              Guid.Parse("00000000-0000-0000-0000-000000000701"))
+              Guid.Parse("00000000-0000-0000-0000-000000000701"), employeeId)
           ]
         }
       ]
@@ -95,7 +95,9 @@ public sealed class PlanningBoardTests
     Assert.Equal("GEPLAND", created.Status);
     Assert.Single(created.Klussen);
     Assert.Single(created.Klussen[0].Inzetten);
-    Assert.Equal("MG-02", Assert.Single(created.Klussen[0].MaterieelInzetten!).Materieel);
+    var createdEquipment = Assert.Single(created.Klussen[0].MaterieelInzetten!);
+    Assert.Equal("MG-02", createdEquipment.Materieel);
+    Assert.Equal(employeeId, createdEquipment.MedewerkerId);
     var outside = await client.GetFromJsonAsync<List<PlanningBoardWorkOrderDto>>(
       "/api/planning/planbord?from=2026-11-23&to=2026-11-29");
     Assert.Empty(outside!);
