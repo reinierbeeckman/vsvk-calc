@@ -79,6 +79,7 @@
     state.canEdit = (await config.canEdit) === true;
     state.view = config.mode === 'workorders' ? 'werkopdrachten' : 'planbord';
     state.picked = null;
+    if (config.date) state.date = monday(parse(config.date));
     describe();
     await load();
   }

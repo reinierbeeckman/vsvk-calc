@@ -79,11 +79,14 @@
       Object.keys(definitions).filter(list => definitions[list].path && list !== except)
         .forEach(list => { requestList(list).catch(() => {}); });
     }
-    function showSection(section) {
+    function showSection(section, options = {}) {
       currentSection = section;
       document.querySelectorAll('[data-section]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.section === section)));
       document.querySelector('#list-nav').hidden = section !== 'Lijsten';
-      const showsWorkBoard = section === 'Planbord' || section === 'Werkopdrachten';
+      const showsWorkOrders = section === 'Werkopdrachten';
+      const showsWorkBoard = section === 'Planbord';
+      document.querySelector('#werkopdrachten-panel').hidden = !showsWorkOrders;
+      document.querySelector('#global-pagehead').hidden = showsWorkOrders;
       const showsPlanningPage = ['Overzicht', 'Werkbonnen', 'Team'].includes(section);
       document.querySelector('#planbord-panel').hidden = !showsWorkBoard;
       document.querySelector('#planning-pages-panel').hidden = !showsPlanningPage;
@@ -93,11 +96,18 @@
       loading = false;
       document.querySelector('#title').textContent = section;
       document.querySelector('#list-panel').hidden = true;
+      if (showsWorkOrders) {
+        window.VsvkWorkOrders.open({
+          container: document.querySelector('#werkopdrachten-panel'), request, canEdit: workOrderPermissions,
+          navigate: (target, extra) => showSection(target, extra || {})
+        });
+        return;
+      }
       if (showsWorkBoard) {
         document.querySelector('#description').textContent = 'Weekplanning van werkopdrachten, klussen, personeel, inhuur en werkbonnen.';
         window.VsvkPlanBoard.open({
           container: document.querySelector('#planbord-panel'), request, canEdit: workOrderPermissions,
-          mode: section === 'Werkopdrachten' ? 'workorders' : 'board'
+          mode: 'board', date: options.date
         });
         return;
       }
@@ -126,6 +136,8 @@
       document.querySelectorAll('[data-list]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.list === list)));
       document.querySelector('#list-panel').hidden = !definition.path;
       document.querySelector('#planbord-panel').hidden = true;
+      document.querySelector('#werkopdrachten-panel').hidden = true;
+      document.querySelector('#global-pagehead').hidden = false;
       document.querySelector('#planning-pages-panel').hidden = true;
       if (!definition.path) return;
       const add = document.querySelector('#add');

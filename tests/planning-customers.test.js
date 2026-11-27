@@ -25,7 +25,7 @@ class Element {
 }
 
 function setup(detailResponse, fixtures = {}, loading = { begin: () => () => {} }) {
-  const ids = ['head', 'body', 'message', 'search', 'detail', 'title', 'description', 'list-nav', 'list-panel', 'planbord-panel', 'planning-pages-panel', 'unavailable', 'add', 'list-hint', 'count', 'empty', 'detail-title', 'detail-subtitle', 'detail-body', 'detail-save'];
+  const ids = ['head', 'body', 'message', 'search', 'detail', 'title', 'description', 'list-nav', 'list-panel', 'planbord-panel', 'werkopdrachten-panel', 'global-pagehead', 'planning-pages-panel', 'unavailable', 'add', 'list-hint', 'count', 'empty', 'detail-title', 'detail-subtitle', 'detail-body', 'detail-save'];
   const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
   const lists = ['medewerkers', 'klanten', 'materieel', 'artikelen', 'ordernummers', 'tarieven', 'leveranciers', 'instellingen', 'huisstijl', 'rollen'].map(list => new Element({ list }));
   const sections = [new Element({ section: 'Lijsten' }), new Element({ section: 'Werkopdrachten' }), new Element({ section: 'Planbord' })];
@@ -56,7 +56,7 @@ function setup(detailResponse, fixtures = {}, loading = { begin: () => () => {} 
   };
   const boardOpens = [];
   const context = { document, window: {
-    addEventListener() {}, VsvkLoading: loading, VsvkPlanBoard: { open: config => boardOpens.push(config) }
+    addEventListener() {}, VsvkLoading: loading, VsvkPlanBoard: { open: config => boardOpens.push(config) }, VsvkWorkOrders: { open: config => boardOpens.push({ ...config, mode: 'workorders' }) }
   }, fetch, Map, Set, Error };
   vm.runInNewContext(editorScript, context);
   vm.runInNewContext(script, context);
@@ -151,7 +151,9 @@ test('hoofdtab Werkopdrachten opent de werkopdrachtenweergave', async () => {
   await flush();
   view.sections.find(section => section.dataset.section === 'Werkopdrachten').click();
   await flush();
-  assert.equal(view.elements['planbord-panel'].hidden, false);
+  assert.equal(view.elements['werkopdrachten-panel'].hidden, false);
+  assert.equal(view.elements['planbord-panel'].hidden, true);
+  assert.equal(view.elements['global-pagehead'].hidden, true);
   assert.equal(view.elements.unavailable.hidden, true);
   assert.equal(view.boardOpens.at(-1).mode, 'workorders');
 });
