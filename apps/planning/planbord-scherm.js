@@ -55,7 +55,7 @@
   /* ---------- toestand ---------- */
   const ui = {
     datum: vandaag(), nacht: false, week: false, compact: !!lees('vsvk-pb-compact', false), zoom: lees('vsvk-pb-zoom', 56),
-    toon: 'alle', dicht: {}, uitleg: false, pool: lees('vsvk-pb-pool', 'medewerkers'), q: '', sel: null, snel: null, loading: false, fout: '', busy: false
+    toon: 'alle', dicht: {}, max: null, uitleg: false, pool: lees('vsvk-pb-pool', 'medewerkers'), q: '', sel: null, snel: null, loading: false, fout: '', busy: false
   };
   const data = { klussen: [], orders: new Map(), mw: [], mat: [], types: [], klanten: [], artikelen: [], inhuur: [] };
   let ctx = null, loadSeq = 0, toastTimer = null, drag = null, hoverT = null, gekoppeld = null, refsKlaar = null;
@@ -361,7 +361,7 @@
     }).join('');
     const nowPos = isToday ? nowH : (ui.nacht && d === addDays(vandaag(), -1) ? 24 + nowH : null);
     const nowL = nowPos != null ? `<div class="nowline" style="left:${nowPos * HW()}px"></div>` : '';
-    const toon = ui.toon, dicht = ui.dicht;
+    const toon = ui.toon, dicht = ui.max ? { ...ui.dicht, [ui.max]: false } : ui.dicht, toonSect = k => !ui.max || ui.max === k;
     const heeftKlus = (id, mat) => st.some(k => mat ? k.materieel.some(x => x.id === id) : k.medewerkers.includes(id));
     const zichtbaar = (id, mat) => toon === 'alle' || (toon === 'bezet' ? heeftKlus(id, mat) : !heeftKlus(id, mat));
     const mwsZ = mws.filter(m => zichtbaar(m.id, false)), matsZ = mats.filter(t => zichtbaar(t.id, true));
@@ -400,22 +400,22 @@
       return `<div class="grow ovz ${opt ? 'ovzoptie' : ''}"><div class="rh klik" data-open="${esc(k.id)}" title="${esc([opt ? optieTekst(kk) : '', kk.order.nummer, kk.klant, kopVan(kk), kk.medewerkers.map(mwNaam).join(', ')].filter(Boolean).join(' · '))}"><b>${kk.order.nummer ? `<span class="wonr">${esc(kk.order.nummer)}</span> ` : ''}${esc(kk.klant)}</b><small><span class="${okM ? 'ok' : 'mis'}">${mwN}/${mNod} mensen</span>${tNod || mtN ? ` · <span class="${okT ? 'ok' : 'mis'}">${mtN}/${tNod} materieel</span>` : ''}${k._vervolg ? ' · vervolg nacht' : ''}</small></div>
         <div class="track ovzt" data-mw="_ovz" style="--lanes:1">${nowL}${blokHTML(k, '_none', 0, false, matC.has(k.id), matPair)}</div></div>`;
     }).join('');
-    const sectKop = (key, label, n, totaal, cls) => `<button type="button" class="sect sectknop ${cls || ''}" data-act="pbdicht" data-k="${key}" aria-expanded="${!dicht[key]}"><span class="st"><i class="pijl">${dicht[key] ? '▸' : '▾'}</i>${label}<em>${n}${totaal != null && totaal !== n ? ' van ' + totaal : ''}</em></span></button>`;
-    return { ks, ingezet, mws, nConf, openTot, nWb, totUren, isToday, html: `<div class="gridscroll" id="gridscroll">
+    const sectKop = (key, label, n, totaal, cls) => `<div class="sectrij" style="display:flex;align-items:stretch;width:calc(var(--namew) + var(--hw) * var(--uren,24))"><button type="button" class="sect sectknop ${cls || ''}" style="flex:1;width:auto" data-act="pbdicht" data-k="${key}" aria-expanded="${!dicht[key]}"><span class="st"><i class="pijl">${dicht[key] ? '▸' : '▾'}</i>${label}<em>${n}${totaal != null && totaal !== n ? ' van ' + totaal : ''}</em></span></button><button type="button" class="btn ghost sm sectmax" style="position:sticky;right:0;flex:none;border-radius:0;border-width:0 0 1px 1px;background:var(--surface-2)" data-act="pbmax" data-k="${key}" aria-pressed="${ui.max === key}" title="${ui.max === key ? 'Terug naar alle onderdelen' : label + ' maximaliseren: alleen dit onderdeel, zo groot mogelijk'}" aria-label="${ui.max === key ? 'Herstellen' : label + ' maximaliseren'}">${ui.max === key ? '⤡ Herstellen' : '⤢'}</button></div>`;
+    return { ks, ingezet, mws, nConf, openTot, nWb, totUren, isToday, html: `<div class="gridscroll ${ui.max ? 'gridmax' : ''}" id="gridscroll" ${ui.max ? 'style="max-height:calc(100vh - 150px)"' : ''}>
         <div class="grid ${ui.nacht ? 'pbnacht' : ''}" style="--uren:${PBN()};--mid:${24 - PBA()}">
           <div class="grow hdr"><div class="rh"><div class="toon" role="group" aria-label="Welke rijen tonen">${[['alle', 'Alle'], ['bezet', 'Ingepland'], ['vrij', 'Beschikbaar']].map(([k, l]) => `<button type="button" data-act="pbtoon" data-v="${k}" aria-pressed="${toon === k}">${l}</button>`).join('')}</div></div><div class="hours">${hours}</div></div>
-          ${sectKop('ovz', 'Opdrachten vandaag', ovzKl.length)}
-          ${dicht.ovz ? '' : (ovzRows || '<div class="empty">Nog geen opdrachten op deze dag. Maak een werkopdracht of sleep een klant naar het bord.</div>')}
-          ${sectKop('los', 'Te plannen', los.length, null, los.length ? 'teb' : '')}
-          ${dicht.los ? '' : (losRow || `<div class="grow"><div class="rh"><b class="okt">Alles is gepland</b><small><span>Sleep een klant hierheen voor een nieuwe opdracht</span></small></div><div class="track" data-drop="mw" data-mw="_none" style="--lanes:1">${nowL}</div></div>`)}
-          ${sectKop('mw', 'Medewerkers', mwsZ.length, mws.length)}
+          ${toonSect('ovz') ? `          ${sectKop('ovz', 'Opdrachten vandaag', ovzKl.length)}
+          ${dicht.ovz ? '' : (ovzRows || '<div class="empty">Nog geen opdrachten op deze dag. Maak een werkopdracht of sleep een klant naar het bord.</div>')}` : ''}
+          ${toonSect('los') ? `          ${sectKop('los', 'Te plannen', los.length, null, los.length ? 'teb' : '')}
+          ${dicht.los ? '' : (losRow || `<div class="grow"><div class="rh"><b class="okt">Alles is gepland</b><small><span>Sleep een klant hierheen voor een nieuwe opdracht</span></small></div><div class="track" data-drop="mw" data-mw="_none" style="--lanes:1">${nowL}</div></div>`)}` : ''}
+          ${toonSect('mw') ? `          ${sectKop('mw', 'Medewerkers', mwsZ.length, mws.length)}
           ${dicht.mw ? '' : (rows || `<div class="empty">${mws.length ? (toon === 'bezet' ? 'Niemand ingepland op deze dag.' : 'Iedereen is ingepland.') : 'Nog geen actieve medewerkers. Voeg ze toe onder Lijsten.'}</div>`)}
-          ${dicht.mw ? '' : ihMens}
-          ${sectKop('mat', 'Materieel', matsZ.length, mats.length)}
-          ${dicht.mat ? '' : (matRows || `<div class="empty">${mats.length ? (toon === 'bezet' ? 'Geen materieel ingepland op deze dag.' : 'Al het materieel is ingepland.') : 'Nog geen materieel. Voeg het toe onder Lijsten.'}</div>`)}
-          ${sectKop('art', 'Materiaal', artRijen.length)}
+          ${dicht.mw ? '' : ihMens}` : ''}
+          ${toonSect('mat') ? `          ${sectKop('mat', 'Materieel', matsZ.length, mats.length)}
+          ${dicht.mat ? '' : (matRows || `<div class="empty">${mats.length ? (toon === 'bezet' ? 'Geen materieel ingepland op deze dag.' : 'Al het materieel is ingepland.') : 'Nog geen materieel. Voeg het toe onder Lijsten.'}</div>`)}` : ''}
+          ${toonSect('art') ? `          ${sectKop('art', 'Materiaal', artRijen.length)}
           ${dicht.art ? '' : (artRows || '<div class="empty">Geen materialen op de klussen van deze dag. Sleep ze vanuit Materiaal links op een klus.</div>')}
-        </div></div>` };
+        ` : ''}</div></div>` };
   }
 
   /* ---------- weekbord ---------- */
@@ -661,6 +661,7 @@
     if (a === 'compact') { ui.compact = d.v === '1'; bewaar('vsvk-pb-compact', ui.compact); render(); return true; }
     if (a === 'uitleg') { ui.uitleg = !ui.uitleg; render(); return true; }
     if (a === 'pbtoon') { ui.toon = d.v; render(); return true; }
+    if (a === 'pbmax') { ui.max = ui.max === d.k ? null : d.k; render(); const b = ctx.container.querySelector('.board'); if (b && ui.max) b.scrollIntoView({ block: 'start' }); return true; }
     if (a === 'pbdicht') { ui.dicht = { ...ui.dicht, [d.k]: !ui.dicht[d.k] }; render(); return true; }
     if (a === 'nieuwwerk') { ctx.navigate('Werkopdrachten', { nieuw: { van: ui.datum } }); return true; }
     if (a === 'toonwb') { ctx.navigate('Werkbonnen'); return true; }
@@ -717,7 +718,7 @@
     });
     document.addEventListener('pointercancel', () => { if (drag && drag.started) eindSleep(null, false); drag = null; });
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') { if (drag && drag.started) eindSleep(null, false); else if (ui.snel) sluitSnel(); }
+      if (e.key === 'Escape') { if (drag && drag.started) eindSleep(null, false); else if (ui.snel) sluitSnel(); else if (ui.max && !(e.target.matches && e.target.matches('input,select,textarea'))) { ui.max = null; render(); } }
       if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-skchip],[data-skzone]') && ctx.container.contains(e.target)) { e.preventDefault(); klik(e.target); }
     });
   }
