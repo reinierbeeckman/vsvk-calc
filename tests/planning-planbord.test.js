@@ -76,3 +76,22 @@ test('materieel onthoudt de medewerker die het bedient', () => {
   const zonder = m.maakKlussen([{ ...order, klussen: [{ ...order.klussen[0], materieelInzetten: [{ datum: '2026-12-01', materieelId: 'x1', materieel: 'Minigraver' }] }] }]);
   assert.equal(zonder[0].materieel[0].mw, '');
 });
+
+test('ploeg op klus: nieuwe mensen en materieel, wie er al op staat en dubbele boekingen', () => {
+  const ploeg = { id: 'p1', naam: 'Ploeg Anna', leden: ['m1', 'm3', 'm4'], materieel: [{ materieelId: 'x1', medewerkerId: 'm1' }, { materieelId: 'x2', medewerkerId: 'm3' }] };
+  const andere = { ...order, id: 'w2', klussen: [{ id: 'k9', datum: '2026-12-01', startTijd: '12:00:00', eindTijd: '14:00:00', benodigdeMedewerkers: 1,
+    inzetten: [{ datum: '2026-12-01', medewerkerId: 'm3' }], materieelInzetten: [{ datum: '2026-12-01', materieelId: 'x2' }] }] };
+  const klussen = m.maakKlussen([order, andere]);
+  m.data.klussen = klussen;
+  const k1 = klussen.find(x => x.id === 'k1');
+  const v = plain(m.ploegVoorstel(ploeg, k1, klussen.filter(x => x.datum === '2026-12-01'), new Set(['m1', 'm2', 'm3'])));
+  assert.deepEqual(v.nieuw, ['m3']); // m4 is niet (meer) actief
+  assert.deepEqual(v.al, ['m1']);
+  assert.deepEqual(v.mats.map(x => x.materieelId), ['x2']); // x1 staat al op de klus
+  assert.equal(v.waar.length, 2); // m3 en x2 zijn al bezet op een overlappende klus
+});
+
+test('ploeg naar de API: alleen naam, leden en materieel met bediener', () => {
+  const body = plain(m.ploegBody({ id: 'p1', naam: 'Ploeg A', version: 3, eTag: '"3"', leden: ['m1'], materieel: [{ materieelId: 'x1' }] }));
+  assert.deepEqual(body, { naam: 'Ploeg A', leden: ['m1'], materieel: [{ materieelId: 'x1', medewerkerId: null }] });
+});

@@ -10,6 +10,7 @@
    *   bord        GET  /api/planning/planbord?from&to              werkopdrachten met klussen, inzetten, materieel
    *   lijsten     GET  /api/planning/medewerkers, /werkopdrachten/form-referenties
    *   wijzigen    GET + PUT /api/planning/werkopdrachten/{id} met If-Match (inzet, materieel, tijden, optie)
+   *   ploegen     GET/POST /api/planning/ploegen, PUT/DELETE /api/planning/ploegen/{id} met If-Match
    * Bij 412 wordt het scherm ververst en blijft er niets half opgeslagen; er wordt nooit automatisch herhaald.
    */
 
@@ -55,9 +56,10 @@
   /* ---------- toestand ---------- */
   const ui = {
     datum: vandaag(), nacht: false, week: false, compact: !!lees('vsvk-pb-compact', false), zoom: lees('vsvk-pb-zoom', 56),
-    toon: 'alle', dicht: {}, max: null, uitleg: false, pool: lees('vsvk-pb-pool', 'medewerkers'), q: '', sel: null, snel: null, loading: false, fout: '', busy: false
+    toon: 'alle', dicht: {}, max: null, uitleg: false, pool: lees('vsvk-pb-pool', 'medewerkers'), q: '', sel: null, snel: null, loading: false, fout: '', busy: false,
+    plEdit: null, plDel: null
   };
-  const data = { klussen: [], orders: new Map(), mw: [], mat: [], types: [], klanten: [], artikelen: [], inhuur: [] };
+  const data = { klussen: [], orders: new Map(), mw: [], mat: [], types: [], klanten: [], artikelen: [], inhuur: [], ploegen: [], ploegFout: '' };
   let ctx = null, loadSeq = 0, toastTimer = null, drag = null, hoverT = null, gekoppeld = null, refsKlaar = null;
 
   const PBA = () => ui.nacht ? 12 : 0, PBE = () => ui.nacht ? 36 : 30, PBN = () => PBE() - PBA();
@@ -174,10 +176,15 @@
     ui.loading = true; ui.fout = '';
     try {
       const van = ui.week ? maandag(ui.datum) : addDays(ui.datum, -1), tot = ui.week ? addDays(maandag(ui.datum), 6) : addDays(ui.datum, 1);
-      const [orders] = await Promise.all([ctx.request('/api/planning/planbord?from=' + van + '&to=' + tot), laadRefs()]);
+      const [orders, ploegen] = await Promise.all([
+        ctx.request('/api/planning/planbord?from=' + van + '&to=' + tot),
+        ctx.request('/api/planning/ploegen').catch(() => null),
+        laadRefs()
+      ]);
       if (seq !== loadSeq) return;
       data.orders = new Map((orders || []).map(o => [o.id, o]));
       data.klussen = maakKlussen(orders || []);
+      if (ploegen) { data.ploegen = ploegen; data.ploegFout = ''; } else data.ploegFout = 'De ploegen konden niet geladen worden.';
     } catch (error) {
       if (seq === loadSeq) ui.fout = 'Planbord laden mislukt: ' + error.message;
     } finally { if (seq === loadSeq) ui.loading = false; eind(); }
@@ -284,6 +291,100 @@
     return wijzig(k.werkId, order => { order.isOptie = false; order.optieTot = null; order.optieReden = null; return ''; }, k.order.nummer + ' is definitief.');
   }
 
+  /* ---------- ploegen: eigen record met If-Match, geen automatische herhaling ---------- */
+  const ploegVan = id => data.ploegen.find(p => p.id === id);
+  const ploegBody = p => ({
+    naam: p.naam, leden: p.leden || [],
+    materieel: (p.materieel || []).map(x => ({ materieelId: x.materieelId, medewerkerId: x.medewerkerId || null }))
+  });
+  /* Wat er gebeurt als ploeg p op klus k valt: wie en wat erbij komt, wie er al op staat en waar je op moet letten. */
+  function ploegVoorstel(p, k, dag, actieveMw) {
+    const leden = (p.leden || []).filter(m => !actieveMw || actieveMw.has(m));
+    const nieuw = leden.filter(m => !k.medewerkers.includes(m)), al = leden.filter(m => k.medewerkers.includes(m));
+    const mats = (p.materieel || []).filter(x => !k.materieel.some(y => y.id === x.materieelId));
+    const ander = dag.filter(o => o.id !== k.id), waar = [];
+    nieuw.forEach(m => { if (ander.some(o => o.medewerkers.includes(m) && overlap(kVoor(o, m), k))) waar.push(mwNaam(m) + ' dubbel geboekt'); });
+    mats.forEach(x => { if (ander.some(o => o.materieel.some(y => y.id === x.materieelId) && overlap(o, k))) waar.push(matNaam(x.materieelId) + ' al in gebruik'); });
+    return { nieuw, al, mats, waar };
+  }
+  async function ploegSchrijf(pad, opties, melding) {
+    if (ui.busy || !ctx.canEdit) return null;
+    ui.busy = true;
+    try {
+      const antwoord = await ctx.request(pad, opties);
+      if (melding) toast(melding);
+      return antwoord || true;
+    } catch (error) {
+      toast(error.status === 412 ? 'Deze ploeg is intussen door iemand anders gewijzigd. De ploegen zijn ververst; probeer het opnieuw.' : 'Ploeg opslaan mislukt: ' + error.message, true);
+      return null;
+    } finally { ui.busy = false; await laad(); }
+  }
+  function ploegWijzig(id, verander, melding) {
+    const p = ploegVan(id); if (!p) return toast('Deze ploeg bestaat niet meer.', true);
+    const kopie = { ...p, leden: [...(p.leden || [])], materieel: (p.materieel || []).map(x => ({ ...x })) };
+    const probleem = verander(kopie); if (probleem) return toast(probleem, true);
+    return ploegSchrijf('/api/planning/ploegen/' + encodeURIComponent(id), {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', 'If-Match': p.eTag }, body: JSON.stringify(ploegBody(kopie))
+    }, melding);
+  }
+  async function ploegNieuw(p, melding) {
+    const nieuw = await ploegSchrijf('/api/planning/ploegen', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ploegBody(p))
+    }, melding);
+    if (!nieuw || !nieuw.id) return;
+    ui.pool = 'ploegen'; ui.q = ''; ui.plEdit = nieuw.id; bewaar('vsvk-pb-pool', ui.pool); render();
+    const veld = ctx.container.querySelector(`[data-plnaam="${CSS.escape(nieuw.id)}"]`); if (veld) { veld.focus(); veld.select(); }
+  }
+  function ploegWeg(id) {
+    const p = ploegVan(id); ui.plDel = null; ui.plEdit = null; if (!p) return;
+    return ploegSchrijf('/api/planning/ploegen/' + encodeURIComponent(id), { method: 'DELETE', headers: { 'If-Match': p.eTag } }, p.naam + ' verwijderd.');
+  }
+  function ploegVoegToe(id, soort, itemId) {
+    const p = ploegVan(id); if (!p) return;
+    if (soort === 'mw') {
+      if ((p.leden || []).includes(itemId)) return toast(mwNaam(itemId) + ' zit al in ' + p.naam + '.', true);
+      return ploegWijzig(id, x => { x.leden.push(itemId); return ''; }, mwNaam(itemId) + ' toegevoegd aan ' + p.naam + '.');
+    }
+    if ((p.materieel || []).some(x => x.materieelId === itemId)) return toast(matNaam(itemId) + ' zit al in ' + p.naam + '.', true);
+    const bediener = (p.leden || [])[0] || null;
+    return ploegWijzig(id, x => { x.materieel.push({ materieelId: itemId, medewerkerId: bediener }); return ''; },
+      matNaam(itemId) + ' toegevoegd aan ' + p.naam + (bediener ? ' · bij ' + mwNaam(bediener) : '') + '.');
+  }
+  function ploegOpKlus(id, k) {
+    const p = ploegVan(id); if (!p) return;
+    if (klusStatus(k) === 'voorbij') return toast('Deze klus is voorbij.', true);
+    const v = ploegVoorstel(p, k, dagKlussen(k.datum), new Set(data.mw.map(m => m.id)));
+    if (!v.nieuw.length && !v.mats.length) return toast('Iedereen uit ' + p.naam + ' staat al op deze klus.', true);
+    const melding = p.naam + ': ' + v.nieuw.length + (v.nieuw.length === 1 ? ' persoon' : ' personen') + (v.mats.length ? ' en ' + v.mats.length + ' materieel' : '') + ' op ' + k.klant +
+      (v.al.length ? ' · al op de klus: ' + v.al.map(mwNaam).join(', ') : '') + (v.waar.length ? ' · let op: ' + v.waar.join('; ') : '') + '.';
+    return wijzig(k.werkId, order => {
+      const job = jobIn(order, k.id); if (!job) return 'Deze klus bestaat niet meer.';
+      const datum = job.datum || k.datum;
+      job.inzetten = job.inzetten || []; job.materieelInzetten = job.materieelInzetten || [];
+      const op = new Set(job.inzetten.filter(i => !i.datum || i.datum === datum).map(i => i.medewerkerId).filter(Boolean));
+      v.nieuw.forEach(m => { if (!op.has(m)) { job.inzetten.push({ datum, medewerkerId: m, inhuurmedewerkerId: null, startTijd: job.startTijd, eindTijd: job.eindTijd, werkbon: null }); op.add(m); } });
+      v.mats.forEach(x => {
+        if (job.materieelInzetten.some(y => y.materieelId === x.materieelId && (!y.datum || y.datum === datum))) return;
+        job.materieelInzetten.push({ datum, materieelId: x.materieelId, medewerkerId: x.medewerkerId && op.has(x.medewerkerId) ? x.medewerkerId : null });
+      });
+      return '';
+    }, melding);
+  }
+  function ploegVanKlus(k) {
+    const leden = k.medewerkers.slice(), naam = 'Ploeg ' + (leden[0] ? mwNaam(leden[0]).split(' ')[0] : k.klant);
+    return ploegNieuw({ naam: naam.slice(0, 200), leden, materieel: k.materieel.map(x => ({ materieelId: x.id, medewerkerId: x.mw && leden.includes(x.mw) ? x.mw : null })) },
+      naam + ' bewaard · geef de ploeg eventueel een andere naam.');
+  }
+  function ploegHTML(p, bezet, d) {
+    const edit = ctx.canEdit && ui.plEdit === p.id, leden = p.leden || [], mats = p.materieel || [];
+    const nBezig = leden.filter(m => bezet.has(m)).length, voor = m => mwNaam(m).split(' ')[0];
+    const lid = m => `<span class="plchip ${bezet.has(m) ? 'bezet' : ''}" title="${bezet.has(m) ? 'Al ingepland op ' + esc(datumKort(d)) : 'Beschikbaar'}">${esc(mwNaam(m))}${edit ? `<button type="button" data-act="plweg" data-id="${esc(p.id)}" data-m="${esc(m)}" aria-label="${esc(mwNaam(m))} uit de ploeg">✕</button>` : ''}</span>`;
+    const mat = x => `<span class="plchip mat" title="${esc(matNaam(x.materieelId))}${x.medewerkerId ? ' · bij ' + esc(mwNaam(x.medewerkerId)) : ''}">${esc(matNaam(x.materieelId))}${x.medewerkerId && !edit ? ` <small>${esc(voor(x.medewerkerId))}</small>` : ''}${edit ? `<select data-plmatmw="${esc(p.id)}|${esc(x.materieelId)}" aria-label="Bediener ${esc(matNaam(x.materieelId))}"><option value="">geen</option>${leden.map(m => `<option value="${esc(m)}" ${x.medewerkerId === m ? 'selected' : ''}>${esc(voor(m))}</option>`).join('')}</select><button type="button" data-act="plmatweg" data-id="${esc(p.id)}" data-m="${esc(x.materieelId)}" aria-label="${esc(matNaam(x.materieelId))} uit de ploeg">✕</button>` : ''}</span>`;
+    return `<div class="pi ploeg ${edit ? 'pledit' : ''}" data-drag="ploeg" data-id="${esc(p.id)}" data-plzone="${esc(p.id)}"><div class="plkop">${edit ? `<input class="plnaam" id="plnaam-${esc(p.id)}" data-plnaam="${esc(p.id)}" value="${esc(p.naam)}" maxlength="200" placeholder="Naam ploeg" aria-label="Naam ploeg">` : `<b>${esc(p.naam || 'Ploeg')}</b>`}<span class="plteller">${leden.length} p${mats.length ? ' · ' + mats.length + ' m' : ''}${nBezig ? ` · <em>${nBezig} al gepland</em>` : ''}</span>${ctx.canEdit ? `<button type="button" class="btn link plbew" data-act="plbew" data-id="${esc(p.id)}">${edit ? 'Klaar' : 'Wijzig'}</button>` : ''}</div>
+      <div class="plleden">${leden.map(lid).join('')}${mats.map(mat).join('')}${!leden.length && !mats.length ? '<span class="hint">Leeg · sleep namen of materieel uit het planbord hierop</span>' : ''}</div>
+      ${edit ? `<div class="plvoet"><span class="hint">Sleep namen of materieel uit de rijen van het planbord op deze ploeg</span><button type="button" class="btn sm ghost" data-act="pldel" data-id="${esc(p.id)}">${ui.plDel === p.id ? 'Zeker? Klik nogmaals' : 'Ploeg verwijderen'}</button></div>` : ''}</div>`;
+  }
+
   /* ---------- blokken ---------- */
   function blokHTML(k, mwId, lane, cMw, cMat, matPair) {
     const s0 = Math.max(PBA(), k.start), w = Math.max(.5, Math.min(k.start + k.duur, PBE()) - s0), v = vulling(k);
@@ -325,6 +426,12 @@
         const kop = (a.categorie || 'Overig') !== laatste ? `<div class="pool-sub" style="padding-top:4px;color:var(--ink)">${esc(laatste = (a.categorie || 'Overig'))}</div>` : '';
         return kop + `<div class="pi" data-drag="art" data-id="${esc(a.id)}"><b>${esc(a.naam)}</b><small class="load">${esc(a.eenheid || '')}</small></div>`;
       }).join('');
+    } else if (ui.pool === 'ploegen') {
+      const bezet = new Set(ks.flatMap(k => k.medewerkers));
+      const lijst = data.ploegen.slice().sort(byName).filter(p => match([p.naam, ...(p.leden || []).map(mwNaam), ...(p.materieel || []).map(x => matNaam(x.materieelId))].join(' ')));
+      items = (ctx.canEdit ? '<button type="button" class="btn sm plnieuw" data-act="plnieuw">+ Nieuwe ploeg</button>' : '') +
+        (data.ploegFout ? `<p class="hint">${esc(data.ploegFout)}</p>` : '') + lijst.map(p => ploegHTML(p, bezet, d)).join('') +
+        (lijst.length || data.ploegFout ? '' : `<div class="empty">${data.ploegen.length ? 'Niets gevonden.' : 'Nog geen ploegen. Maak er een met “+ Nieuwe ploeg”, of klik een klus en kies “Bewaar als ploeg”.'}</div>`);
     } else {
       items = data.mat.filter(t => match([t.naam, t.type].join(' '))).sort((a, b) => byName(a, b)).map(t => {
         const used = ks.filter(k => k.materieel.some(x => x.id === t.id)), st = matStand(t, d);
@@ -334,12 +441,14 @@
     const lbl = {
       klanten: 'Sleep een klant op een uur in het bord voor een nieuwe werkopdracht.',
       medewerkers: 'Sleep op een klus om toe te voegen. Sleep een blok terug naar deze lijst om iemand van de klus te halen. Grijs = al ingepland.',
-      materieel: 'Sleep materieel op een klus.', materiaal: 'Bovenaan wat er op deze dag nodig is. Sleep een materiaal op een klus om het toe te voegen.'
+      materieel: 'Sleep materieel op een klus.', materiaal: 'Bovenaan wat er op deze dag nodig is. Sleep een materiaal op een klus om het toe te voegen.',
+      ploegen: 'Sleep een ploeg op een klus: iedereen en het materieel komen er in één keer op. Sleep namen of materieel uit het planbord op een ploeg om hem samen te stellen.'
     }[ui.pool];
+    const tab = ([k, l, n]) => `<button role="tab" data-pool="${k}" aria-selected="${ui.pool === k}">${l}<span class="pn">${n}</span></button>`;
     const tabs = [['medewerkers', 'Mensen', data.mw.length], ['klanten', 'Klanten', data.klanten.length], ['materieel', 'Materieel', data.mat.length], ['materiaal', 'Materiaal', data.artikelen.length]];
     return `<aside class="pool">
-      <div class="pool-tabs" role="tablist">${tabs.map(([k, l, n]) => `<button role="tab" data-pool="${k}" aria-selected="${ui.pool === k}">${l}<span class="pn">${n}</span></button>`).join('')}${[['voorraad', 'Voorraad'], ['ploegen', 'Ploegen']].map(([k, l]) => `<button role="tab" data-pool="${k}" aria-selected="false" disabled title="Nog niet beschikbaar">${l}<span class="pn">0</span></button>`).join('')}</div>
-      <div class="pool-search"><input id="poolq" type="search" placeholder="${ui.pool === 'klanten' ? 'Zoek klant, sleep naar het bord' : ui.pool === 'medewerkers' ? 'Zoek medewerker of functie' : ui.pool === 'materiaal' ? 'Zoek materiaal' : 'Zoek materieel'}" value="${esc(ui.q)}" aria-label="Zoeken in lijst" title="${esc(lbl)}"><p class="hint">${lbl}</p></div>
+      <div class="pool-tabs" role="tablist">${tabs.map(tab).join('')}<button role="tab" data-pool="voorraad" aria-selected="false" disabled title="Nog niet beschikbaar">Voorraad<span class="pn">0</span></button>${tab(['ploegen', 'Ploegen', data.ploegen.length])}</div>
+      <div class="pool-search"><input id="poolq" type="search" placeholder="${ui.pool === 'klanten' ? 'Zoek klant, sleep naar het bord' : ui.pool === 'medewerkers' ? 'Zoek medewerker of functie' : ui.pool === 'materiaal' ? 'Zoek materiaal' : ui.pool === 'ploegen' ? 'Zoek ploeg of naam' : 'Zoek materieel'}" value="${esc(ui.q)}" aria-label="Zoeken in lijst" title="${esc(lbl)}"><p class="hint">${lbl}</p></div>
       <div class="pool-list">${items || '<div class="empty">Niets gevonden.</div>'}</div>
     </aside>`;
   }
@@ -529,7 +638,7 @@
         <h4>Ploeg</h4><div class="skploeg">${k.medewerkers.map(chip).join('') + k.inhuur.map(x => `<span class="mwchip"><i class="grip">INH</i>${esc(x.naam)}</span>`).join('') || '<span class="hint">Nog niemand ingepland</span>'}</div>
         <h4>Koppel medewerker aan materieel</h4>${rijen || '<p class="hint" style="margin:0">Geen materieel op deze klus.</p>'}
       </div>
-      <div class="skfoot"><span class="hint">Nog een keer klikken op de klus = alles wijzigen</span>${ctx.canEdit && isOptie(k) ? `<button type="button" class="btn sm primary" data-sk="bevestig" title="${esc(optieTekst(k))}">✓ Optie definitief maken</button>` : ''}<button type="button" class="btn sm" data-sk="open">Klus openen</button></div>`;
+      <div class="skfoot"><span class="hint">Nog een keer klikken op de klus = alles wijzigen</span>${ctx.canEdit && isOptie(k) ? `<button type="button" class="btn sm primary" data-sk="bevestig" title="${esc(optieTekst(k))}">✓ Optie definitief maken</button>` : ''}${ctx.canEdit && k.medewerkers.length ? '<button type="button" class="btn sm ghost" data-sk="alsploeg" title="Bewaar de mensen en het materieel van deze klus als vaste ploeg">Bewaar als ploeg</button>' : ''}<button type="button" class="btn sm" data-sk="open">Klus openen</button></div>`;
   }
   function openSnel(id, el) {
     const k = data.klussen.find(x => x.id === id); const sk = ctx.container.querySelector('#snelkaart'); if (!k || !sk) return;
@@ -565,6 +674,7 @@
     if (dr.type === 'mw') return mwNaam(dr.id);
     if (dr.type === 'mat') return matNaam(dr.id);
     if (dr.type === 'art') return (data.artikelen.find(a => a.id === dr.id) || {}).naam || '';
+    if (dr.type === 'ploeg') return (ploegVan(dr.id) || {}).naam || 'Ploeg';
     return '';
   }
   function dropTip(e, tekst, ok) {
@@ -576,7 +686,7 @@
     if (drag && drag.ghost) { drag.ghost.classList.toggle('ok', !!ok); drag.ghost.classList.toggle('nee', !ok); }
   }
   function wisHover() {
-    ctx.container.querySelectorAll('.blok.target').forEach(x => x.classList.remove('target'));
+    ctx.container.querySelectorAll('.blok.target,.pi.ploeg.target').forEach(x => x.classList.remove('target'));
     ctx.container.querySelectorAll('.grow.drophover').forEach(r => r.classList.remove('drophover'));
     ctx.container.querySelectorAll('.pool.dropzone').forEach(p => p.classList.remove('dropzone'));
     ctx.container.querySelectorAll('.track.hover,.track.hovernee').forEach(t => t.classList.remove('hover', 'hovernee'));
@@ -623,7 +733,18 @@
       s.textContent = past ? 'Kan niet: dit tijdstip is voorbij' : tijd(h) + '–' + tijdD(Math.min(PBE(), h + k.duur)); track.appendChild(s);
       drag.target = { kind: 'verplaats', h }; return dropTip(e, past ? 'dit tijdstip is voorbij' : 'verplaatsen naar ' + tijd(h), !past && ctx.canEdit);
     }
-    dropTip(e, ['mw', 'mat', 'art'].includes(drag.type) ? 'Sleep ' + wat + ' op een klus' : drag.type === 'blok' ? 'Sleep naar de lijst links of in Opdrachten vandaag' : 'Sleep naar een rij in het planbord', false);
+    const plz = t.closest('[data-plzone]');
+    if ((drag.type === 'mw' || drag.type === 'mat') && plz) {
+      const p = ploegVan(plz.dataset.plzone) || {}, al = drag.type === 'mw' ? (p.leden || []).includes(drag.id) : (p.materieel || []).some(x => x.materieelId === drag.id);
+      plz.classList.add('target'); drag.target = al ? null : { kind: 'ploeg', id: plz.dataset.plzone };
+      return dropTip(e, al ? wat + ' zit al in ' + (p.naam || 'deze ploeg') : wat + ' → ' + (p.naam || 'ploeg'), !al && ctx.canEdit);
+    }
+    if (drag.type === 'ploeg' && blok) {
+      blok.classList.add('target'); const row = blok.closest('.grow'); if (row) row.classList.add('drophover');
+      drag.target = { kind: 'blok', id: blok.dataset.id, mw: blok.dataset.mw }; const k = data.klussen.find(x => x.id === blok.dataset.id) || {};
+      return dropTip(e, wat + ' → ' + [(k.order || {}).nummer, k.klant].filter(Boolean).join(' · '), ctx.canEdit);
+    }
+    dropTip(e, ['mw', 'mat', 'art', 'ploeg'].includes(drag.type) ? 'Sleep ' + wat + ' op een klus' : drag.type === 'blok' ? 'Sleep naar de lijst links of in Opdrachten vandaag' : 'Sleep naar een rij in het planbord', false);
   }
   function eindSleep(e, commit) {
     const d = drag; dropTip(e, ''); drag = null; document.body.classList.remove('dragging'); wisHover();
@@ -633,7 +754,8 @@
       if (d.type === 'resize' && d.newDur != null && k) { zetTijden(k, k.start, Math.max(d.newDur, k.rh + k.rt + .25)); return; }
       const t = d.target; if (!t) return;
       if (t.kind === 'pool') { if (d.type === 'blok') haalMens(k, d.from); else if (d.type === 'matblok') haalMat(k, d.t); else if (d.type === 'artblok') haalMateriaal(k, d.t); return; }
-      if (t.kind === 'blok') { const doel = data.klussen.find(x => x.id === t.id); if (!doel) return; if (d.type === 'mw') plaatsMens(doel, d.id); else if (d.type === 'mat') plaatsMat(doel, d.id, t.mw); else if (d.type === 'art') plaatsMateriaal(doel, d.id); return; }
+      if (t.kind === 'ploeg') { ploegVoegToe(t.id, d.type, d.id); return; }
+      if (t.kind === 'blok') { const doel = data.klussen.find(x => x.id === t.id); if (!doel) return; if (d.type === 'ploeg') ploegOpKlus(d.id, doel); else if (d.type === 'mw') plaatsMens(doel, d.id); else if (d.type === 'mat') plaatsMat(doel, d.id, t.mw); else if (d.type === 'art') plaatsMateriaal(doel, d.id); return; }
       if (t.kind === 'track' && d.type === 'klant') { ctx.navigate('Werkopdrachten', { nieuw: { van: ui.datum, klantId: d.id, aanwezig: t.h } }); return; }
       if (t.kind === 'verplaats' && k) zetTijden(k, t.h, k.duur);
     } else if (commit && !ctx.canEdit) toast('Je hebt geen rechten om de planning te wijzigen.', true);
@@ -647,6 +769,7 @@
     if (d.zoom) { ui.zoom = +d.zoom; bewaar('vsvk-pb-zoom', ui.zoom); render(); return true; }
     if (d.sk === 'sluit') { sluitSnel(); return true; }
     if (d.sk === 'open') { const k = data.klussen.find(x => x.id === ui.snel); if (k) ctx.navigate('Werkopdrachten', { edit: k.werkId }); return true; }
+    if (d.sk === 'alsploeg') { const k = data.klussen.find(x => x.id === ui.snel); if (k) { sluitSnel(); ploegVanKlus(k); } return true; }
     if (d.sk === 'bevestig') { const k = data.klussen.find(x => x.id === ui.snel); if (k) { sluitSnel(); bevestigOptie(k); } return true; }
     if (d.sklos) { const k = data.klussen.find(x => x.id === ui.snel); if (k) koppelBediener(k, d.sklos, null); return true; }
     if (d.skzone) { const k = data.klussen.find(x => x.id === ui.snel); if (k && ui.pick) { const mw = ui.pick; ui.pick = null; koppelBediener(k, d.skzone, mw); } return true; }
@@ -665,6 +788,14 @@
     if (a === 'pbdicht') { ui.dicht = { ...ui.dicht, [d.k]: !ui.dicht[d.k] }; render(); return true; }
     if (a === 'nieuwwerk') { ctx.navigate('Werkopdrachten', { nieuw: { van: ui.datum } }); return true; }
     if (a === 'toonwb') { ctx.navigate('Werkbonnen'); return true; }
+    if (a === 'plnieuw') { ploegNieuw({ naam: 'Ploeg ' + (data.ploegen.length + 1), leden: [], materieel: [] }, ''); return true; }
+    if (a === 'plbew') { ui.plEdit = ui.plEdit === d.id ? null : d.id; ui.plDel = null; render(); return true; }
+    if (a === 'plweg') {
+      ploegWijzig(d.id, x => { x.leden = x.leden.filter(m => m !== d.m); x.materieel.forEach(y => { if (y.medewerkerId === d.m) y.medewerkerId = null; }); return ''; }, mwNaam(d.m) + ' uit de ploeg gehaald.');
+      return true;
+    }
+    if (a === 'plmatweg') { ploegWijzig(d.id, x => { x.materieel = x.materieel.filter(y => y.materieelId !== d.m); return ''; }, matNaam(d.m) + ' uit de ploeg gehaald.'); return true; }
+    if (a === 'pldel') { if (ui.plDel !== d.id) { ui.plDel = d.id; render(); } else ploegWeg(d.id); return true; }
     return false;
   }
 
@@ -681,11 +812,27 @@
       if (ui.snel && !(e.target.closest && e.target.closest('#snelkaart,.blok'))) sluitSnel();
     });
     container.addEventListener('input', e => { if (e.target && e.target.id === 'poolq') { ui.q = e.target.value; const p = container.querySelector('.pool'); if (p) { const tmp = document.createElement('div'); tmp.innerHTML = poolHTML(); const l = tmp.querySelector('.pool-list'), o = container.querySelector('.pool-list'); if (l && o) o.replaceWith(l); } } });
-    container.addEventListener('change', e => { if (e.target && e.target.id === 'datumkies' && e.target.value) zetDatum(e.target.value); });
+    container.addEventListener('change', e => {
+      const t = e.target; if (!t || !t.dataset) return;
+      if (t.id === 'datumkies' && t.value) { zetDatum(t.value); return; }
+      if (t.dataset.plnaam) {
+        const p = ploegVan(t.dataset.plnaam), naam = t.value.trim();
+        if (!p || naam === p.naam) return;
+        if (!naam) { t.value = p.naam; toast('Een ploeg heeft een naam nodig.', true); return; }
+        ploegWijzig(p.id, x => { x.naam = naam; return ''; }, 'Ploeg hernoemd naar ' + naam + '.'); return;
+      }
+      if (t.dataset.plmatmw) {
+        const [pid, mid] = t.dataset.plmatmw.split('|'), mw = t.value || null;
+        ploegWijzig(pid, x => { const item = x.materieel.find(y => y.materieelId === mid); if (!item) return 'Dit materieel zit niet meer in de ploeg.'; item.medewerkerId = mw; return ''; },
+          mw ? mwNaam(mw) + ' bedient ' + matNaam(mid) + '.' : matNaam(mid) + ' zonder vaste bediener.');
+      }
+    });
+    container.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target && e.target.dataset && e.target.dataset.plnaam) { e.preventDefault(); e.target.blur(); } });
     container.addEventListener('pointerdown', e => {
       if (e.button !== 0) return;
       const rz = e.target.closest('[data-resize]'), el = rz || e.target.closest('[data-drag]');
       if (!el || !container.contains(el)) return;
+      if (el.dataset.drag === 'ploeg' && e.target.closest('input,select,button')) return;
       const blokEl = el.closest('.blok');
       drag = { type: rz ? 'resize' : el.dataset.drag, id: el.dataset.id, t: el.dataset.t, from: blokEl ? blokEl.dataset.mw : null, el: blokEl || el, x0: e.clientX, y0: e.clientY, started: false };
       if (blokEl) { const r = blokEl.getBoundingClientRect(); drag.grabX = e.clientX - r.left; }
@@ -735,6 +882,6 @@
 
   window.VsvkPlanbord = {
     open,
-    model: { ts, apiTijd, maakKlussen, vulling, lanes, conflicten, dagStukken, kVoor, klusStatus, data }
+    model: { ts, apiTijd, maakKlussen, vulling, lanes, conflicten, dagStukken, kVoor, klusStatus, ploegVoorstel, ploegBody, data }
   };
 }());

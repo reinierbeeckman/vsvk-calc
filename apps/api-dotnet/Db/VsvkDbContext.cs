@@ -33,6 +33,9 @@ public sealed class VsvkDbContext : DbContext
   public DbSet<Inzet> Inzetten => Set<Inzet>();
   public DbSet<MaterieelInzet> MaterieelInzetten => Set<MaterieelInzet>();
   public DbSet<Werkbon> Werkbonnen => Set<Werkbon>();
+  public DbSet<Ploeg> Ploegen => Set<Ploeg>();
+  public DbSet<PloegLid> PloegLeden => Set<PloegLid>();
+  public DbSet<PloegMaterieel> PloegMaterieelItems => Set<PloegMaterieel>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
@@ -164,6 +167,43 @@ public sealed class VsvkDbContext : DbContext
     subcontractor.Property(item => item.Version).HasColumnName("version").IsConcurrencyToken();
     subcontractor.HasIndex(item => new { item.LeverancierId, item.Naam });
     subcontractor.HasOne(item => item.Leverancier).WithMany().HasForeignKey(item => item.LeverancierId).OnDelete(DeleteBehavior.Restrict);
+
+    var crew = modelBuilder.Entity<Ploeg>();
+    crew.ToTable("ploegen");
+    crew.HasKey(item => item.Id);
+    crew.Property(item => item.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+    crew.Property(item => item.Naam).HasColumnName("naam").HasMaxLength(200).IsRequired();
+    crew.Property(item => item.VestigingId).HasColumnName("vestiging_id");
+    crew.Property(item => item.Version).HasColumnName("version").IsConcurrencyToken();
+    crew.HasIndex(item => new { item.VestigingId, item.Naam });
+    crew.HasOne(item => item.Vestiging).WithMany().HasForeignKey(item => item.VestigingId).OnDelete(DeleteBehavior.Restrict);
+
+    var crewMember = modelBuilder.Entity<PloegLid>();
+    crewMember.ToTable("ploeg_leden");
+    crewMember.HasKey(item => new { item.PloegId, item.MedewerkerId });
+    crewMember.Property(item => item.PloegId).HasColumnName("ploeg_id");
+    crewMember.Property(item => item.MedewerkerId).HasColumnName("medewerker_id");
+    crewMember.Property(item => item.Sorteervolgorde).HasColumnName("sorteervolgorde");
+    crewMember.HasIndex(item => item.MedewerkerId);
+    crewMember.HasOne(item => item.Ploeg).WithMany(item => item.Leden)
+      .HasForeignKey(item => item.PloegId).OnDelete(DeleteBehavior.Cascade);
+    crewMember.HasOne(item => item.Medewerker).WithMany()
+      .HasForeignKey(item => item.MedewerkerId).OnDelete(DeleteBehavior.Cascade);
+
+    var crewEquipment = modelBuilder.Entity<PloegMaterieel>();
+    crewEquipment.ToTable("ploeg_materieel");
+    crewEquipment.HasKey(item => new { item.PloegId, item.MaterieelId });
+    crewEquipment.Property(item => item.PloegId).HasColumnName("ploeg_id");
+    crewEquipment.Property(item => item.MaterieelId).HasColumnName("materieel_id");
+    crewEquipment.Property(item => item.MedewerkerId).HasColumnName("medewerker_id");
+    crewEquipment.Property(item => item.Sorteervolgorde).HasColumnName("sorteervolgorde");
+    crewEquipment.HasIndex(item => item.MaterieelId);
+    crewEquipment.HasOne(item => item.Ploeg).WithMany(item => item.Materieel)
+      .HasForeignKey(item => item.PloegId).OnDelete(DeleteBehavior.Cascade);
+    crewEquipment.HasOne(item => item.Materieel).WithMany()
+      .HasForeignKey(item => item.MaterieelId).OnDelete(DeleteBehavior.Cascade);
+    crewEquipment.HasOne(item => item.Medewerker).WithMany()
+      .HasForeignKey(item => item.MedewerkerId).OnDelete(DeleteBehavior.SetNull);
 
     var assignment = modelBuilder.Entity<Inzet>();
     assignment.ToTable("inzet");

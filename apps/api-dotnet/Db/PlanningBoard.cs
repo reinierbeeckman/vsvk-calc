@@ -127,6 +127,39 @@ public sealed class Inhuurmedewerker
   public long Version { get; set; } = 1;
 }
 
+/// <summary>Vaste ploeg: mensen en materieel die vaak samen werken en in één keer op een klus komen.</summary>
+public sealed class Ploeg
+{
+  public Guid Id { get; set; }
+  public string Naam { get; set; } = "";
+  public Guid? VestigingId { get; set; }
+  public Vestiging? Vestiging { get; set; }
+  public long Version { get; set; } = 1;
+  public ICollection<PloegLid> Leden { get; set; } = new List<PloegLid>();
+  public ICollection<PloegMaterieel> Materieel { get; set; } = new List<PloegMaterieel>();
+}
+
+public sealed class PloegLid
+{
+  public Guid PloegId { get; set; }
+  public Ploeg Ploeg { get; set; } = null!;
+  public Guid MedewerkerId { get; set; }
+  public UserInformation Medewerker { get; set; } = null!;
+  public int Sorteervolgorde { get; set; }
+}
+
+public sealed class PloegMaterieel
+{
+  public Guid PloegId { get; set; }
+  public Ploeg Ploeg { get; set; } = null!;
+  public Guid MaterieelId { get; set; }
+  public Materieel Materieel { get; set; } = null!;
+  /// <summary>Ploeglid dat dit materieelstuk standaard bedient.</summary>
+  public Guid? MedewerkerId { get; set; }
+  public UserInformation? Medewerker { get; set; }
+  public int Sorteervolgorde { get; set; }
+}
+
 public sealed class Inzet
 {
   public Guid Id { get; set; }

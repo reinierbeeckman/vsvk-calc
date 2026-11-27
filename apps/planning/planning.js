@@ -60,6 +60,7 @@
         const error = new Error(detail ? detail + ' (' + response.status + ').' : 'Aanvraag mislukt (' + response.status + ').');
         error.status = response.status; throw error;
       }
+      if (response.status === 204) return null;
       return response.json();
     }
     async function requestList(list) {

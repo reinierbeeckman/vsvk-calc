@@ -410,6 +410,27 @@
 @media (max-width:1400px){#planbord-scherm .pbar .lang{display:none}#planbord-scherm .pbar .kort{display:inline}#planbord-scherm .pbar .wklbl.pbdag{width:235px!important}#planbord-scherm .pbar .prij1{gap:8px 8px}#planbord-scherm .pbar .datumkies input{width:118px}}
 #planbord-scherm .pi.pimw.busy b{font-weight:400;color:var(--muted)}
 #planbord-scherm .pi.pimw small.load{white-space:normal;overflow:visible;text-overflow:clip}
+#planbord-scherm .plnieuw{margin:2px 0 8px;width:100%}
+#planbord-scherm .pi.ploeg{cursor:grab;display:grid;gap:6px}
+#planbord-scherm .pi.ploeg.target{outline:2px solid var(--ok);outline-offset:-2px;background:rgba(46,125,50,.06)}
+#planbord-scherm .pi.ploeg{min-width:0;white-space:normal}
+#planbord-scherm .pi.ploeg .hint{white-space:normal}
+#planbord-scherm .plkop{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px}
+#planbord-scherm .plkop b{flex:1;min-width:0;white-space:normal}
+#planbord-scherm .plkop .plteller{order:3;flex-basis:100%}
+#planbord-scherm .plkop .plnaam{flex:1;min-width:0;font:600 13px var(--f-body);padding:3px 6px}
+#planbord-scherm .plteller{font:600 10.5px var(--f-mono);color:var(--muted);white-space:nowrap}
+#planbord-scherm .plteller em{font-style:normal;color:var(--signal)}
+#planbord-scherm .plbew{font-size:11px;padding:0}
+#planbord-scherm .plleden{display:flex;flex-wrap:wrap;gap:4px}
+#planbord-scherm .plchip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;padding:2px 6px;border:1px solid var(--line);background:var(--surface);white-space:nowrap}
+#planbord-scherm .plchip.mat{font-family:var(--f-mono);background:var(--beige-light,var(--beige-light))}
+#planbord-scherm .plchip small{font-family:var(--f-body);color:var(--muted)}
+#planbord-scherm .plchip.bezet{color:var(--muted);border-style:dashed}
+#planbord-scherm .plchip button{border:0;background:none;color:var(--muted);cursor:pointer;padding:0 0 0 2px;font-size:11px}
+#planbord-scherm .plchip select{font-size:11px;padding:0 2px;border:1px solid var(--line);max-width:80px}
+#planbord-scherm .plvoet{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px}
+#planbord-scherm .pi.ploeg.pledit{border-color:var(--signal);cursor:default}
 #planbord-scherm .rh[data-drag]{cursor:grab}
 #planbord-scherm .blok.optie{border-style:dashed;border-left-style:solid;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.0) 0 6px,rgba(255,255,255,.55) 6px 12px)}
 #planbord-scherm .blok.optie>b,#planbord-scherm .blok.optie>small{opacity:.8}
