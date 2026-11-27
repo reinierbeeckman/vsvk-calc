@@ -60,6 +60,7 @@
         const error = new Error(detail ? detail + ' (' + response.status + ').' : 'Aanvraag mislukt (' + response.status + ').');
         error.status = response.status; throw error;
       }
+      if (response.status === 204) return null;
       return response.json();
     }
     async function requestList(list) {
@@ -79,13 +80,19 @@
       Object.keys(definitions).filter(list => definitions[list].path && list !== except)
         .forEach(list => { requestList(list).catch(() => {}); });
     }
-    function showSection(section) {
+    function showSection(section, options = {}) {
       currentSection = section;
       document.querySelectorAll('[data-section]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.section === section)));
       document.querySelector('#list-nav').hidden = section !== 'Lijsten';
-      const showsWorkBoard = section === 'Planbord' || section === 'Werkopdrachten';
-      const showsPlanningPage = ['Overzicht', 'Werkbonnen', 'Team'].includes(section);
-      document.querySelector('#planbord-panel').hidden = !showsWorkBoard;
+      const showsWorkOrders = section === 'Werkopdrachten';
+      const showsWorkBoard = section === 'Planbord';
+      const showsWorkSlips = section === 'Werkbonnen';
+      document.querySelector('#werkopdrachten-panel').hidden = !showsWorkOrders;
+      document.querySelector('#planbord-scherm').hidden = !showsWorkBoard;
+      document.querySelector('#werkbonnen-scherm').hidden = !showsWorkSlips;
+      document.querySelector('#global-pagehead').hidden = showsWorkOrders || showsWorkBoard || showsWorkSlips;
+      const showsPlanningPage = ['Overzicht', 'Team'].includes(section);
+      document.querySelector('#planbord-panel').hidden = true;
       document.querySelector('#planning-pages-panel').hidden = !showsPlanningPage;
       if (section === 'Lijsten') { refreshCounts(current); return load(current); }
       ++loadNumber;
@@ -93,11 +100,24 @@
       loading = false;
       document.querySelector('#title').textContent = section;
       document.querySelector('#list-panel').hidden = true;
+      if (showsWorkOrders) {
+        window.VsvkWorkOrders.open({
+          container: document.querySelector('#werkopdrachten-panel'), request, canEdit: workOrderPermissions,
+          navigate: (target, extra) => showSection(target, extra || {}), edit: options.edit, nieuw: options.nieuw
+        });
+        return;
+      }
       if (showsWorkBoard) {
-        document.querySelector('#description').textContent = 'Weekplanning van werkopdrachten, klussen, personeel, inhuur en werkbonnen.';
-        window.VsvkPlanBoard.open({
-          container: document.querySelector('#planbord-panel'), request, canEdit: workOrderPermissions,
-          mode: section === 'Werkopdrachten' ? 'workorders' : 'board'
+        window.VsvkPlanbord.open({
+          container: document.querySelector('#planbord-scherm'), request, canEdit: workOrderPermissions,
+          navigate: (target, extra) => showSection(target, extra || {}), date: options.date
+        });
+        return;
+      }
+      if (showsWorkSlips) {
+        window.VsvkWerkbonnen.open({
+          container: document.querySelector('#werkbonnen-scherm'), request, canEdit: workOrderPermissions,
+          navigate: (target, extra) => showSection(target, extra || {}), view: options.view
         });
         return;
       }
@@ -126,6 +146,10 @@
       document.querySelectorAll('[data-list]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.list === list)));
       document.querySelector('#list-panel').hidden = !definition.path;
       document.querySelector('#planbord-panel').hidden = true;
+      document.querySelector('#werkopdrachten-panel').hidden = true;
+      document.querySelector('#planbord-scherm').hidden = true;
+      document.querySelector('#werkbonnen-scherm').hidden = true;
+      document.querySelector('#global-pagehead').hidden = false;
       document.querySelector('#planning-pages-panel').hidden = true;
       if (!definition.path) return;
       const add = document.querySelector('#add');

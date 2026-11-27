@@ -185,6 +185,8 @@ create table if not exists klus_materieelinzet (
 );
 create unique index if not exists ux_klus_materieelinzet on klus_materieelinzet(klus_id, datum, materieel_id);
 create index if not exists ix_klus_materieelinzet_materieel_datum on klus_materieelinzet(materieel_id, datum);
+alter table klus_materieelinzet add column if not exists medewerker_id uuid
+  references user_information(keycloak_sub) on delete set null;
 
 create table if not exists werkbonnen (
   id uuid primary key default gen_random_uuid(),
@@ -202,3 +204,29 @@ alter table werkbonnen drop constraint if exists ck_werkbonnen_status;
 update werkbonnen set status = 'aangemaakt' where status = 'niet_geprint';
 alter table werkbonnen add constraint ck_werkbonnen_status check (status in (
   'aangemaakt', 'uitgereikt', 'retour', 'verwerkt', 'vervallen', 'binnen'));
+
+create table if not exists ploegen (
+  id uuid primary key default gen_random_uuid(),
+  naam varchar(200) not null,
+  vestiging_id uuid references vestigingen(id) on delete restrict,
+  version bigint not null default 1,
+  constraint ck_ploegen_naam check (btrim(naam) <> '')
+);
+create index if not exists ix_ploegen_vestiging_naam on ploegen(vestiging_id, naam);
+
+create table if not exists ploeg_leden (
+  ploeg_id uuid not null references ploegen(id) on delete cascade,
+  medewerker_id uuid not null references user_information(keycloak_sub) on delete cascade,
+  sorteervolgorde integer not null default 0,
+  primary key (ploeg_id, medewerker_id)
+);
+create index if not exists ix_ploeg_leden_medewerker on ploeg_leden(medewerker_id);
+
+create table if not exists ploeg_materieel (
+  ploeg_id uuid not null references ploegen(id) on delete cascade,
+  materieel_id uuid not null references materieel(id) on delete cascade,
+  medewerker_id uuid references user_information(keycloak_sub) on delete set null,
+  sorteervolgorde integer not null default 0,
+  primary key (ploeg_id, materieel_id)
+);
+create index if not exists ix_ploeg_materieel_materieel on ploeg_materieel(materieel_id);

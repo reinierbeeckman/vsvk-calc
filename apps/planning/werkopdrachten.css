@@ -1,0 +1,414 @@
+/* Gegenereerd door scripts/extract-prototype-css.js uit .analysis-input/vsvk-planning (klantprototype).
+   Niet met de hand aanpassen: pas het prototype of de bronbestanden aan en genereer opnieuw.
+   Gescoped op #werkopdrachten-panel zodat andere schermen niet veranderen. */
+#werkopdrachten-panel{/* merkkleuren (vast, ook in donkere modus) */
+  --vsvk-zwart:#1a1a1a; --vsvk-wit:#ffffff; --vsvk-oranje:#ff4e02; --vsvk-beige:#dbd7cd; --vsvk-beige-licht:#edebe6; --vsvk-grijs-licht:#f5f5f5;
+  /* vorm en ruimte */
+  --radius:0; --bw:1.5px; --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px;
+  /* afgeleide app-kleuren */
+  --signal-hover:#e04400; --line-strong:#b9b2a6; --info:#1f5f99; --info-soft:#e8f0f8; --paars:#5b3fa0; --paars-soft:#f1edf9; --warn-line:#d9b26a; --danger-line:#e0a0a0;
+  --bg:#f3f2ef; --surface:#ffffff; --surface-2:#edebe6; --ink:#1a1a1a; --muted:#5d5a54; --line:#dbd7cd; --line-soft:#ebe8e1;
+  --signal:#ff4e02; --signal-ink:#ffffff; --signal-soft:#ffe3d6; --danger:#b3261e; --danger-soft:#fbe4e2; --ok:#1e7a46; --ok-soft:#dff1e6; --warn:#9a6400; --warn-soft:#fbefd5;
+  --beige:#dbd7cd; --beige-light:#edebe6; --night:rgba(26,26,26,.045); --head:#ffffff; --logo-ink:#1a1a1a; --th-bg:#1a1a1a; --th-ink:#ffffff;
+  --shadow:0 1px 2px rgba(0,0,0,.12),0 6px 20px rgba(0,0,0,.08);
+  --k1:#ff4e02; --k2:#2f6fb5; --k3:#2f8a5b; --k4:#8b5cc7; --k5:#c48a12; --k6:#c2416b; --k7:#3d8f99; --k8:#5d5a54;
+  --f-display:"Arial Black","Archivo Black","Arial Bold",Arial,sans-serif;
+  --f-body:"Overpass",Arial,"Helvetica Neue",sans-serif;
+  --f-mono:"Overpass Mono",ui-monospace,Menlo,Consolas,monospace;
+  --hw:56px; --lane:46px; --namew:210px;}
+@media (prefers-color-scheme:dark){#werkopdrachten-panel:not([data-theme="light"]){--bg:#121212; --surface:#1b1b1b; --surface-2:#252523; --ink:#f4f3f0; --muted:#aaa69e; --line:#36342f; --line-soft:#2a2926;
+  --signal-soft:#3a1d10; --danger:#ff8a80; --danger-soft:#3b1a17; --ok:#62c48d; --ok-soft:#163223; --warn:#e8b54f; --warn-soft:#3a2d10;
+  --beige:#2c2a26; --beige-light:#22211e; --night:rgba(255,255,255,.035); --head:#1b1b1b; --logo-ink:#ffffff; --th-bg:#34322e; --th-ink:#ffffff;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 6px 20px rgba(0,0,0,.4); --signal-hover:#ff6a2a; --line-strong:#55524b; --info:#8fb8e6; --info-soft:#1c2a38; --paars:#b9a3ec; --paars-soft:#2a2238; --warn-line:#8a6a2a; --danger-line:#7a3a3a; color-scheme:dark}}
+#werkopdrachten-panel[data-theme="dark"]{--bg:#121212; --surface:#1b1b1b; --surface-2:#252523; --ink:#f4f3f0; --muted:#aaa69e; --line:#36342f; --line-soft:#2a2926;
+  --signal-soft:#3a1d10; --danger:#ff8a80; --danger-soft:#3b1a17; --ok:#62c48d; --ok-soft:#163223; --warn:#e8b54f; --warn-soft:#3a2d10;
+  --beige:#2c2a26; --beige-light:#22211e; --night:rgba(255,255,255,.035); --head:#1b1b1b; --logo-ink:#ffffff; --th-bg:#34322e; --th-ink:#ffffff;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 6px 20px rgba(0,0,0,.4); --signal-hover:#ff6a2a; --line-strong:#55524b; --info:#8fb8e6; --info-soft:#1c2a38; --paars:#b9a3ec; --paars-soft:#2a2238; --warn-line:#8a6a2a; --danger-line:#7a3a3a; color-scheme:dark}
+#werkopdrachten-panel *{box-sizing:border-box}
+#werkopdrachten-panel .pagehead{background:var(--beige);padding:20px 120px 18px 22px;clip-path:polygon(0 0,100% 0,calc(100% - 90px) 100%,0 100%)}
+#werkopdrachten-panel .pagehead h1{font:400 clamp(22px,3vw,32px)/1.1 var(--f-display);text-transform:uppercase;margin:0;border-left:6px solid var(--signal);padding-left:14px;text-wrap:balance}
+#werkopdrachten-panel .pagehead p{margin:6px 0 0 20px;color:var(--muted);max-width:75ch}
+#werkopdrachten-panel h2{font:400 16px/1.2 var(--f-display);text-transform:uppercase;margin:0;border-left:5px solid var(--signal);padding-left:10px;text-wrap:balance}
+#werkopdrachten-panel h3{font:400 12.5px/1.2 var(--f-display);letter-spacing:.03em;text-transform:uppercase;margin:0}
+#werkopdrachten-panel .panel>*{min-width:0}
+#werkopdrachten-panel .panel{background:var(--surface);border:1px solid var(--line);padding:14px;display:grid;gap:12px;min-width:0}
+#werkopdrachten-panel input,#werkopdrachten-panel select,#werkopdrachten-panel textarea{font:inherit;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:0;padding:5px 7px;width:100%;min-width:0}
+#werkopdrachten-panel textarea{resize:vertical;min-height:64px}
+#werkopdrachten-panel input:focus,#werkopdrachten-panel select:focus,#werkopdrachten-panel textarea:focus,#werkopdrachten-panel button:focus-visible,#werkopdrachten-panel [tabindex]:focus-visible{outline:2px solid var(--signal);outline-offset:1px}
+#werkopdrachten-panel .num,#werkopdrachten-panel input.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+#werkopdrachten-panel input.num{text-align:right}
+#werkopdrachten-panel .btn{font:700 12px var(--f-body);letter-spacing:.06em;text-transform:uppercase;border:2px solid var(--ink);background:transparent;color:var(--ink);padding:6px 12px;border-radius:0;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+#werkopdrachten-panel .btn:hover{background:var(--ink);color:var(--surface)}
+#werkopdrachten-panel .btn.primary{background:var(--signal);color:var(--signal-ink);border-color:var(--signal)}
+#werkopdrachten-panel .btn.primary:hover{background:var(--signal-hover);border-color:var(--signal-hover);color:var(--vsvk-wit)}
+#werkopdrachten-panel .btn.sm{padding:3px 8px;font-size:11px;border-width:1.5px}
+#werkopdrachten-panel .btn.ghost{border-color:transparent;color:var(--muted);padding:4px 6px}
+#werkopdrachten-panel .btn.ghost:hover{background:var(--surface-2);color:var(--ink)}
+#werkopdrachten-panel .btn.danger{border-color:var(--danger);color:var(--danger)}
+#werkopdrachten-panel .btn.danger:hover{background:var(--danger);color:var(--vsvk-wit)}
+#werkopdrachten-panel .btn[data-confirm="1"]{background:var(--danger);border-color:var(--danger);color:var(--vsvk-wit)}
+#werkopdrachten-panel .btn:disabled{opacity:.5;cursor:not-allowed}
+#werkopdrachten-panel .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#werkopdrachten-panel .hint{color:var(--muted);font-size:12.5px;margin:0;max-width:75ch}
+#werkopdrachten-panel .chip{display:inline-block;font:600 10.5px/1.5 var(--f-body);text-transform:uppercase;letter-spacing:.05em;padding:0 6px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+#werkopdrachten-panel .chip.st-Aangemaakt{border-color:var(--muted)}
+#werkopdrachten-panel .chip.st-Uitgereikt{border-color:var(--info);color:var(--info)}
+#werkopdrachten-panel .chip.st-Retour{border-color:var(--warn);color:var(--warn);background:var(--warn-soft)}
+#werkopdrachten-panel .chip.st-Verwerkt{border-color:var(--ok);color:var(--ok);background:var(--ok-soft)}
+#werkopdrachten-panel .sw{position:relative;width:38px;height:20px;border:1.5px solid var(--muted);background:var(--surface-2);cursor:pointer;padding:0;flex:none}
+#werkopdrachten-panel .sw::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;background:var(--muted);transition:left .15s}
+#werkopdrachten-panel .sw[aria-checked="true"]{background:var(--signal);border-color:var(--signal)}
+#werkopdrachten-panel .sw[aria-checked="true"]::after{left:20px;background:var(--vsvk-wit)}
+@media (prefers-reduced-motion:reduce){#werkopdrachten-panel .sw::after{transition:none}}
+#werkopdrachten-panel .swl{display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+#werkopdrachten-panel .scroll{overflow-x:auto}
+#werkopdrachten-panel .empty{padding:22px;color:var(--muted);text-align:center;border:1px dashed var(--line)}
+#werkopdrachten-panel .zoom{display:flex}
+#werkopdrachten-panel .zoom button{font:600 11px var(--f-body);border:1.5px solid var(--line);background:var(--surface);color:var(--muted);padding:4px 8px;cursor:pointer}
+#werkopdrachten-panel .zoom button+button{margin-left:-1.5px}
+#werkopdrachten-panel .zoom button[aria-pressed="true"]{border-color:var(--ink);color:var(--ink);position:relative}
+#werkopdrachten-panel .rh{position:sticky;left:0;z-index:3;background:var(--surface);border-right:2px solid var(--line);padding:6px 10px;display:grid;align-content:center;gap:1px;min-width:0}
+#werkopdrachten-panel .rh b{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#werkopdrachten-panel .rh small{color:var(--muted);font-size:11px;display:flex;gap:8px;white-space:nowrap;overflow:hidden}
+#werkopdrachten-panel .rh small .u{font-family:var(--f-mono)}
+#werkopdrachten-panel .rh small .u.over{color:var(--danger);font-weight:600;flex:none}
+#werkopdrachten-panel .rh.busy b{font-weight:400;color:var(--muted)}
+#werkopdrachten-panel .f{display:grid;gap:3px;font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+#werkopdrachten-panel .f input,#werkopdrachten-panel .f select,#werkopdrachten-panel .f textarea{text-transform:none;letter-spacing:0;font-weight:400;font-size:14px}
+#werkopdrachten-panel .fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+#werkopdrachten-panel .colors{display:flex;gap:6px;flex-wrap:wrap}
+#werkopdrachten-panel .colors button{width:26px;height:26px;border:2px solid transparent;cursor:pointer;background:var(--c);padding:0}
+#werkopdrachten-panel .colors button[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:2px}
+#werkopdrachten-panel .kinfo{background:var(--surface-2);padding:8px 10px;font-size:13px;display:grid;gap:2px}
+#werkopdrachten-panel .kinfo span{color:var(--muted)}
+#werkopdrachten-panel .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-left:5px solid var(--signal);font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60;max-width:calc(100% - 32px)}
+#werkopdrachten-panel .toast.show{opacity:1}
+#werkopdrachten-panel .toast.act{pointer-events:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){#werkopdrachten-panel .toast{transition:none}}
+#werkopdrachten-panel .filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#werkopdrachten-panel .filters input,#werkopdrachten-panel .filters select{width:auto;min-width:160px}
+#werkopdrachten-panel .wsec{background:var(--surface);border:1px solid var(--line);padding:14px;display:grid;gap:12px;min-width:0}
+#werkopdrachten-panel .wsec>h2 .step{font:600 12px var(--f-mono);color:var(--signal);margin-right:8px}
+#werkopdrachten-panel .nrow{display:grid;grid-template-columns:70px minmax(0,1fr) minmax(0,1fr) auto;gap:6px;align-items:center}
+#werkopdrachten-panel .nrow.mat{grid-template-columns:70px minmax(0,1.3fr) minmax(0,1fr) auto}
+#werkopdrachten-panel .nrow+input.vrij{margin-left:76px;width:calc(100% - 76px - 38px);margin-top:-4px}
+#werkopdrachten-panel .nrow select.leeg{color:var(--muted)}
+#werkopdrachten-panel .avail{font-size:12px;color:var(--muted)}
+#werkopdrachten-panel .avail b{color:var(--ink)}
+#werkopdrachten-panel .avail .bad{color:var(--danger)}
+#werkopdrachten-panel .daylist{display:flex;flex-wrap:wrap;gap:4px}
+#werkopdrachten-panel .daylist span{font:600 11px var(--f-mono);border:1px solid var(--line);padding:1px 5px;background:var(--surface-2)}
+#werkopdrachten-panel .daylist span.we{opacity:.45;text-decoration:line-through}
+#werkopdrachten-panel .fill{display:grid;gap:3px;min-width:120px}
+#werkopdrachten-panel .fill .bar{height:6px;background:var(--surface-2);border:1px solid var(--line);position:relative;overflow:hidden}
+#werkopdrachten-panel .fill .bar i{position:absolute;inset:0 auto 0 0;background:var(--signal)}
+#werkopdrachten-panel .fill .bar i.full{background:var(--ok)}
+#werkopdrachten-panel .fill small{font:600 11px var(--f-mono);color:var(--muted)}
+#werkopdrachten-panel .chip.ws-open{border-color:var(--danger);color:var(--danger);background:var(--danger-soft)}
+#werkopdrachten-panel .chip.ws-deels{border-color:var(--warn);color:var(--warn);background:var(--warn-soft)}
+#werkopdrachten-panel .chip.ws-leeg{border-color:var(--line);color:var(--muted);background:var(--surface-2)}
+#werkopdrachten-panel .daylist span.uit{opacity:.45;text-decoration:line-through;border-style:dashed}
+#werkopdrachten-panel .daylist span[data-act]{cursor:pointer}
+#werkopdrachten-panel .koppel{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+#werkopdrachten-panel .koppel h3{font:700 12px var(--f-body);text-transform:uppercase;letter-spacing:.06em;margin:0 0 4px}
+#werkopdrachten-panel .wkbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:0 0 10px}
+#werkopdrachten-panel .wknav{display:flex;align-items:stretch}
+#werkopdrachten-panel .wknav .btn{padding:6px 11px}
+#werkopdrachten-panel .wklbl{min-width:240px;display:flex;align-items:baseline;justify-content:center;gap:8px;padding:5px 14px;border:1px solid var(--line);border-left:0;border-right:0;font:400 15px var(--f-display);text-transform:uppercase;background:var(--surface)}
+#werkopdrachten-panel .wklbl span{font:400 12px var(--f-body);text-transform:none;color:var(--muted)}
+#werkopdrachten-panel .wkn{margin-left:auto}
+#werkopdrachten-panel .chip.vchip{border-color:var(--ink);color:var(--ink);background:var(--beige-light);font-size:10px;padding:0 4px;margin-left:4px}
+#werkopdrachten-panel table.rijen{width:100%;border-collapse:separate;border-spacing:0 6px;font-size:13.5px}
+#werkopdrachten-panel table.rijen thead th{font:600 10px var(--f-body);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:4px 10px 0;background:none;border:0}
+#werkopdrachten-panel table.rijen tbody td{background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:7px 10px;vertical-align:middle}
+#werkopdrachten-panel table.rijen tbody td:first-child{border-left:4px solid var(--line)}
+#werkopdrachten-panel table.rijen tbody td:last-child{border-right:1px solid var(--line)}
+#werkopdrachten-panel table.rijen tbody tr:not(.wkrij):hover td{background:var(--beige-light)}
+#werkopdrachten-panel table.rijen td small{display:block;color:var(--muted);font-size:11.5px;line-height:1.25;margin-top:1px}
+#werkopdrachten-panel table.rijen td.nw{white-space:nowrap}
+#werkopdrachten-panel table.rijen td.ell{max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#werkopdrachten-panel table.rijen td.ell small{overflow:hidden;text-overflow:ellipsis}
+#werkopdrachten-panel table.rijen td.acties{text-align:right;padding-right:12px}
+#werkopdrachten-panel table.rijen{padding-right:2px}
+#werkopdrachten-panel table.rijen td.acties .btn{margin-left:4px}
+#werkopdrachten-panel table.rijen tr.wkrij td{background:none!important;border:0!important;padding:12px 0 0}
+#werkopdrachten-panel table.rijen .wkkop{margin:0}
+#werkopdrachten-panel table.rijen .btn.link.sub{display:block;padding:0;font-size:11px}
+#werkopdrachten-panel table.rijen .bez{display:flex;align-items:center;gap:8px}
+#werkopdrachten-panel .table.rijen .bez .fill{width:70px}
+#werkopdrachten-panel table.rijen .bez .fill{width:70px}
+#werkopdrachten-panel table.rijen tr.st-open td:first-child{border-left-color:var(--danger)}
+#werkopdrachten-panel table.rijen tr.st-deels td:first-child{border-left-color:var(--warn)}
+#werkopdrachten-panel table.rijen tr.st-vol td:first-child{border-left-color:var(--ok)}
+#werkopdrachten-panel table.rijen tbody td{padding-top:5px;padding-bottom:5px}
+#werkopdrachten-panel table.rijen .bez .fill,#werkopdrachten-panel table.rijen .bez .fill .bar{width:56px!important;min-width:0!important;flex:none}
+#werkopdrachten-panel table.rijen.wo td.ell{max-width:240px}
+#werkopdrachten-panel table.rijen.wo td.acties .btn{margin-left:3px;padding-left:8px;padding-right:8px}
+#werkopdrachten-panel table.rijen .btn.link.inl{padding:0 0 0 4px;font-size:11px;vertical-align:baseline}
+#werkopdrachten-panel .wkkop{display:flex;align-items:baseline;justify-content:space-between;margin:14px 0 2px;padding-bottom:6px;border-bottom:2px solid var(--ink)}
+#werkopdrachten-panel .wkkop:first-child{margin-top:0}
+#werkopdrachten-panel .wkkop h3{margin:0;font:400 15px var(--f-display);text-transform:uppercase;display:flex;align-items:center;gap:10px}
+#werkopdrachten-panel .wkkop h3::before{content:'';width:5px;height:16px;background:var(--signal)}
+#werkopdrachten-panel .wkkop h3 span{font:400 12.5px var(--f-body);text-transform:none;color:var(--muted)}
+#werkopdrachten-panel .wkkop b{font:600 12px var(--f-mono);color:var(--muted)}
+#werkopdrachten-panel .chip.soortA{border-color:var(--ink);background:var(--ink);color:var(--vsvk-wit);font-size:10px;padding:0 5px}
+#werkopdrachten-panel .seg.wsoort{display:flex}
+#werkopdrachten-panel .seg.wsoort button{flex:1;padding:8px 12px;font-size:13px}
+#werkopdrachten-panel .seg.wsoort button[aria-pressed="true"]{background:rgba(255,78,2,.09);color:var(--ink);border-color:var(--signal);box-shadow:inset 0 -3px 0 var(--signal);font-weight:700;position:relative;z-index:1}
+#werkopdrachten-panel input.fout,#werkopdrachten-panel select.fout{outline:2px solid var(--danger);outline-offset:1px}
+#werkopdrachten-panel input.tijdin{font-family:var(--f-mono);letter-spacing:.02em}
+#werkopdrachten-panel .tijdbox{display:flex;align-items:stretch;width:100%}
+#werkopdrachten-panel .tijdbox input.tijdin{flex:1;min-width:0;border-right:0}
+#werkopdrachten-panel .tijdbox .tijdpijl{border:1px solid var(--line);border-left:0;background:var(--beige-light,var(--beige-light));color:var(--ink);padding:0 9px;cursor:pointer;font-size:12px}
+#werkopdrachten-panel .tijdbox .tijdpijl:hover{background:var(--line)}
+#werkopdrachten-panel .tijdpop{position:fixed;z-index:9999;background:var(--surface);border:1.5px solid var(--ink);box-shadow:0 8px 24px rgba(0,0,0,.18);overflow-y:auto;display:flex;flex-direction:column}
+#werkopdrachten-panel .tijdpop button{border:0;background:none;text-align:left;padding:6px 12px;font:500 13.5px var(--f-mono);color:var(--ink);cursor:pointer}
+#werkopdrachten-panel .tijdpop button:hover{background:var(--beige-light)}
+#werkopdrachten-panel .tijdpop button.on{background:var(--signal);color:var(--vsvk-wit)}
+#werkopdrachten-panel .tijdpop button.grens{border-top:1px solid var(--line)}
+#werkopdrachten-panel th input[data-pselall]{width:18px;height:18px;accent-color:var(--signal)}
+#werkopdrachten-panel .adresrij{display:flex;gap:6px;align-items:stretch}
+#werkopdrachten-panel .adresrij input{flex:1;min-width:0}
+#werkopdrachten-panel .capuitleg{margin:4px 0 0;font-size:11.5px}
+#werkopdrachten-panel .vrswitch{padding:10px 12px;margin-bottom:12px;border:1px dashed var(--line);background:var(--surface-2);display:flex;flex-direction:column;gap:4px}
+#werkopdrachten-panel .vrswitch.aan{border:1.5px solid var(--k7);background:color-mix(in srgb,var(--k7) 10%,var(--surface))}
+#werkopdrachten-panel .vrswitch small{color:var(--muted)}
+#werkopdrachten-panel .wsec [hidden]{display:none!important}
+#werkopdrachten-panel .rijen.wo tr.st-geann td{color:var(--muted);background:var(--surface-2)}
+#werkopdrachten-panel .rijen.wo tr.st-geann .wonr{text-decoration:line-through}
+#werkopdrachten-panel .rijen.wo tr.st-geann .bez .fill,#werkopdrachten-panel .rijen.wo tr.st-geann .bez .num{visibility:hidden}
+#werkopdrachten-panel .chip.ws-geann{background:var(--surface-2);color:var(--muted);border-color:var(--line)}
+#werkopdrachten-panel .wsec.fout{outline:2px solid var(--danger);outline-offset:-2px}
+#werkopdrachten-panel .foutmelding{margin:-4px 0 8px;color:var(--danger);font-size:13px}
+#werkopdrachten-panel .chip.wofase{font-size:10px}
+#werkopdrachten-panel .chip.wf-Verwerkt,#werkopdrachten-panel .chip.wf-Goedgekeurd{border-color:var(--ok);color:var(--ok)}
+#werkopdrachten-panel .chip.wf-Proforma{border-color:var(--k2);color:var(--k2)}
+#werkopdrachten-panel .chip.wf-Gefactureerd{border-color:var(--info);color:var(--info)}
+#werkopdrachten-panel .chip.wf-Bonnenbinnen,#werkopdrachten-panel .chip.wf-Uitgevoerd{border-color:var(--signal);color:var(--signal)}
+#werkopdrachten-panel .wform2{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start;max-width:1180px}
+#werkopdrachten-panel .wstappen{display:grid;gap:14px;min-width:0}
+#werkopdrachten-panel .wstap>h2{display:flex;align-items:center;gap:10px;margin:0 0 2px}
+#werkopdrachten-panel .wstap>h2 small{font:400 12px var(--f-body);text-transform:none;color:var(--muted);margin-left:4px}
+#werkopdrachten-panel .wstapnr{display:grid;place-items:center;width:26px;height:26px;flex:none;font:400 14px var(--f-display);border:2px solid var(--ink);color:var(--ink)}
+#werkopdrachten-panel .wstapnr.ok{background:var(--ok);border-color:var(--ok);color:var(--vsvk-wit);font-family:var(--f-body);font-weight:700}
+#werkopdrachten-panel .ordrij{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+#werkopdrachten-panel .ordrij input{flex:1}
+#werkopdrachten-panel .btn.link.klantadr{justify-self:start;padding-left:0;text-transform:none;letter-spacing:0;font-weight:600}
+#werkopdrachten-panel .vestkeus select{margin-top:4px}
+#werkopdrachten-panel .klantrij{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
+#werkopdrachten-panel .kinfo .btn.link{margin-left:6px;padding:0 4px;min-height:0}
+#werkopdrachten-panel .nkblok{display:grid;gap:8px;padding:10px 12px;border:1px solid var(--line);border-left:4px solid var(--signal)}
+#werkopdrachten-panel .nkkop{display:flex;align-items:center;justify-content:space-between}
+#werkopdrachten-panel .bkort{font-size:13px;color:var(--muted);margin-top:-4px}
+#werkopdrachten-panel .fnote{font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);margin-left:6px}
+#werkopdrachten-panel .urenregel{font-size:13px;padding:8px 10px;background:var(--surface-2);border-left:4px solid var(--k2)}
+#werkopdrachten-panel .btn.link.vrlink{justify-self:start;padding-left:0}
+#werkopdrachten-panel .wsnel{display:grid;gap:6px;padding-top:4px;border-top:1px dashed var(--line)}
+#werkopdrachten-panel .wsnelkaarten{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+#werkopdrachten-panel .wsnelkaart{display:grid;gap:2px;text-align:left;padding:8px 10px;background:var(--surface);border:1.5px dashed var(--muted);cursor:grab;font:inherit;color:var(--ink)}
+#werkopdrachten-panel .wsnelkaart:hover{border-style:solid;border-color:var(--signal);background:rgba(255,78,2,.05)}
+#werkopdrachten-panel .wsnelkaart b{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#werkopdrachten-panel .wsnelkaart small{font-size:11.5px;color:var(--muted)}
+#werkopdrachten-panel .wnodig{display:grid;gap:6px;padding:10px 12px;border:1px solid var(--line);background:var(--surface);transition:background .12s,border-color .12s}
+#werkopdrachten-panel .wnodig h3{margin:0;font-size:13px}
+#werkopdrachten-panel .capuitleg{margin:0}
+#werkopdrachten-panel .caprij .verhkeus{grid-column:1/2;grid-row:2;font-size:11.5px;color:var(--muted);display:flex;gap:5px;align-items:center;margin-top:-4px;cursor:pointer}
+#werkopdrachten-panel .caprij .verhkeus input{width:14px;height:14px;margin:0}
+#werkopdrachten-panel .capdruk{display:grid;gap:3px;font-size:11.5px;color:var(--muted)}
+#werkopdrachten-panel .capbalk{display:block;height:6px;background:var(--line-soft);overflow:hidden}
+#werkopdrachten-panel .capbalk i{display:block;height:100%;background:var(--ok)}
+#werkopdrachten-panel .capt b{font-weight:700}
+#werkopdrachten-panel .d-rustig .capt b{color:var(--ok)}
+#werkopdrachten-panel .d-druk .capbalk i{background:var(--warn-line)}
+#werkopdrachten-panel .d-druk .capt b{color:var(--warn)}
+#werkopdrachten-panel .d-vol .capbalk i{background:var(--signal)}
+#werkopdrachten-panel .d-vol .capt b{color:var(--signal-hover)}
+#werkopdrachten-panel .d-over .capbalk i{background:var(--signal)}
+#werkopdrachten-panel .d-over .capt b{color:var(--signal)}
+#werkopdrachten-panel .capkolom{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+#werkopdrachten-panel .capkolom .capgrid{display:grid;grid-template-columns:1fr;gap:0;border:1px solid var(--line);background:var(--surface)}
+#werkopdrachten-panel .caprij{display:grid;grid-template-columns:minmax(0,1fr) auto 128px;align-items:center;gap:10px;padding:5px 10px;border-bottom:1px solid var(--line-soft);min-height:40px;box-sizing:border-box}
+#werkopdrachten-panel .caprij:last-child{border-bottom:0}
+#werkopdrachten-panel .caprij.aan{background:rgba(255,78,2,.05)}
+#werkopdrachten-panel .caprij.aan .capnaam{color:var(--ink)}
+#werkopdrachten-panel .caprij .capnaam{font-weight:600;color:var(--muted);font-size:13.5px}
+#werkopdrachten-panel .caprij .capstep{gap:6px}
+#werkopdrachten-panel .caprij .capstep b{font-size:15px;min-width:20px}
+#werkopdrachten-panel .caprij .capbtn{width:26px;height:26px;font-size:15px}
+#werkopdrachten-panel .wsub{display:grid;gap:8px}
+#werkopdrachten-panel .wsub h3{margin:0;font:700 11px var(--f-body);text-transform:uppercase;letter-spacing:.06em;color:var(--ink)}
+#werkopdrachten-panel .ordblok{display:grid;gap:0}
+#werkopdrachten-panel .ordblok>.btn{justify-self:start}
+#werkopdrachten-panel .btn.gmaps{display:flex;align-items:center;gap:12px;justify-content:flex-start;padding:10px 16px;min-height:52px;text-transform:none;letter-spacing:0;text-decoration:none;border-color:var(--info);color:var(--info);background:var(--surface)}
+#werkopdrachten-panel .btn.gmaps .gm-ico{font-size:22px}
+#werkopdrachten-panel .btn.gmaps span{display:grid;text-align:left}
+#werkopdrachten-panel .btn.gmaps b{font-size:14.5px}
+#werkopdrachten-panel .btn.gmaps small{font-weight:400;color:var(--muted);font-size:12px}
+#werkopdrachten-panel .btn.gmaps{white-space:normal}
+#werkopdrachten-panel .wstap{min-width:0}
+#werkopdrachten-panel .btn.gmaps:hover{background:var(--info-soft);border-color:var(--info);color:var(--info)}
+@media (max-width:800px){#werkopdrachten-panel .capkolom{grid-template-columns:1fr}}
+#werkopdrachten-panel .captot{font-style:normal;font-weight:400;font-size:12px;color:var(--muted);margin-left:6px}
+#werkopdrachten-panel .capgroep h3{margin:4px 0 6px;font-size:13px;display:flex;align-items:center;gap:6px}
+#werkopdrachten-panel .capgroep h3 span{font:700 11px var(--f-mono);background:var(--surface-2);border:1px solid var(--line);padding:0 6px}
+#werkopdrachten-panel .capgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+#werkopdrachten-panel .capnaam{font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#werkopdrachten-panel .capstep{display:flex;align-items:center;gap:8px}
+#werkopdrachten-panel .capstep b{font:700 18px var(--f-mono);min-width:22px;text-align:center}
+#werkopdrachten-panel .capbtn{width:30px;height:30px;font:700 17px/1 var(--f-body);border:1.5px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;box-shadow:0 1px 0 rgba(26,26,26,.08)}
+#werkopdrachten-panel .capbtn:hover:not(:disabled){border-color:var(--ink);background:var(--beige-light)}
+#werkopdrachten-panel .capbtn:active:not(:disabled){transform:translateY(1px)}
+#werkopdrachten-panel .capbtn:disabled{opacity:.35;cursor:default}
+#werkopdrachten-panel .capbtn[data-d="1"]{border-color:var(--signal);color:var(--signal)}
+#werkopdrachten-panel .wnodig.weisen summary{display:flex;gap:10px;align-items:center;cursor:pointer;list-style:none}
+#werkopdrachten-panel .wnodig.weisen summary::before{content:"▸";font-size:11px}
+#werkopdrachten-panel .wnodig.weisen[open] summary::before{content:"▾"}
+#werkopdrachten-panel .wnodig>.btn.sm{justify-self:start}
+#werkopdrachten-panel .wnodig.wmat summary{display:flex;gap:10px;align-items:center;cursor:pointer;list-style:none}
+#werkopdrachten-panel .wnodig.wmat summary::before{content:"▸";font-size:11px}
+#werkopdrachten-panel .wnodig.wmat[open] summary::before{content:"▾"}
+#werkopdrachten-panel .wsamen{position:sticky;top:12px;display:grid;gap:10px;padding:14px;background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--signal);font-size:13px}
+#werkopdrachten-panel .wsamenkop{display:grid;gap:2px}
+#werkopdrachten-panel .wsamenkop b{font-size:15px}
+#werkopdrachten-panel .wsamenkop small{color:var(--muted)}
+#werkopdrachten-panel .wstaplijst{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+#werkopdrachten-panel .wstaplijst button{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;padding:4px 2px;font:inherit;color:var(--ink);cursor:pointer;text-align:left}
+#werkopdrachten-panel .wstaplijst button:hover{background:var(--beige-light)}
+#werkopdrachten-panel .wstaplijst i{display:grid;place-items:center;width:20px;height:20px;font-style:normal;font-size:11px;font-weight:700;border:1.5px solid var(--muted);color:var(--muted)}
+#werkopdrachten-panel .wstaplijst li.ok i{background:var(--ok);border-color:var(--ok);color:var(--vsvk-wit)}
+#werkopdrachten-panel .wsamenlijst{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:0;padding-top:8px;border-top:1px solid var(--line-soft)}
+#werkopdrachten-panel .wsamenlijst dt{color:var(--muted)}
+#werkopdrachten-panel .wsamenlijst dd{margin:0;font-weight:600}
+#werkopdrachten-panel .wnog{margin:0;color:var(--signal);font-weight:600}
+#werkopdrachten-panel .wklaar{margin:0;color:var(--ok);font-weight:700}
+#werkopdrachten-panel .wfoot2{display:grid;gap:8px}
+#werkopdrachten-panel .wfoot2 .btn{width:100%}
+@media (max-width:980px){#werkopdrachten-panel .wform2{grid-template-columns:1fr}#werkopdrachten-panel .wsamen{position:static;order:2}}
+#werkopdrachten-panel .chip.ws-ok{border-color:var(--ok);color:var(--ok)}
+#werkopdrachten-panel .chip.st-Inkoop{border-color:var(--paars);color:var(--paars);background:var(--paars-soft)}
+#werkopdrachten-panel .chip.st-Digitaal{border-color:var(--info);color:var(--info);background:var(--info-soft)}
+#werkopdrachten-panel .chip.st-Verwerkt{border-color:var(--ok);color:var(--ok)}
+#werkopdrachten-panel .chip.ws-vol{border-color:var(--ok);color:var(--ok);background:var(--ok-soft)}
+#werkopdrachten-panel .rh.open b{color:var(--danger)}
+#werkopdrachten-panel .rh.klik{cursor:pointer}
+#werkopdrachten-panel .rh.klik:hover b{text-decoration:underline;text-decoration-color:var(--signal);text-underline-offset:3px}
+#werkopdrachten-panel .chip.st-Vervallen{text-decoration:line-through;opacity:.7}
+#werkopdrachten-panel .seg{display:inline-flex}
+#werkopdrachten-panel .seg button{font:600 12px var(--f-body);border:1.5px solid var(--line);background:var(--surface);color:var(--muted);padding:5px 12px;cursor:pointer}
+#werkopdrachten-panel .seg button+button{margin-left:-1.5px}
+#werkopdrachten-panel .seg button[aria-pressed="true"]{background:rgba(255,78,2,.09);color:var(--ink);border-color:var(--signal);box-shadow:inset 0 -3px 0 var(--signal);font-weight:700;position:relative;z-index:1}
+#werkopdrachten-panel .wonr{font:600 12px var(--f-mono);color:var(--signal);letter-spacing:.02em;white-space:nowrap}
+#werkopdrachten-panel .pagehead .wonr{display:inline-block;margin:0 0 4px 20px;font-size:13px}
+#werkopdrachten-panel .adr{display:grid;grid-template-columns:minmax(0,1fr) 72px 58px;gap:8px}
+#werkopdrachten-panel .adr2{display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px}
+#werkopdrachten-panel .tl{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border:1px solid var(--line);background:var(--surface-2)}
+#werkopdrachten-panel .tl div{padding:8px 10px;display:grid;gap:1px;border-right:1px solid var(--line);min-width:0}
+#werkopdrachten-panel .tl div:last-child{border-right:0}
+#werkopdrachten-panel .tl small{font:600 10px var(--f-body);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+#werkopdrachten-panel .tl b{font:600 18px var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+#werkopdrachten-panel .tl b sup{font-size:10px;color:var(--signal);margin-left:3px;font-weight:700}
+#werkopdrachten-panel .tl span{font-size:11.5px;color:var(--muted)}
+@media (max-width:640px){#werkopdrachten-panel .tl{grid-template-columns:repeat(2,minmax(0,1fr))}#werkopdrachten-panel .tl div:nth-child(2){border-right:0}#werkopdrachten-panel .tl div:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+#werkopdrachten-panel .dchip{display:inline-flex;align-items:center;gap:5px;font:700 10.5px/1.6 var(--f-body);text-transform:uppercase;letter-spacing:.05em;padding:0 7px;white-space:nowrap}
+#werkopdrachten-panel .dchip.nacht{background:var(--vsvk-zwart);color:var(--vsvk-wit)}
+#werkopdrachten-panel .dchip.dag{background:var(--signal);color:var(--vsvk-wit)}
+#werkopdrachten-panel[data-theme="dark"] .dchip.nacht{background:var(--vsvk-wit);color:var(--vsvk-zwart)}
+@media (prefers-color-scheme:dark){#werkopdrachten-panel:not([data-theme="light"]) .dchip.nacht{background:var(--vsvk-wit);color:var(--vsvk-zwart)}}
+#werkopdrachten-panel .pagehead{padding:14px 90px 12px 18px;clip-path:polygon(0 0,100% 0,calc(100% - 60px) 100%,0 100%)}
+#werkopdrachten-panel .pagehead h1{font-size:clamp(18px,2.2vw,24px);border-left-width:5px;padding-left:12px}
+#werkopdrachten-panel .pagehead p{margin:4px 0 0 17px;font-size:13px;max-width:90ch}
+#werkopdrachten-panel .pagehead .wonr{margin:0 0 2px 17px}
+#werkopdrachten-panel .btn{border-width:1.5px;border-color:var(--line);font-size:11.5px;letter-spacing:.05em;padding:6px 12px}
+#werkopdrachten-panel .btn:hover{background:var(--surface-2);color:var(--ink);border-color:var(--ink)}
+#werkopdrachten-panel .btn.primary{border-color:var(--signal)}
+#werkopdrachten-panel .btn.sm{border-width:1px;padding:3px 8px;font-size:10.5px}
+#werkopdrachten-panel .btn.link{border-color:transparent;background:none;color:var(--muted);padding:3px 6px;text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:600}
+#werkopdrachten-panel .btn.link:hover{color:var(--ink);text-decoration:underline;text-decoration-color:var(--signal);text-underline-offset:3px;background:none}
+#werkopdrachten-panel .btn.danger{border-color:var(--danger)}
+#werkopdrachten-panel .btn{min-height:32px;box-sizing:border-box;justify-content:center;background:var(--surface);box-shadow:0 1px 0 rgba(26,26,26,.08),0 1px 3px rgba(26,26,26,.05);transition:background .12s,border-color .12s,box-shadow .12s,transform .06s}
+#werkopdrachten-panel .btn:hover{background:var(--beige-light);border-color:var(--ink);color:var(--ink)}
+#werkopdrachten-panel .btn:active:not(:disabled){transform:translateY(1px);box-shadow:none}
+#werkopdrachten-panel .btn:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+#werkopdrachten-panel .btn.sm{min-height:26px}
+#werkopdrachten-panel .btn.primary{background:var(--signal);color:var(--vsvk-wit);border-color:var(--signal);box-shadow:0 1px 0 rgba(160,45,0,.45),0 2px 6px rgba(255,78,2,.22);clip-path:polygon(0 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%);padding-right:16px}
+#werkopdrachten-panel .btn.primary.sm{clip-path:polygon(0 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%);padding-right:11px}
+#werkopdrachten-panel .btn.primary:hover{background:var(--signal-hover);border-color:var(--signal-hover);color:var(--vsvk-wit)}
+#werkopdrachten-panel .btn.ghost,#werkopdrachten-panel .btn.link{background:none;box-shadow:none}
+#werkopdrachten-panel .btn.ghost:hover{background:var(--surface-2)}
+#werkopdrachten-panel .btn.danger:hover{background:var(--danger);color:var(--vsvk-wit)}
+#werkopdrachten-panel .btn[data-confirm="1"]{background:var(--danger);border-color:var(--danger);color:var(--vsvk-wit)}
+#werkopdrachten-panel .btn:disabled{opacity:.45;box-shadow:none;background:var(--surface)}
+#werkopdrachten-panel .btn.primary:disabled{background:var(--signal);opacity:.4}
+#werkopdrachten-panel .wknav .btn{box-shadow:none}
+#werkopdrachten-panel .wknav{box-shadow:0 1px 0 rgba(26,26,26,.08),0 1px 3px rgba(26,26,26,.05)}
+#werkopdrachten-panel h2{font-size:14px}
+#werkopdrachten-panel .panel{padding:14px 16px}
+#werkopdrachten-panel .rh b{font-size:13.5px}
+#werkopdrachten-panel details.menu{position:relative}
+#werkopdrachten-panel details.menu>summary{list-style:none;cursor:pointer}
+#werkopdrachten-panel details.menu>summary::-webkit-details-marker{display:none}
+#werkopdrachten-panel .menu-pop{position:absolute;right:0;top:calc(100% + 4px);z-index:9;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);display:grid;min-width:210px;padding:4px}
+#werkopdrachten-panel .menu-pop button{background:none;border:0;text-align:left;padding:9px 12px;font:600 13px var(--f-body);color:var(--ink);cursor:pointer;display:grid;gap:1px}
+#werkopdrachten-panel .menu-pop button small{font-weight:400;color:var(--muted);font-size:11.5px}
+#werkopdrachten-panel .menu-pop button:hover{background:var(--surface-2)}
+#werkopdrachten-panel .uitleg{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:6px 18px;font-size:12.5px;color:var(--muted);background:var(--surface);border:1px solid var(--line);padding:10px 12px}
+#werkopdrachten-panel .uitleg b{color:var(--ink)}
+#werkopdrachten-panel .rh small{gap:6px}
+#werkopdrachten-panel .wsec{padding:14px 16px;gap:10px}
+#werkopdrachten-panel .fg.t2{grid-template-columns:repeat(2,minmax(0,1fr))}
+#werkopdrachten-panel .fg.t3{grid-template-columns:repeat(3,minmax(0,1fr))}
+#werkopdrachten-panel .fg.t4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:640px){#werkopdrachten-panel .fg.t3,#werkopdrachten-panel .fg.t4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+#werkopdrachten-panel .mini{font-size:12px;color:var(--muted);margin:-2px 0 0}
+#werkopdrachten-panel .tregel{font-size:12px;margin:0}
+#werkopdrachten-panel .tl.zacht{background:none;border:1px solid var(--line-soft)}
+#werkopdrachten-panel .tl.zacht div{padding:5px 10px;border-right-color:var(--line-soft)}
+#werkopdrachten-panel .tl.zacht small{font-size:9.5px}
+#werkopdrachten-panel .tl.zacht b{font:400 14px var(--f-body);font-variant-numeric:tabular-nums;color:var(--ink)}
+#werkopdrachten-panel .tregel b{font:600 13px var(--f-mono);color:var(--ink)}
+#werkopdrachten-panel .dagrij{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+#werkopdrachten-panel .tl div{padding:7px 10px}
+#werkopdrachten-panel .tl b{font-size:16px}
+#werkopdrachten-panel [hidden]{display:none!important}
+#werkopdrachten-panel .verleden{position:absolute;left:0;top:0;bottom:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(135deg,transparent 0 6px,var(--line-soft) 6px 7px);background-color:rgba(127,127,127,.07)}
+@media (max-width:980px){#werkopdrachten-panel{--namew:150px}}
+@media (max-width:640px){#werkopdrachten-panel .pagehead{padding:16px 50px 14px 14px;clip-path:polygon(0 0,100% 0,calc(100% - 40px) 100%,0 100%)}#werkopdrachten-panel{--namew:120px}}
+@media (prefers-color-scheme:dark){#werkopdrachten-panel:not([data-theme="light"]) .testband{background:var(--warn-soft);color:var(--warn-line);border-color:var(--warn)}#werkopdrachten-panel:not([data-theme="light"]) tr.ukhit td{background:var(--warn-soft)}}
+#werkopdrachten-panel[data-theme="dark"] .testband{background:var(--warn-soft);color:var(--warn-line);border-color:var(--warn)}
+#werkopdrachten-panel .btn.link.sm{padding:0 6px;height:auto;min-height:0}
+#werkopdrachten-panel .kort{display:none}
+#werkopdrachten-panel .rh[data-drag]{cursor:grab}
+#werkopdrachten-panel .optchip{background:var(--warn-soft);color:var(--warn);border-color:var(--warn-line)}
+#werkopdrachten-panel .optchip.oud{background:var(--danger);color:var(--vsvk-wit);border-color:var(--danger)}
+#werkopdrachten-panel .wkrij{display:grid;grid-template-columns:var(--namew) repeat(7,minmax(130px,1fr));border-bottom:1px solid var(--line)}
+#werkopdrachten-panel .wkkop{position:sticky;top:0;z-index:4;background:var(--surface);border-bottom:2px solid var(--ink)}
+#werkopdrachten-panel .dnst{display:grid;gap:10px;margin-bottom:10px}
+#werkopdrachten-panel .dndag{border:1px solid var(--line);background:var(--surface)}
+#werkopdrachten-panel .dndkop{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:7px 10px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+#werkopdrachten-panel .dndkop b{text-transform:capitalize;margin-right:auto}
+#werkopdrachten-panel .dnknop{display:flex;flex-wrap:wrap;gap:6px}
+#werkopdrachten-panel .dnrij{display:grid;grid-template-columns:110px auto minmax(0,1fr) 32px;align-items:center;gap:8px 12px;padding:7px 10px;border-bottom:1px solid var(--line-soft)}
+#werkopdrachten-panel .dnrij:last-child{border-bottom:0}
+#werkopdrachten-panel .dnnaam{font-weight:600;padding:4px 6px;min-width:0}
+#werkopdrachten-panel .dntijd{display:flex;align-items:center;gap:4px;white-space:nowrap}
+#werkopdrachten-panel .dntijd .tijdbox input{width:62px}
+#werkopdrachten-panel .dntijd .plus1{font:600 10.5px var(--f-mono);color:var(--muted);display:inline-block;width:16px}
+#werkopdrachten-panel .dnbez{display:flex;flex-wrap:wrap;gap:4px 6px}
+#werkopdrachten-panel .dnleeg{padding:8px 10px}
+@media (max-width:760px){#werkopdrachten-panel .dnrij{grid-template-columns:1fr auto 32px}#werkopdrachten-panel .dnbez{grid-column:1/-1}}
+#werkopdrachten-panel .tip{position:relative;display:inline-flex;align-items:center}
+#werkopdrachten-panel .swl.duo{gap:8px;min-height:34px}
+#werkopdrachten-panel .swlbl{color:var(--muted);cursor:pointer;user-select:none;background:none;border:0;padding:2px 0;font:inherit;font-size:13px;text-transform:none;letter-spacing:0}
+#werkopdrachten-panel .swlbl.act{color:var(--ink);font-weight:600}
+#werkopdrachten-panel .tippop{display:none;position:absolute;left:0;top:calc(100% + 6px);z-index:40;min-width:260px;max-width:340px;background:var(--surface);border:1.5px solid var(--ink);box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px 0;text-transform:none;letter-spacing:0;font-weight:400}
+#werkopdrachten-panel .tippop::before{content:'';position:absolute;top:-6px;left:18px;width:10px;height:10px;background:var(--surface);border-left:1.5px solid var(--ink);border-top:1.5px solid var(--ink);transform:rotate(45deg)}
+#werkopdrachten-panel .tip:hover .tippop,#werkopdrachten-panel .tip:focus-within .tippop{display:grid;animation:tipIn .12s ease-out .25s both}
+@keyframes tipIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+#werkopdrachten-panel .tiprij{display:grid;gap:2px;padding:7px 12px}
+#werkopdrachten-panel .tiprij+.tiprij{border-top:1px solid var(--line-soft)}
+#werkopdrachten-panel .tiprij b{font:600 13px var(--f-body);color:var(--ink)}
+#werkopdrachten-panel .tiprij small{font-size:12px;line-height:1.4;color:var(--muted)}
+#werkopdrachten-panel .schuifrij{margin:4px 0 6px}
+#werkopdrachten-panel .fg>.f:last-child .tippop{left:auto;right:0}
+#werkopdrachten-panel .fg>.f:last-child .tippop::before{left:auto;right:18px}
+@media (hover:none){#werkopdrachten-panel .tip:hover .tippop{display:none}#werkopdrachten-panel .tip:focus-within .tippop{display:grid}}

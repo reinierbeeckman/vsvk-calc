@@ -43,7 +43,8 @@ public sealed class PlanningBoardRepository(
               .OrderBy(assignment => assignment.Datum)
               .Select(assignment => new PlanningBoardMaterialAssignmentDto(
                 assignment.Id, assignment.Datum, assignment.MaterieelId,
-                assignment.Materieel.Omschrijving ?? assignment.Materieel.Zoeknaam ?? assignment.Materieel.Kenteken)).ToList())).ToList(),
+                assignment.Materieel.Omschrijving ?? assignment.Materieel.Zoeknaam ?? assignment.Materieel.Kenteken,
+                assignment.MedewerkerId)).ToList())).ToList(),
         order.VestigingId, order.OptieTot, order.Soort, order.InternProjectnummer, order.BestellerId,
         order.BestellerNaam, order.BestellerTelefoon, order.BestellerEmail, order.OptieReden,
         order.WeekendOverslaan, order.VrijeDagen.Select(item => item.Datum).ToList(), order.Voorraad,
@@ -330,8 +331,12 @@ public sealed class PlanningBoardRepository(
       .Where(item => item.InhuurmedewerkerId.HasValue).Select(item => item.InhuurmedewerkerId!.Value).Distinct().ToList();
     var equipmentIds = jobs.SelectMany(job => job.MaterieelInzetten ?? [])
       .Select(item => item.MaterieelId).Distinct().ToList();
+    var operatorIds = jobs.SelectMany(job => job.MaterieelInzetten ?? [])
+      .Where(item => item.MedewerkerId.HasValue).Select(item => item.MedewerkerId!.Value).Distinct().ToList();
     return await context.UserInformation.AsNoTracking().CountAsync(
       item => employeeIds.Contains(item.KeycloakSubject), cancellationToken) == employeeIds.Count
+      && await context.UserInformation.AsNoTracking().CountAsync(
+        item => operatorIds.Contains(item.KeycloakSubject), cancellationToken) == operatorIds.Count
       && await context.Inhuurmedewerkers.AsNoTracking().CountAsync(
         item => subcontractorIds.Contains(item.Id), cancellationToken) == subcontractorIds.Count
       && await context.MaterieelItems.AsNoTracking().CountAsync(
@@ -380,7 +385,7 @@ public sealed class PlanningBoardRepository(
         job.MaterieelInzetten.Add(new MaterieelInzet
         {
           Id = Guid.NewGuid(), KlusId = job.Id, Datum = materialRequest.Datum,
-          MaterieelId = materialRequest.MaterieelId
+          MaterieelId = materialRequest.MaterieelId, MedewerkerId = materialRequest.MedewerkerId
         });
 
       order.Klussen.Add(job);

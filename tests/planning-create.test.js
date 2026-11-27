@@ -26,7 +26,7 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
 
 async function setup(canEdit, options = {}) {
   const ids = ['head', 'body', 'message', 'search', 'detail', 'detail-save', 'title', 'description',
-    'list-nav', 'list-panel', 'planbord-panel', 'planning-pages-panel', 'unavailable', 'add', 'list-hint', 'count', 'empty', 'detail-title', 'detail-subtitle', 'detail-body'];
+    'list-nav', 'list-panel', 'planbord-panel', 'planbord-scherm', 'werkbonnen-scherm', 'werkopdrachten-panel', 'global-pagehead', 'planning-pages-panel', 'unavailable', 'add', 'list-hint', 'count', 'empty', 'detail-title', 'detail-subtitle', 'detail-body'];
   const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
   const lists = ['medewerkers', 'klanten', 'materieel', 'artikelen', 'tarieven', 'leveranciers'].map(name => {
     const element = new Element('button'); element.dataset.list = name; return element;

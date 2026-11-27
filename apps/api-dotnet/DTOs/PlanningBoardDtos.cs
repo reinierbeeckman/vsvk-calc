@@ -25,7 +25,7 @@ public sealed record PlanningBoardJobDto(
   List<PlanningBoardMaterialAssignmentDto>? MaterieelInzetten = null);
 
 public sealed record PlanningBoardMaterialAssignmentDto(
-  Guid Id, DateOnly Datum, Guid MaterieelId, string? Materieel);
+  Guid Id, DateOnly Datum, Guid MaterieelId, string? Materieel, Guid? MedewerkerId = null);
 
 public sealed record PlanningJobNeedDto(
   int Aantal, string? Rol, string? Skill, Guid? MaterieelId = null, bool LosseVerhuur = false,
@@ -76,7 +76,7 @@ public sealed record PlanningBoardJobWriteDto(
   DateOnly? Datum = null, TimeSpan? ReisHeen = null, TimeSpan? ReisTerug = null,
   List<PlanningBoardMaterialAssignmentWriteDto>? MaterieelInzetten = null);
 
-public sealed record PlanningBoardMaterialAssignmentWriteDto(DateOnly Datum, Guid MaterieelId);
+public sealed record PlanningBoardMaterialAssignmentWriteDto(DateOnly Datum, Guid MaterieelId, Guid? MedewerkerId = null);
 
 public sealed record PlanningBoardWorkOrderWriteDto(
   string? Nummer, int KlantId, string? Omschrijving, DateOnly StartDatum, DateOnly EindDatum,

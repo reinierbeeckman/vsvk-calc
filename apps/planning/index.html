@@ -8,6 +8,9 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Overpass:wght@400;600;700&family=Overpass+Mono:wght@500;600&display=swap">
   <link rel="stylesheet" href="/shared/layout.css">
   <link rel="stylesheet" href="/planning/planning.css">
+  <link rel="stylesheet" href="/planning/werkopdrachten.css">
+  <link rel="stylesheet" href="/planning/planbord-scherm.css">
+  <link rel="stylesheet" href="/planning/werkbonnen-scherm.css">
 </head>
 <body>
   <div data-vsvk-header data-application="planning" data-title="Planning mensen &amp; materieel"><nav class="tabs" aria-label="Planning onderdelen"><button type="button" data-section="Overzicht">Overzicht</button><button type="button" data-section="Werkopdrachten">Werkopdrachten</button><button type="button" data-section="Planbord">Planbord</button><button type="button" data-section="Werkbonnen">Werkbonnen</button><button type="button" data-section="Team">Team</button><button type="button" data-section="Lijsten" aria-selected="true">Lijsten</button></nav></div>
@@ -15,7 +18,7 @@
   <div class="vsvk-loading-status" data-vsvk-loading-status role="status" aria-live="polite"></div>
   <script src="/shared/loading.js"></script>
   <main class="wrap">
-    <div class="pagehead"><h1 id="title">Medewerkers</h1><p id="description"></p></div>
+    <div class="pagehead" id="global-pagehead"><h1 id="title">Medewerkers</h1><p id="description"></p></div>
     <nav class="subnav" id="list-nav" aria-label="Lijsten"><button type="button" data-list="medewerkers">Medewerkers</button><button type="button" data-list="klanten">Klanten</button><button type="button" data-list="materieel">Materieel</button><button type="button" data-list="artikelen">Artikelen</button><button type="button" data-list="ordernummers">Ordernummers</button><button type="button" data-list="tarieven">Tarieven</button><button type="button" data-list="leveranciers">Leveranciers</button><button type="button" data-list="instellingen">Instellingen</button><button type="button" data-list="huisstijl">Huisstijl</button><button type="button" data-list="rollen">Rollen &amp; rechten</button></nav>
     <section class="panel" id="list-panel">
       <div class="ltool"><button class="btn primary" id="add" type="button" disabled title="Nog niet beschikbaar">+ Medewerker</button><button class="btn" type="button" disabled title="Nog niet beschikbaar">Importeren</button><button class="btn" type="button" disabled title="Nog niet beschikbaar">Exporteren</button><input type="search" id="search" aria-label="Zoeken in lijst" placeholder="Zoeken in medewerkers…"><span class="hint lcount" id="count"></span></div>
@@ -24,10 +27,16 @@
     </section>
     <section id="planning-pages-panel" hidden></section>
     <section id="planbord-panel" hidden></section>
+    <section id="werkopdrachten-panel" hidden></section>
+    <section id="planbord-scherm" hidden></section>
+    <section id="werkbonnen-scherm" hidden></section>
   </main>
   <dialog id="detail" aria-labelledby="detail-title"><div class="mbox"><div class="mhead"><div><h2 id="detail-title"></h2><p class="hint" id="detail-subtitle"></p></div><button class="btn ghost" type="button" data-close aria-label="Sluiten">✕</button></div><div class="mbody" id="detail-body"></div><div class="mfoot"><button class="btn customer-only customer-delete" type="button" disabled title="Nog niet beschikbaar">Verwijderen</button><button class="btn primary" id="detail-save" type="button" disabled>Opslaan</button><button class="btn" type="button" data-close>Sluiten</button></div></div></dialog>
   <script src="/planning/record-editor.js"></script>
   <script src="/planning/planbord.js"></script>
+  <script src="/planning/werkopdrachten.js"></script>
+  <script src="/planning/planbord-scherm.js"></script>
+  <script src="/planning/werkbonnen-scherm.js"></script>
   <script src="/planning/planning-pages.js"></script>
   <script src="/planning/planning.js"></script>
 </body>

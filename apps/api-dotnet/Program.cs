@@ -33,6 +33,7 @@ builder.Services.AddScoped<VestigingRepository>();
 builder.Services.AddScoped<ArtikelRepository>();
 builder.Services.AddScoped<PlanningRepository>();
 builder.Services.AddScoped<PlanningBoardRepository>();
+builder.Services.AddScoped<PlanningCrewRepository>();
 builder.Services.AddScoped<PlanningWorkOrderNumberAllocator>();
 builder.Services.AddScoped<PlanningTimelineService>();
 builder.Services.AddScoped<IPlanningEmployeeDevelopmentRepository>(services => services.GetRequiredService<PlanningRepository>());
@@ -350,6 +351,7 @@ app.MapPlanningEndpoints();
 app.MapPlanningEmployeeDevelopmentEndpoints();
 app.MapPlanningMaterieelMutationEndpoints();
 app.MapPlanningBoardEndpoints();
+app.MapPlanningCrewEndpoints();
 app.MapPlanningTariffDetailEndpoints();
 app.MapUserProfileEndpoints();
 
