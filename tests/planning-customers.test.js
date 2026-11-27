@@ -25,7 +25,7 @@ class Element {
 }
 
 function setup(detailResponse, fixtures = {}, loading = { begin: () => () => {} }) {
-  const ids = ['head', 'body', 'message', 'search', 'detail', 'title', 'description', 'list-nav', 'list-panel', 'planbord-panel', 'werkopdrachten-panel', 'global-pagehead', 'planning-pages-panel', 'unavailable', 'add', 'list-hint', 'count', 'empty', 'detail-title', 'detail-subtitle', 'detail-body', 'detail-save'];
+  const ids = ['head', 'body', 'message', 'search', 'detail', 'title', 'description', 'list-nav', 'list-panel', 'planbord-panel', 'planbord-scherm', 'werkopdrachten-panel', 'global-pagehead', 'planning-pages-panel', 'unavailable', 'add', 'list-hint', 'count', 'empty', 'detail-title', 'detail-subtitle', 'detail-body', 'detail-save'];
   const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
   const lists = ['medewerkers', 'klanten', 'materieel', 'artikelen', 'ordernummers', 'tarieven', 'leveranciers', 'instellingen', 'huisstijl', 'rollen'].map(list => new Element({ list }));
   const sections = [new Element({ section: 'Lijsten' }), new Element({ section: 'Werkopdrachten' }), new Element({ section: 'Planbord' })];
@@ -56,7 +56,7 @@ function setup(detailResponse, fixtures = {}, loading = { begin: () => () => {} 
   };
   const boardOpens = [];
   const context = { document, window: {
-    addEventListener() {}, VsvkLoading: loading, VsvkPlanBoard: { open: config => boardOpens.push(config) }, VsvkWorkOrders: { open: config => boardOpens.push({ ...config, mode: 'workorders' }) }
+    addEventListener() {}, VsvkLoading: loading, VsvkPlanBoard: { open: config => boardOpens.push(config) }, VsvkWorkOrders: { open: config => boardOpens.push({ ...config, mode: 'workorders' }) }, VsvkPlanbord: { open: config => boardOpens.push({ ...config, mode: 'board' }) }
   }, fetch, Map, Set, Error };
   vm.runInNewContext(editorScript, context);
   vm.runInNewContext(script, context);
@@ -156,6 +156,19 @@ test('hoofdtab Werkopdrachten opent de werkopdrachtenweergave', async () => {
   assert.equal(view.elements['global-pagehead'].hidden, true);
   assert.equal(view.elements.unavailable.hidden, true);
   assert.equal(view.boardOpens.at(-1).mode, 'workorders');
+});
+
+test('hoofdtab Planbord opent het planbordscherm en verbergt de algemene paginakop', async () => {
+  const view = setup(async () => ({}), {
+    '/bff/user': { permissions: { canEditPlanningRecords: false, canEditWorkOrders: true } }
+  });
+  await flush();
+  view.sections.find(section => section.dataset.section === 'Planbord').click();
+  await flush();
+  assert.equal(view.elements['planbord-scherm'].hidden, false);
+  assert.equal(view.elements['werkopdrachten-panel'].hidden, true);
+  assert.equal(view.elements['global-pagehead'].hidden, true);
+  assert.equal(view.boardOpens.at(-1).mode, 'board');
 });
 
 test('development kan leverancierdetails wijzigen en opslaan', async () => {

@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/shared/layout.css">
   <link rel="stylesheet" href="/planning/planning.css">
   <link rel="stylesheet" href="/planning/werkopdrachten.css">
+  <link rel="stylesheet" href="/planning/planbord-scherm.css">
 </head>
 <body>
   <div data-vsvk-header data-application="planning" data-title="Planning mensen &amp; materieel"><nav class="tabs" aria-label="Planning onderdelen"><button type="button" data-section="Overzicht">Overzicht</button><button type="button" data-section="Werkopdrachten">Werkopdrachten</button><button type="button" data-section="Planbord">Planbord</button><button type="button" data-section="Werkbonnen">Werkbonnen</button><button type="button" data-section="Team">Team</button><button type="button" data-section="Lijsten" aria-selected="true">Lijsten</button></nav></div>
@@ -26,11 +27,13 @@
     <section id="planning-pages-panel" hidden></section>
     <section id="planbord-panel" hidden></section>
     <section id="werkopdrachten-panel" hidden></section>
+    <section id="planbord-scherm" hidden></section>
   </main>
   <dialog id="detail" aria-labelledby="detail-title"><div class="mbox"><div class="mhead"><div><h2 id="detail-title"></h2><p class="hint" id="detail-subtitle"></p></div><button class="btn ghost" type="button" data-close aria-label="Sluiten">✕</button></div><div class="mbody" id="detail-body"></div><div class="mfoot"><button class="btn customer-only customer-delete" type="button" disabled title="Nog niet beschikbaar">Verwijderen</button><button class="btn primary" id="detail-save" type="button" disabled>Opslaan</button><button class="btn" type="button" data-close>Sluiten</button></div></div></dialog>
   <script src="/planning/record-editor.js"></script>
   <script src="/planning/planbord.js"></script>
   <script src="/planning/werkopdrachten.js"></script>
+  <script src="/planning/planbord-scherm.js"></script>
   <script src="/planning/planning-pages.js"></script>
   <script src="/planning/planning.js"></script>
 </body>

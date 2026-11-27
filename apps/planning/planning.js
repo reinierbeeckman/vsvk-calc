@@ -86,9 +86,10 @@
       const showsWorkOrders = section === 'Werkopdrachten';
       const showsWorkBoard = section === 'Planbord';
       document.querySelector('#werkopdrachten-panel').hidden = !showsWorkOrders;
-      document.querySelector('#global-pagehead').hidden = showsWorkOrders;
+      document.querySelector('#planbord-scherm').hidden = !showsWorkBoard;
+      document.querySelector('#global-pagehead').hidden = showsWorkOrders || showsWorkBoard;
       const showsPlanningPage = ['Overzicht', 'Werkbonnen', 'Team'].includes(section);
-      document.querySelector('#planbord-panel').hidden = !showsWorkBoard;
+      document.querySelector('#planbord-panel').hidden = true;
       document.querySelector('#planning-pages-panel').hidden = !showsPlanningPage;
       if (section === 'Lijsten') { refreshCounts(current); return load(current); }
       ++loadNumber;
@@ -99,15 +100,14 @@
       if (showsWorkOrders) {
         window.VsvkWorkOrders.open({
           container: document.querySelector('#werkopdrachten-panel'), request, canEdit: workOrderPermissions,
-          navigate: (target, extra) => showSection(target, extra || {})
+          navigate: (target, extra) => showSection(target, extra || {}), edit: options.edit, nieuw: options.nieuw
         });
         return;
       }
       if (showsWorkBoard) {
-        document.querySelector('#description').textContent = 'Weekplanning van werkopdrachten, klussen, personeel, inhuur en werkbonnen.';
-        window.VsvkPlanBoard.open({
-          container: document.querySelector('#planbord-panel'), request, canEdit: workOrderPermissions,
-          mode: 'board', date: options.date
+        window.VsvkPlanbord.open({
+          container: document.querySelector('#planbord-scherm'), request, canEdit: workOrderPermissions,
+          navigate: (target, extra) => showSection(target, extra || {}), date: options.date
         });
         return;
       }
@@ -137,6 +137,7 @@
       document.querySelector('#list-panel').hidden = !definition.path;
       document.querySelector('#planbord-panel').hidden = true;
       document.querySelector('#werkopdrachten-panel').hidden = true;
+      document.querySelector('#planbord-scherm').hidden = true;
       document.querySelector('#global-pagehead').hidden = false;
       document.querySelector('#planning-pages-panel').hidden = true;
       if (!definition.path) return;

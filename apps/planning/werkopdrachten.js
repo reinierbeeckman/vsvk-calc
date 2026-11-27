@@ -234,9 +234,9 @@
 
   function toast(tekst, slecht) {
     let node = document.getElementById('wo-toast');
-    if (!node) { node = document.createElement('div'); node.id = 'wo-toast'; node.className = 'toast'; node.setAttribute('role', 'status'); node.setAttribute('aria-live', 'polite'); document.body.append(node); }
-    node.textContent = tekst; node.className = 'toast show' + (slecht ? ' bad' : '');
-    clearTimeout(toastTimer); toastTimer = setTimeout(() => { node.className = 'toast'; }, 4500);
+    if (!node) { node = document.createElement('div'); node.id = 'wo-toast'; node.className = 'board-toast'; node.setAttribute('role', 'status'); node.setAttribute('aria-live', 'polite'); document.body.append(node); }
+    node.textContent = tekst; node.className = 'board-toast show' + (slecht ? ' bad' : '');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { node.className = 'board-toast'; }, 4500);
   }
 
   /* ---------- laden ---------- */
@@ -559,11 +559,15 @@
       window.scrollTo(0, 0); render();
     } catch (error) { toast('Werkopdracht laden mislukt: ' + error.message, true); }
   }
-  async function nieuwWerk() {
+  async function nieuwWerk(voorinvulling) {
     try {
       const refs = await laadReferenties();
-      ui.edit = nieuwConcept(refs, { van: wkStand() !== 'alle' && wkStand() > vandaag() ? wkStand() : vandaag() });
+      const v = voorinvulling || {};
+      ui.edit = nieuwConcept(refs, { van: v.van || (wkStand() !== 'alle' && wkStand() > vandaag() ? wkStand() : vandaag()) });
+      if (v.klantId) { ui.edit.klantId = String(v.klantId); const k = klantVan(ui.edit), c = k && (k.contacten || [])[0]; ui.edit.kleur = kleurVoorKlant(ui.edit.klantId); if (c) ui.edit.besteller = { naam: c.naam, telefoon: c.telefoon || '', email: c.email || '', _keuze: String(c.id) }; }
+      if (v.aanwezig != null) ui.edit.aanwezig = v.aanwezig;
       ui.bericht = ''; ui.conflict = false; ui.cap = null; ui.eerder = []; window.scrollTo(0, 0); render();
+      if (v.klantId) laadEerder();
     } catch (error) { toast('Formulier laden mislukt: ' + error.message, true); }
   }
   function sluitFormulier(herlaad) { ui.edit = null; ui.bericht = ''; ui.conflict = false; window.scrollTo(0, 0); render(); if (herlaad) laadLijst(); }
@@ -822,6 +826,7 @@
     ui.edit = null; ui.bericht = ''; ui.conflict = false;
     render();
     await laadLijst();
+    if (config.edit) await openWerk(config.edit); else if (config.nieuw) await nieuwWerk(config.nieuw);
   }
 
   window.VsvkWorkOrders = {

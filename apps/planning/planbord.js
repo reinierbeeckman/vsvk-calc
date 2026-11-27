@@ -963,5 +963,5 @@
     node.showModal();
   }
 
-  window.VsvkPlanBoard = { open, load };
+  window.VsvkPlanBoard = { open, load, writeValue };
 }());
